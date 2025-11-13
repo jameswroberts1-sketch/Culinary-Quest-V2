@@ -1,58 +1,42 @@
-export function render(root, model, actions, skin){
-  root.classList.add("screen","rsvp");
+export function render(root, model, actions){
   root.innerHTML = `
-    <main class="wrap ${skin.classes.paper}">
-      <header class="brand">
-        <img class="brand__logo" alt="${skin.name} logo" />
-        <h1 class="brand__title">${skin.title}</h1>
-        <p class="brand__tag">${skin.tagline}</p>
-      </header>
-      <section class="card">
-        <h2>Players</h2>
-        <ul class="list" id="players"></ul>
-        <button class="btn btn-primary" id="join">Join</button>
-      </section>
-      <section class="card">
-        <h2>Schedule</h2>
-        <div id="sched"></div>
-        <button class="btn btn-secondary" id="start">Let the games begin</button>
-      </section>
-    </main>
+    <h2>Players</h2>
+    <ul class="list" id="players"></ul>
+    <button class="btn btn-primary" id="join">Join</button>
+    <hr style="opacity:.2;margin:12px 0">
+    <h2>Schedule</h2>
+    <div id="sched"></div>
+    <button class="btn btn-secondary" id="start" style="margin-top:8px">Let the games begin</button>
   `;
-  skin.hydrateBrand(root);
-  const ul = root.querySelector("#players");
-  const sc = root.querySelector("#sched");
-  const joinBtn = root.querySelector("#join");
-  const startBtn = root.querySelector("#start");
-
-  function draw(){
-    ul.innerHTML = model.players.map((n,i)=>`<li>#${i+1} ${n||"—"}</li>`).join("");
-    sc.innerHTML = model.schedule.map((s,i)=>`
+  const players = root.querySelector("#players");
+  const sched = root.querySelector("#sched");
+  const draw = ()=>{
+    players.innerHTML = model.players.map((n,i)=>`<li>#${i+1} ${n||"—"}</li>`).join("");
+    sched.innerHTML = model.schedule.map((s,i)=>`
       <div class="row">
         <span>#${i+1} ${model.players[i]||"—"}</span>
-        <input data-i="${i}" type="date" value="${s.iso||""}"/>
-        <input data-i="${i}" type="time" value="${s.time||""}"/>
-      </div>
-    `).join("");
-  }
+        <input data-i="${i}" type="date" value="${s.iso||""}">
+        <input data-i="${i}" type="time" value="${s.time||""}">
+      </div>`).join("");
+  };
   draw();
 
-  root.addEventListener("change", (e)=>{
-    if (e.target.type === "date" || e.target.type === "time"){
-      const i = Number(e.target.dataset.i);
-      const wrap = e.target.closest(".row");
-      const iso = wrap.querySelector('input[type="date"]').value;
-      const tim = wrap.querySelector('input[type="time"]').value || "";
-      actions.rsvp(i, iso, tim);
-    }
-  });
-  root.addEventListener("click",(e)=>{
-    if (e.target===joinBtn){
+  root.addEventListener("click", (e)=>{
+    if (e.target.id==="join"){
       const name = prompt("Display name?")?.trim() || "";
       actions.join(name);
     }
-    if (e.target===startBtn) actions.startGame();
+    if (e.target.id==="start") actions.setState("started");
+  });
+  root.addEventListener("change", (e)=>{
+    if (e.target.type==="date" || e.target.type==="time"){
+      const i = +e.target.dataset.i;
+      const row = e.target.closest(".row");
+      const iso = row.querySelector('input[type="date"]').value;
+      const tim = row.querySelector('input[type="time"]').value || "";
+      actions.rsvp(i, iso, tim);
+    }
   });
 
-  return ()=>{}; // cleanup
+  return ()=>{};
 }
