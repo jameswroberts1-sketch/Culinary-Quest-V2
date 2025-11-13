@@ -115,3 +115,19 @@ input[type="date"],input[type="time"],input[type="number"]{padding:8px 10px;bord
     box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
   }
 }
+/* append to: src/skins/cooking/skin.css */
+
+/* Prevent iOS auto-zoom and odd form chrome */
+.skin-cooking input,
+.skin-cooking select,
+.skin-cooking textarea {
+  font-size: 17px;               /* why: iOS won't zoom ≥16px */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Your named field inherits this, but set explicitly too */
+.menu-input {
+  font-size: 17px;               /* ensure ≥16px on the intro field */
+  line-height: 1.4;
+}
