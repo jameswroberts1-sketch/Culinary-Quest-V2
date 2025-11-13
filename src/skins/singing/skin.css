@@ -1,0 +1,14 @@
+/* Stage neon style */
+.skin-singing{background:#0b0b12 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath fill='%231a1a2b' d='M0 0h24v24H0z'/%3E%3C/svg%3E") repeat}
+.paper--stage{width:min(760px,92vw);background:#0f1117;color:#e5e7eb;border-radius:16px;padding:24px 24px 28px;box-shadow:0 12px 36px rgba(0,0,0,.4);border:1px solid #22263a}
+.brand{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+.brand__logo{height:56px;width:auto;display:block;filter:drop-shadow(0 0 8px rgba(0,255,200,.6))}
+.brand__title{font-size:1.75rem;margin:0;letter-spacing:.3px;text-shadow:0 0 8px rgba(0,255,200,.4)}
+.brand__tag{color:#9ca3af;margin:2px 0 16px 72px}
+.card{background:#0c0f14;border-radius:12px;padding:16px;box-shadow:0 10px 24px rgba(0,0,0,.5);border:1px solid #1b2030;margin:12px 0}
+.list{margin:8px 0 0;padding:0;list-style:none}
+.list li{padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700}
+.btn-primary{background:#06b6d4;color:#001014}
+.btn-secondary{background:#7c3aed;color:#fff}
+.row{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
