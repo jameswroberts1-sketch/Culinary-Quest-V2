@@ -7,11 +7,15 @@ import GuestList from './components/GuestList.js';
 import InviteLinks from './components/InviteLinks.js';
 
 function App() {
+  console.log("🔍 App loaded");
+
   const [step, setStep] = useState(0);
   const [eventData, setEventData] = useState(null);
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
+      <p>🧪 App is rendering</p>
+
       {step === 0 && (
         <NewGame
           onNext={(data) => {
