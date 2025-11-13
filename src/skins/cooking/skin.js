@@ -8,7 +8,7 @@ export const skin = {
   hydrateBrand(root) {
     const img = root.querySelector(".brand__logo");
     // IMPORTANT: path relative to THIS file’s folder
-    if (img) img.src = "./assets/CQ%20Logo.png";
+    if (img) img.src = "./src/skins/cooking/assets/CQ%20Logo.png";
   },
   headerHTML() {
     return `
