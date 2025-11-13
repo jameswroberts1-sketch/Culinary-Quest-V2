@@ -1,0 +1,14 @@
+/* Menu card + tablecloth */
+.skin-cooking{background:#ececec url("/src/skins/cooking/assets/tablecloth.jpg") repeat; background-size:320px auto;}
+.paper--menu{width:min(760px,92vw);background:#fbf9f3;border-radius:16px;padding:24px 24px 28px;box-shadow:0 12px 36px rgba(0,0,0,.20);border:2px solid rgba(0,0,0,.06);}
+.brand{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+.brand__logo{height:56px;width:auto;display:block}
+.brand__title{font-size:1.75rem;margin:0;letter-spacing:.3px}
+.brand__tag{color:#3a3a3a;margin:2px 0 16px 72px}
+.card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 10px 24px rgba(0,0,0,.12);border:1px solid rgba(0,0,0,.06);margin:12px 0}
+.list{margin:8px 0 0;padding:0;list-style:none}
+.list li{padding:6px 0;border-bottom:1px dashed rgba(0,0,0,.1)}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn-primary{background:#f59e0b;color:#fff}
+.btn-secondary{background:#1f2937;color:#fff}
+.row{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
