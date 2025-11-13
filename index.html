@@ -3,18 +3,24 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Culinary Quest</title>
-  <link rel="manifest" href="./public/manifest.webmanifest">
-  <meta name="theme-color" content="#f59e0b">
+  <title>Culinary Quest — diag</title>
+  <!-- Use RELATIVE paths for project sites -->
   <style>
-    html,body{height:100%}
-    body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
-    #app{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;}
+    body{font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:24px}
+    pre{background:#111;color:#0f0;padding:12px;border-radius:8px;white-space:pre-wrap}
+    .err{color:#f00}
   </style>
 </head>
 <body>
-  <div id="app" aria-live="polite"></div>
-  <!-- IMPORTANT: relative path -->
+  <h1>Booting…</h1>
+  <div id="out"><pre>Loading ./src/app.js …</pre></div>
+  <script>
+    // Surface any script error to the page
+    window.addEventListener('error', e => {
+      const out = document.getElementById('out');
+      out.innerHTML = `<pre class="err">JS error: ${e.message}\n${e.filename}:${e.lineno}</pre>`;
+    });
+  </script>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>
