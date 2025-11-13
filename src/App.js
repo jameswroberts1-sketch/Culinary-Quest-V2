@@ -12,6 +12,8 @@ function App() {
   const [step, setStep] = useState(0);
   const [eventData, setEventData] = useState(null);
 
+console.log("🧠 Version checkpoint: Build 20251112");
+  
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
       <p>🧪 App is rendering</p>
