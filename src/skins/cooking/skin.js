@@ -3,28 +3,19 @@ export const skin = {
   name: "Culinary Quest",
   title: "Culinary Quest",
   tagline: "Cook. Judge. Crown a champion.",
-  classes: { paper: "paper--menu" },
-  apply(root) { root.classList.add("skin-cooking"); },
-  hydrateBrand(root) {
-    const img = root.querySelector(".brand__logo");
-    // IMPORTANT: path relative to THIS file’s folder
-    if (img) img.src = "./src/skins/cooking/assets/CQ%20Logo.png";
-  },
-  headerHTML() {
-    return `
-      <div class="brand">
-        <img class="brand__logo" alt="Culinary Quest logo"/>
-        <h1 class="brand__title">Culinary Quest</h1>
-        <p class="brand__tag">Cook. Judge. Crown a champion.</p>
-      </div>
-    `;
-  }
+  classes: { paper: "paper--menu" }
 };
 
-export async function loadSkin() {
+export async function loadSkin(){
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  // IMPORTANT: relative to index.html
-  link.href = "./src/skins/cooking/skin.css";
+  link.href = "./src/skins/cooking/skin.css";   // path from index.html
   document.head.appendChild(link);
 }
+
+export const routes = {
+  lobby:   async () => (await import("./screens/IntroScreen.js")).render,
+  rsvp:    async () => (await import("./screens/PickDatesScreen.js")).render,
+  started: async () => (await import("./screens/GameScreen.js")).render,
+  finished:async () => (await import("./screens/ResultsScreen.js")).render
+};
