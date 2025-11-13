@@ -1,7 +1,7 @@
 /* Menu card + tablecloth */
 /* IMPORTANT: url relative to this CSS file */
 .skin-cooking{
-  background:#ececec url("./assets/Tablecloth.png") repeat;
+  background:#ececec url("./src/skins/cooking/assets/Tablecloth.png") repeat;
   background-size:320px auto;
   min-height:100vh;
 }
