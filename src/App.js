@@ -33,3 +33,15 @@ function render(state){
   };
   router.route(model.state, model, actions, skin);
 }
+
+// wire routing table
+router.use({
+  lobby:      async () => (await import("./components/RSVPScreen.js")).render,
+  started:    async () => (await import("./components/GameScreen.js")).render,
+  finished:   async () => (await import("./components/ResultsScreen.js")).render
+});
+
+sync.watch(render);
+
+// PWA SW
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/public/sw.js").catch(console.error); }
