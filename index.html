@@ -4,16 +4,17 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Culinary Quest</title>
-  <link rel="manifest" href="/public/manifest.webmanifest">
+  <link rel="manifest" href="./public/manifest.webmanifest">
   <meta name="theme-color" content="#f59e0b">
   <style>
-    html,body{height:100%} body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    html,body{height:100%}
+    body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
     #app{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;}
-    .sr{position:absolute;left:-9999px}
   </style>
 </head>
 <body>
   <div id="app" aria-live="polite"></div>
-  <script type="module" src="/src/app.js"></script>
+  <!-- IMPORTANT: relative path -->
+  <script type="module" src="./src/app.js"></script>
 </body>
 </html>
