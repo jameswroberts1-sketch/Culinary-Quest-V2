@@ -5,12 +5,19 @@ export function createRouter(root){
     use(tbl){ views = tbl; },
     async route(key, model, actions, skin){
       const loader = views[key] || views.lobby;
-      const render = await loader(); // returns a render(root, model, actions, skin)
-      if (lastCleanup) try{ lastCleanup(); } catch {}
-      root.innerHTML = `<main class="paper--menu">${skin.headerHTML()}<section class="card" id="view"></section></main>`;
-      skin.hydrateBrand(root);
-      const viewRoot = root.querySelector("#view");
-      lastCleanup = render(viewRoot, model, actions, skin) || (()=>{});
+      if (!loader) throw new Error(`No route for "${key}" and no 'lobby' fallback`);
+      const render = await loader();
+
+      // safer wrapper: header is optional
+      const header = typeof skin?.headerHTML === "function" ? skin.headerHTML() : "";
+      root.innerHTML = `<main class="paper--menu">${header}<section class="card" id="view"></section></main>`;
+
+      if (typeof skin?.hydrateBrand === "function") skin.hydrateBrand(root);
+
+      if (lastCleanup) try{ lastCleanup(); }catch{}
+      const container = root.querySelector("#view") || root;
+      const cleanup = render(container, model, actions, skin);
+      lastCleanup = typeof cleanup === "function" ? cleanup : null;
     }
   };
 }
