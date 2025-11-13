@@ -1,45 +1,35 @@
-// App.js
-import React, { useState } from 'https://esm.sh/react';
-import ReactDOM from 'https://esm.sh/react-dom/client';
+// TL;DR: picks a skin, mounts engine + components with that skin.
+import { createRouter } from "./engine/router.js";
+import { useGameSync } from "./engine/sync.js";
+import { computeResults } from "./engine/gameLogic.js";
 
-import NewGame from './components/NewGame.js';
-import GuestList from './components/GuestList.js';
-import InviteLinks from './components/InviteLinks.js';
+const params = new URL(location.href).searchParams;
+const SKIN = params.get("skin") || "cooking";
+const GID  = params.get("gid")  || "dev-demo";
 
-function App() {
-  console.log("🔍 App loaded");
+const root = document.getElementById("app");
+const { skin, loadSkin } = await import(`./skins/${SKIN}/skin.js`);
+await loadSkin(); // why: inject CSS/assets per skin
 
-  const [step, setStep] = useState(0);
-  const [eventData, setEventData] = useState(null);
+const router = createRouter(root);
+const sync = useGameSync(GID);
 
-console.log("🧠 Version checkpoint: Build 20251112");
-  
-  return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <p>🧪 App is rendering</p>
+const actions = {
+  join: (name) => sync.join(name),
+  rsvp: (idx, iso, time) => sync.setSchedule(idx, iso, time),
+  submitScore: (hostIdx, val) => sync.score(hostIdx, val),
+  startGame: () => sync.setState("started"),
+  endGame: () => sync.setState("finished")
+};
 
-      {step === 0 && (
-        <NewGame
-          onNext={(data) => {
-            setEventData(data);
-            setStep(1);
-          }}
-        />
-      )}
-
-      {step === 1 && (
-        <GuestList
-          data={eventData}
-          onNext={(data) => {
-            setEventData(data);
-            setStep(2);
-          }}
-        />
-      )}
-
-      {step === 2 && <InviteLinks data={eventData} />}
-    </div>
-  );
+function render(state){
+  const model = {
+    gid: GID,
+    state: state?.st || "lobby",
+    players: state?.p || [],
+    schedule: state?.sched || [],
+    scores: state?.sc || {},
+    results: computeResults(state)
+  };
+  router.route(model.state, model, actions, skin);
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
