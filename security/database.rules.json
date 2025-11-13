@@ -1,1 +1,23 @@
-
+{
+  "rules": {
+    "games": {
+      "$gid": {
+        ".read": true,
+        ".write": "auth != null",
+        "p": { "$i": { ".validate": "newData.isString() && newData.val().length>0 && newData.val().length<=40" } },
+        "participants": {
+          "$uid": { ".write": "auth.uid === $uid",
+            ".validate": "newData.hasChildren(['name','idx','joined'])" }
+        },
+        "sched": { "$i": { ".validate": "newData.hasChildren(['iso','time'])" } },
+        "sc": { "$host": { "$scorer": {
+          ".write": "auth.uid === $scorer",
+          ".validate": "newData.isNumber() && newData.val()>=0 && newData.val()<=10"
+        } } },
+        "st": { ".validate": "newData.isString()" },
+        "$other": { ".validate": true }
+      }
+    },
+    ".read": false, ".write": false
+  }
+}
