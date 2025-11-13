@@ -1,4 +1,3 @@
-// TL;DR: picks a skin, mounts engine + components with that skin.
 import { createRouter } from "./engine/router.js";
 import { useGameSync } from "./engine/sync.js";
 import { computeResults } from "./engine/gameLogic.js";
@@ -8,8 +7,9 @@ const SKIN = params.get("skin") || "cooking";
 const GID  = params.get("gid")  || "dev-demo";
 
 const root = document.getElementById("app");
+// IMPORTANT: relative dynamic import
 const { skin, loadSkin } = await import(`./skins/${SKIN}/skin.js`);
-await loadSkin(); // why: inject CSS/assets per skin
+await loadSkin();
 
 const router = createRouter(root);
 const sync = useGameSync(GID);
@@ -19,7 +19,7 @@ const actions = {
   rsvp: (idx, iso, time) => sync.setSchedule(idx, iso, time),
   submitScore: (hostIdx, val) => sync.score(hostIdx, val),
   startGame: () => sync.setState("started"),
-  endGame: () => sync.setState("finished")
+  setState: (st) => sync.setState(st)
 };
 
 function render(state){
@@ -34,7 +34,6 @@ function render(state){
   router.route(model.state, model, actions, skin);
 }
 
-// wire routing table
 router.use({
   lobby:      async () => (await import("./components/RSVPScreen.js")).render,
   started:    async () => (await import("./components/GameScreen.js")).render,
@@ -43,5 +42,7 @@ router.use({
 
 sync.watch(render);
 
-// PWA SW
-if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/public/sw.js").catch(console.error); }
+// IMPORTANT: relative SW path; bump version inside sw.js when updating
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./public/sw.js").catch(console.error);
+}
