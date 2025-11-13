@@ -1,1 +1,12 @@
-
+{
+  "name": "Quest",
+  "short_name": "Quest",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111",
+  "theme_color": "#f59e0b",
+  "icons": [
+    { "src": "/public/icons/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/public/icons/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}
