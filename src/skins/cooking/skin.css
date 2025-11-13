@@ -34,3 +34,84 @@ input[type="date"],input[type="time"],input[type="number"]{padding:8px 10px;bord
 .muted{color:#6b7280;font-size:.9rem}
 .grid{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center}
 .chip{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.06)}
+/* ===========================
+   APPEND BELOW in: src/skins/cooking/skin.css
+   Intro "menu" styling for the Cooking skin
+   =========================== */
+
+/* Optional: elegant menu fonts (remove if you prefer system fonts only) */
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;600&display=swap");
+
+/* Menu card container inside your existing .paper--menu wrapper */
+.menu-card{
+  padding:28px 22px 32px;
+}
+
+/* Top brand row: logo + script title */
+.menu-hero{
+  display:flex; align-items:center; gap:14px; justify-content:center; margin-bottom:6px;
+}
+.menu-logo{
+  height:48px; width:auto; display:block; opacity:.9;
+}
+.menu-script{
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight:400; font-size:28px; letter-spacing:.3px; color:#1d1d1d;
+}
+
+/* Big centred headline */
+.menu-title{
+  text-align:center; margin:10px 0 8px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight:600; font-size:30px; letter-spacing:2.5px;
+}
+
+/* Thin horizontal separators left/right from center */
+.menu-divider{
+  position:relative; height:18px; margin:6px 0 14px;
+}
+.menu-divider:before,
+.menu-divider:after{
+  content:""; position:absolute; top:50%; width:40%; height:1px; background:rgba(0,0,0,.18);
+  transform: translateY(-50%);
+}
+.menu-divider:before{ left:0; }
+.menu-divider:after { right:0; }
+
+/* Sections read like a restaurant menu */
+.menu-section{ text-align:center; padding:6px 8px; }
+.menu-course{
+  font-family:"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight:600; letter-spacing:6px; color:#6b7280; font-size:12px; margin-bottom:8px;
+}
+.menu-h2{
+  font-family:"Cormorant Garamond", Georgia, serif;
+  font-weight:600; font-size:22px; margin:0 0 6px; letter-spacing:1.2px;
+}
+.menu-copy{
+  color:#596276; margin:0 12px 8px; font-size:15px; line-height:1.5;
+}
+
+/* Input matches the menu-card feel */
+.menu-input{
+  width:100%; max-width:520px; margin:8px auto 0; display:block;
+  background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; font-weight:600;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.03);
+}
+
+/* Primary/secondary action row */
+.menu-actions{
+  display:flex; gap:12px; justify-content:center; margin-top:16px;
+}
+
+/* Dark-mode polish */
+@media (prefers-color-scheme: dark){
+  .menu-script{ color:#f3f4f6; }
+  .menu-title{ color:#f3f4f6; }
+  .menu-divider:before, .menu-divider:after{ background:rgba(255,255,255,.18); }
+  .menu-copy{ color:#cfd3db; }
+  .menu-input{
+    background:#0f1113; color:#f3f4f6; border-color:#1f2937;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+}
