@@ -9,13 +9,15 @@ export const skin = {
 export async function loadSkin(){
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "./src/skins/cooking/skin.css";   // path from index.html
+  // path is from index.html (project site → keep it relative)
+  link.href = "./src/skins/cooking/skin.css";
   document.head.appendChild(link);
 }
 
+// The cooking skin supplies the route -> screen mapping
 export const routes = {
-  lobby:   async () => (await import("./screens/IntroScreen.js")).render,
-  rsvp:    async () => (await import("./screens/PickDatesScreen.js")).render,
-  started: async () => (await import("./screens/GameScreen.js")).render,
-  finished:async () => (await import("./screens/ResultsScreen.js")).render
+  lobby:    async () => (await import("./screens/IntroScreen.js")).render,
+  rsvp:     async () => (await import("../../components/RSVPScreen.js")).render,
+  started:  async () => (await import("../../components/GameScreen.js")).render,
+  finished: async () => (await import("../../components/ResultsScreen.js")).render
 };
