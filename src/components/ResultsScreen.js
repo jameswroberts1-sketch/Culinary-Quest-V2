@@ -1,18 +1,11 @@
-export function render(root, model, actions, skin){
-  root.classList.add("screen","results");
+export function render(root, model, actions){
   root.innerHTML = `
-    <main class="wrap ${skin.classes.paper}">
-      <header class="brand">${skin.headerHTML()}</header>
-      <section class="card">
-        <h2>Leaderboard</h2>
-        <ol class="list">
-          ${model.results.map(r=>`<li><strong>${r.host}</strong> — ${r.total}</li>`).join("")}
-        </ol>
-        <button class="btn btn-secondary" id="finish">Reset</button>
-      </section>
-    </main>
+    <h2>Leaderboard</h2>
+    <ol class="list">
+      ${model.results.map(r=>`<li><strong>${r.host}</strong> — ${r.total}</li>`).join("")}
+    </ol>
+    <button class="btn btn-secondary" id="reset">Back to lobby</button>
   `;
-  skin.hydrateBrand(root);
-  root.addEventListener("click",(e)=>{ if(e.target.id==="finish") actions.setState?.("lobby"); });
+  root.addEventListener("click", e=>{ if (e.target.id==="reset") actions.setState("lobby"); });
   return ()=>{};
-}
+}}
