@@ -1,15 +1,10 @@
-// Cooking-only organiser intro (menu-style welcome)
+// path: src/skins/cooking/screens/IntroScreen.js
+// Cooking intro screen: render ONLY the inner content into #view.
+// (The router already renders <main class="paper--menu"> and the header.)
+
 export function render(root, model, actions) {
-  // Resolves correctly on GitHub Pages (no path headaches)
-  const logoURL = new URL("../assets/CQ%20Logo.png", import.meta.url).href;
-
   root.innerHTML = `
-    <main class="paper--menu menu-card">
-      <header class="menu-hero">
-        <img class="menu-logo" alt="Culinary Quest logo" src="${logoURL}"/>
-        <div class="menu-script">Culinary Quest</div>
-      </header>
-
+    <section class="menu-card">
       <h1 class="menu-title">WELCOME TO<br/>CULINARY QUEST</h1>
       <div class="menu-divider" aria-hidden="true"></div>
 
@@ -36,20 +31,25 @@ export function render(root, model, actions) {
         <button class="btn btn-primary" id="begin">Begin Planning</button>
         <button class="btn btn-secondary" id="cancel">Cancel</button>
       </div>
-    </main>
+    </section>
   `;
+
+  const nameInput = root.querySelector("#hostName");
+  nameInput?.addEventListener("keydown", (e)=>{
+    if (e.key === "Enter") root.querySelector("#begin")?.click();
+  });
 
   root.addEventListener("click", async (e) => {
     if (e.target.id === "begin") {
-      const name = root.querySelector("#hostName").value.trim();
-      if (!name) { root.querySelector("#hostName").focus(); return; }
-      await actions.join(name);        // organiser joins
-      actions.setState("rsvp");        // go to date-picking screen
+      const name = nameInput.value.trim();
+      if (!name) { nameInput.focus(); return; }
+      await actions.join(name);
+      actions.setState("rsvp");
     }
     if (e.target.id === "cancel") {
-      root.querySelector("#hostName").value = "";
+      nameInput.value = "";
     }
   });
 
-  return () => {};
+  return ()=>{};
 }
