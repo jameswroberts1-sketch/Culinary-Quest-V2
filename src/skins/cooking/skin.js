@@ -36,16 +36,15 @@ export const skin = {
 
   apply(root){ (root || document.body).classList.add("skin-cooking"); },
 
-  headerHTML(){
-    var logo = "./src/skins/cooking/assets/CQ%20Logo.png"; // path from index.html
-    return (
-      '<div class="brand">' +
-        '<img class="brand__logo" src="'+logo+'" alt="Culinary Quest logo"/>' +
-        '<h1 class="brand__title">Culinary Quest</h1>' +
-        '<p class="brand__tag">Cook. Judge. Crown a champion.</p>' +
-      '</div>'
-    );
-  }
+  // Centered logo only (no title/tagline)
+headerHTML: function(){
+  var logo = "./src/skins/cooking/assets/CQ%20Logo.png"; // path from index.html
+  return (
+    '<div class="brand brand--center">' +
+      '<img class="brand__logo brand__logo--xl" src="'+logo+'" alt="Culinary Quest logo"/>' +
+    '</div>'
+  );
+}
 };
 
 export function loadSkin(){
