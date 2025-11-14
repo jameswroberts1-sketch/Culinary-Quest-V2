@@ -59,7 +59,7 @@ export const routes = {
   lobby:    () => safeLoad("./screens/IntroScreen.js",   "Intro"),
   rsvp:     () => safeLoad("../../components/RSVPScreen.js", "RSVP"),
   started:  () => safeLoad("../../components/GameScreen.js",  "Game"),
-  finished: () => safeLoad("../../components/ResultsScreen.js","Results")
+  finished: () => safeLoad("../../components/ResultsScreen.js","Results"),
   reset: () => Promise.resolve((root, model, actions) => {
   root.innerHTML = '<section class="card"><h2>Resetting…</h2><p>Sending game back to the intro screen.</p></section>';
   actions.setState('lobby');   // soft reset to the intro
