@@ -211,14 +211,15 @@ html { -webkit-text-size-adjust: 100%; }
   letter-spacing: 2.5px;
 }
 
-/* Decorative divider with diamonds near the ends */
-/* Decorative divider with small diamonds near the ends */
+/* --- MENU DIVIDER WITH DIAMONDS (robust) --- */
 .menu-ornament{
   position: relative;
-  height: 24px;
-  margin: 8px 0 14px;
-  /* the thin horizontal line */
-  background: linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)) 0 50% / 100% 1px no-repeat;
+  height: 26px;
+  margin: 10px 0 16px;
+  pointer-events: none;                 /* never steal taps */
+  /* hairline across the center */
+  background: linear-gradient(rgba(0,0,0,.22), rgba(0,0,0,.22)) 0 50% / 100% 1px no-repeat;
+  z-index: 1;
 }
 
 /* the two diamonds */
@@ -227,31 +228,21 @@ html { -webkit-text-size-adjust: 100%; }
   content: "";
   position: absolute;
   top: 50%;
-  width: 10px;               /* diamond size — tweak to taste */
+  width: 10px;                          /* diamond size */
   height: 10px;
   transform: translate(-50%, -50%) rotate(45deg);
-  border: 1px solid rgba(0,0,0,.25);
-  background: #fff;          /* match your card background */
-  box-shadow: 0 0 0 1px rgba(255,255,255,1); /* subtle halo to ‘cut’ the line */
+  background: #fff;                      /* same as card so they look “cut out” */
+  border: 1px solid rgba(0,0,0,.28);
+  box-shadow: 0 0 0 1px #fff;           /* tiny halo to separate from the line */
+  z-index: 2;
 }
 
-/* diamond positions (near the ends) */
+/* place them near the ends */
 .menu-ornament::before{ left: 12%; }
 .menu-ornament::after { left: 88%; }
 
-/* Dark mode polish (optional) */
-@media (prefers-color-scheme: dark){
-  .menu-ornament{
-    background: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)) 0 50% / 100% 1px no-repeat;
-  }
-  .menu-ornament::before,
-  .menu-ornament::after{
-    border-color: rgba(255,255,255,.25);
-    background: #0f1113;   /* match dark card if you use one */
-    box-shadow: 0 0 0 1px #0f1113;
-  }
-}
-
+/* ensure the card doesn't hide them */
+.skin-cooking .menu-card{ position: relative; overflow: visible; }
 
 /* Tweak menu text rhythm */
 .menu-section{ text-align:center; padding:6px 10px; }
