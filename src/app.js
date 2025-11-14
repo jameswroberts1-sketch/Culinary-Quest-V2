@@ -1,12 +1,15 @@
-/*****************************************************************
- * file: src/app.js  (FULL REPLACEMENT)
- *****************************************************************/
+/* =====================================
+   file: src/app.js  (FULL REPLACEMENT)
+   ===================================== */
 import { createRouter }   from "./engine/router.js";
 import { useGameSync }    from "./engine/sync.js";
 import { computeResults } from "./engine/gameLogic.js";
 
-// Always show errors instead of a white screen
+// Always show something immediately
 const root = document.getElementById("app");
+root.innerHTML = '<div style="font:16px system-ui;padding:12px">Booting…</div>';
+
+// Never go blank on errors
 window.addEventListener("error", e => {
   root.innerHTML = `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${e.message}\n${e.filename}:${e.lineno}</pre>`;
 });
@@ -14,47 +17,23 @@ window.addEventListener("unhandledrejection", e => {
   root.innerHTML = `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${e.reason}</pre>`;
 });
 
-// Static fallback (safe everywhere)
-import * as CookingSkin from "./skins/cooking/skin.js";
-
-// Conservative feature-detect for dynamic import
-function supportsDynamicImport(){
-  try {
-    // Parse-time probe isolated from main scope
-    // If unsupported, this throws and we fall back.
-    new Function('return import("data:text/javascript,export default 1")');
-    return true;
-  } catch { return false; }
-}
+// Lock to cooking skin (maximum compatibility on iOS)
+import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
 
 (function bootstrap(){
   const params = new URL(location.href).searchParams;
   const GID    = params.get("gid")   || "dev-demo";
-  const SKIN   = params.get("skin")  || "cooking";
   const ROUTE_OVERRIDE = params.get("route") || "";
 
   (async function init(){
-    // Decide which skin module to use
-    let mod = CookingSkin; // default fallback
-    if (SKIN === "cooking") {
-      // Still try dynamic import if supported (helps future cache-busting),
-      // but fall back silently to the static module.
-      if (supportsDynamicImport()) {
-        try { mod = await import("./skins/cooking/skin.js"); } catch { mod = CookingSkin; }
-      }
-    } else if (supportsDynamicImport()) {
-      try { mod = await import(`./skins/${SKIN}/skin.js`); } catch { mod = CookingSkin; }
-    } // else: unsupported → cooking fallback
-
-    const skin   = mod.skin;
-    const routes = mod.routes;
-    await mod.loadSkin();
+    await loadSkin();
 
     const router = createRouter(root);
     router.use(routes);
+
     const sync = useGameSync(GID);
 
-    // Prevent re-render while typing (keeps iOS keyboard/focus)
+    // Guard: avoid re-render while typing (prevents iOS input blur)
     let lastKey = "";
     let lastHash = "";
 
@@ -83,7 +62,7 @@ function supportsDynamicImport(){
       const key  = (ROUTE_OVERRIDE && routes[ROUTE_OVERRIDE]) ? ROUTE_OVERRIDE : model.state;
       const hash = stableHash({ st:model.state, p:model.players, sched:model.schedule, sc:model.scores });
 
-      if (key === lastKey && hash === lastHash) return; // preserve focus
+      if (key === lastKey && hash === lastHash) return; // preserve focus on iOS
       lastKey  = key;
       lastHash = hash;
 
