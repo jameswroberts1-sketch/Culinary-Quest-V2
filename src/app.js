@@ -1,6 +1,22 @@
 /* =====================================
    file: src/app.js  (FULL REPLACEMENT)
    ===================================== */
+// --- SAFE BOOTSTRAP (never blank) ---
+const rootEl = document.getElementById("app") || document.body;
+
+function show(msg){
+  try {
+    rootEl.innerHTML =
+      `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${msg}</pre>`;
+  } catch(e) {}
+}
+
+// Put something on screen immediately
+try { rootEl.innerHTML = '<div style="font:16px system-ui;padding:12px">Booting…</div>'; } catch(e){}
+
+// Surface all uncaught errors on page
+window.addEventListener("error",  e => show(`${e.message}\n${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", e => show(String(e.reason)));
 import { createRouter }   from "./engine/router.js";
 import { useGameSync }    from "./engine/sync.js";
 import { computeResults } from "./engine/gameLogic.js";
