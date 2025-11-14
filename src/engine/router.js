@@ -10,12 +10,12 @@ export function createRouter(root){
       if (!loader) throw new Error(`No route for "${key}" and no 'lobby' fallback`);
       const render = await loader();
 
-      // Apply the skin class once (enables .skin-cooking CSS selectors)
+      // Ensure skin-scoped CSS takes effect
       try {
         if (typeof skin?.apply === "function") skin.apply(document.body || root);
       } catch {}
 
-      // Build a single wrapper; screens will render inside #view
+      // Single wrapper; screens render inside #view
       const header = typeof skin?.headerHTML === "function" ? skin.headerHTML() : "";
       root.innerHTML = `<main class="paper--menu">${header}<section id="view"></section></main>`;
 
