@@ -1,10 +1,9 @@
-// ---------------------------------------------
-// 2) REPLACE file: src/skins/cooking/screens/IntroScreen.js
-// ---------------------------------------------
+// path: src/skins/cooking/screens/IntroScreen.js
+// Cooking intro screen WITHOUT the "WELCOME TO CULINARY QUEST" headline.
+
 export function render(root, model, actions) {
   root.innerHTML = `
     <section class="menu-card">
-      <h1 class="menu-title">WELCOME TO<br/>CULINARY QUEST</h1>
       <div class="menu-divider" aria-hidden="true"></div>
 
       <section class="menu-section">
@@ -41,19 +40,18 @@ export function render(root, model, actions) {
   const nameInput = root.querySelector("#hostName");
   const beginBtn  = root.querySelector("#begin");
 
-  // iOS focus shim: first touch explicitly focuses the input
+  // iOS focus shim: ensure keyboard stays up
   const focusShim = (ev) => {
     if (!nameInput) return;
-    // if the tap wasn't on a control, move focus into the input
-    const target = ev.target;
-    if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLButtonElement)) {
-      nameInput.focus({ preventScroll: true });
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLButtonElement)) {
+      nameInput.focus({ preventScroll: true }); // why: avoid scroll jump on iOS
     }
   };
   root.addEventListener("touchstart", focusShim, { passive: true });
   root.addEventListener("pointerdown", focusShim, { passive: true });
 
-  // Enter key submits
+  // Enter submits
   if (nameInput) {
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && beginBtn) beginBtn.click();
@@ -67,8 +65,15 @@ export function render(root, model, actions) {
 
     if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
-      if (!name && nameInput) { nameInput.focus({ preventScroll: true }); return; } // guard
+      if (!name && nameInput) { nameInput.focus({ preventScroll: true }); return; } // why: prevent empty organiser
+
       await actions.join(name);
+
+      // remove any lingering ?route=… to avoid being forced back to lobby
+      const u = new URL(location.href);
+      u.searchParams.delete("route");
+      history.replaceState(null, "", u.toString());
+
       actions.setState("rsvp");
     }
     if (t.id === "cancel" && nameInput) {
