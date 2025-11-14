@@ -177,3 +177,20 @@ html { -webkit-text-size-adjust: 100%; }
 
 /* Ensure container stretches so cloth isn’t clipped */
 #app { min-height: 100vh; }
+/* Brand header: center the logo and size it up */
+.brand.brand--center{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin: clamp(8px, 3vw, 20px) auto 14px;
+}
+.brand__logo.brand__logo--xl{
+  width: clamp(140px, 44vw, 260px);   /* tweak to taste */
+  height: auto;
+  display: block;
+  opacity: .95;
+}
+
+/* Remove any leftover brand text if present */
+.brand__title,
+.brand__tag{ display:none !important; }
