@@ -5,6 +5,10 @@ export const skin = {
   title: "Culinary Quest",
   tagline: "Cook. Judge. Crown a champion.",
   classes: { paper: "paper--menu" },
+  apply(root){
+    (root || document.body).classList.add("skin-cooking");
+  }
+  
   headerHTML(){
     const logo = new URL("./assets/CQ%20Logo.png", import.meta.url).href;
     return `
