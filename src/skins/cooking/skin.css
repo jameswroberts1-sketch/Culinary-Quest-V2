@@ -131,3 +131,27 @@ input[type="date"],input[type="time"],input[type="number"]{padding:8px 10px;bord
   font-size: 17px;               /* ensure ≥16px on the intro field */
   line-height: 1.4;
 }
+/* iOS: prevent auto-zoom and weird focus issues */
+input, select, textarea {
+  font-size: 17px;                 /* ≥16px stops Safari zoom */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Make the intro field “win” hit-testing */
+.menu-input {
+  font-size: 17px;                 /* explicit in case the selector above is overridden */
+  line-height: 1.4;
+  position: relative;              /* create stacking context */
+  z-index: 2;                      /* above any pseudo-elements */
+  touch-action: manipulation;      /* better tap UX */
+}
+
+/* Ensure decorative lines never steal taps */
+.menu-divider { pointer-events: none; }
+
+/* Buttons: better on iOS */
+.btn { touch-action: manipulation; }
+
+/* Optional: avoid text size auto-adjust on iOS */
+html { -webkit-text-size-adjust: 100%; }
