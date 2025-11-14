@@ -1,3 +1,4 @@
+// path: src/skins/cooking/screens/IntroScreen.js
 export function render(root, model, actions) {
   root.innerHTML = `
     <section class="menu-card">
@@ -31,18 +32,26 @@ export function render(root, model, actions) {
   `;
 
   const nameInput = root.querySelector("#hostName");
-  nameInput?.addEventListener("keydown", (e)=>{
-    if (e.key === "Enter") root.querySelector("#begin")?.click();
-  });
+  if (nameInput) {
+    nameInput.addEventListener("keydown", (e)=>{
+      if (e.key === "Enter") {
+        const btn = root.querySelector("#begin");
+        if (btn) btn.click();
+      }
+    });
+  }
 
   root.addEventListener("click", async (e) => {
-    if (e.target.id === "begin") {
-      const name = nameInput.value.trim();
-      if (!name) { nameInput.focus(); return; }
+    if (e.target && e.target.id === "begin") {
+      const name = nameInput ? nameInput.value.trim() : "";
+      if (!name && nameInput) { nameInput.focus(); return; }
       await actions.join(name);
       actions.setState("rsvp");
     }
-    if (e.target.id === "cancel") nameInput.value = "";
+    if (e.target && e.target.id === "cancel" && nameInput) {
+      nameInput.value = "";
+    }
   });
 
-  return ()=>{}
+  return ()=>{};
+}
