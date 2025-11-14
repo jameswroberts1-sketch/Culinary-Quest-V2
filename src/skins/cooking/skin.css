@@ -194,3 +194,78 @@ html { -webkit-text-size-adjust: 100%; }
 /* Remove any leftover brand text if present */
 .brand__title,
 .brand__tag{ display:none !important; }
+/* Centered, larger logo */
+.brand.brand--center{
+  display:flex; justify-content:center; align-items:center;
+  margin: clamp(8px, 3vw, 20px) auto 14px;
+}
+.brand__logo.brand__logo--xl{ width: clamp(140px, 44vw, 260px); height:auto; display:block; opacity:.95; }
+
+/* Headline “WELCOME TO / CULINARY QUEST” */
+.hero-welcome{
+  text-align:center;
+  margin: 6px 0 10px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(24px, 6.2vw, 40px);
+  letter-spacing: 2.5px;
+}
+
+/* Decorative divider with diamonds near the ends */
+/* Decorative divider with small diamonds near the ends */
+.menu-ornament{
+  position: relative;
+  height: 24px;
+  margin: 8px 0 14px;
+  /* the thin horizontal line */
+  background: linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)) 0 50% / 100% 1px no-repeat;
+}
+
+/* the two diamonds */
+.menu-ornament::before,
+.menu-ornament::after{
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 10px;               /* diamond size — tweak to taste */
+  height: 10px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid rgba(0,0,0,.25);
+  background: #fff;          /* match your card background */
+  box-shadow: 0 0 0 1px rgba(255,255,255,1); /* subtle halo to ‘cut’ the line */
+}
+
+/* diamond positions (near the ends) */
+.menu-ornament::before{ left: 12%; }
+.menu-ornament::after { left: 88%; }
+
+/* Dark mode polish (optional) */
+@media (prefers-color-scheme: dark){
+  .menu-ornament{
+    background: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)) 0 50% / 100% 1px no-repeat;
+  }
+  .menu-ornament::before,
+  .menu-ornament::after{
+    border-color: rgba(255,255,255,.25);
+    background: #0f1113;   /* match dark card if you use one */
+    box-shadow: 0 0 0 1px #0f1113;
+  }
+}
+
+
+/* Tweak menu text rhythm */
+.menu-section{ text-align:center; padding:6px 10px; }
+.menu-course{ letter-spacing:6px; color:#6b7280; font-size:12px; margin-bottom:8px; font-weight:600; }
+.menu-h2{ font-family:"Cormorant Garamond", Georgia, serif; font-size:22px; margin:0 0 6px; font-weight:600; letter-spacing:1.2px; }
+.menu-copy{ color:#596276; margin:0 12px 8px; font-size:15px; line-height:1.55; }
+
+/* iOS input comfort (prevents zoom + keeps focus) */
+input, select, textarea{ font-size:17px; -webkit-appearance:none; appearance:none; }
+.menu-input{ font-size:17px; line-height:1.4; }
+
+/* Card polish over the tablecloth */
+.skin-cooking .menu-card{
+  background:#fff; border-radius:16px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.08);
+  padding: 26px 22px 30px;
+}
