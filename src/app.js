@@ -1,9 +1,9 @@
-// path: src/app.js
+// path: src/app.js  (drop-in replacement)
 import { createRouter }   from "./engine/router.js";
 import { useGameSync }    from "./engine/sync.js";
 import { computeResults } from "./engine/gameLogic.js";
 
-// Surface errors on-screen so it's never blank
+// Show runtime errors on-screen
 const root = document.getElementById("app");
 window.addEventListener("error", e => {
   root.innerHTML = `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${e.message}\n${e.filename}:${e.lineno}</pre>`;
@@ -18,7 +18,6 @@ window.addEventListener("unhandledrejection", e => {
   const GID    = params.get("gid")   || "dev-demo";
   const ROUTE_OVERRIDE = params.get("route") || "";
 
-  // no top-level await: wrap in async IIFE
   (async () => {
     const mod = await import(`./skins/${SKIN}/skin.js`);
     const skin   = mod.skin;
@@ -29,6 +28,10 @@ window.addEventListener("unhandledrejection", e => {
     router.use(routes);
     const sync = useGameSync(GID);
 
+    // ---- RENDER GUARD: prevent re-render while typing on same state ----
+    let lastKey = "";
+    let lastHash = "";
+
     const actions = {
       join:        (name)               => sync.join(name),
       rsvp:        (idx, iso, time)     => sync.setSchedule(idx, iso, time),
@@ -36,6 +39,10 @@ window.addEventListener("unhandledrejection", e => {
       startGame:                        () => sync.setState("started"),
       setState:    (st)                 => sync.setState(st)
     };
+
+    function stableHash(obj){
+      try { return JSON.stringify(obj); } catch { return String(Date.now()); }
+    }
 
     function render(state){
       const model = {
@@ -46,7 +53,20 @@ window.addEventListener("unhandledrejection", e => {
         scores:   (state && state.sc) || {},
         results:  computeResults(state)
       };
+
       const key = (ROUTE_OVERRIDE && routes[ROUTE_OVERRIDE]) ? ROUTE_OVERRIDE : model.state;
+
+      // Only re-render if route OR snapshot content actually changed
+      const hash = stableHash({
+        st: model.state,
+        p:  model.players,
+        sched: model.schedule,
+        sc: model.scores
+      });
+      if (key === lastKey && hash === lastHash) return; // ← skip rerender, preserve focus
+
+      lastKey  = key;
+      lastHash = hash;
       router.route(key, model, actions, skin);
     }
 
