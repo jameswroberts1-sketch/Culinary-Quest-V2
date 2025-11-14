@@ -1,7 +1,3 @@
-// path: src/skins/cooking/screens/IntroScreen.js
-// Cooking intro screen: render ONLY the inner content into #view.
-// (The router already renders <main class="paper--menu"> and the header.)
-
 export function render(root, model, actions) {
   root.innerHTML = `
     <section class="menu-card">
@@ -46,10 +42,7 @@ export function render(root, model, actions) {
       await actions.join(name);
       actions.setState("rsvp");
     }
-    if (e.target.id === "cancel") {
-      nameInput.value = "";
-    }
+    if (e.target.id === "cancel") nameInput.value = "";
   });
 
-  return ()=>{};
-}
+  return ()=>{}
