@@ -1,3 +1,4 @@
+// path: src/skins/cooking/skin.js
 export const skin = {
   id: "cooking",
   name: "Culinary Quest",
@@ -5,12 +6,10 @@ export const skin = {
   tagline: "Cook. Judge. Crown a champion.",
   classes: { paper: "paper--menu" },
 
-  // Ensures .skin-cooking rules apply
   apply(root){
     (root || document.body).classList.add("skin-cooking");
   },
 
-  // Header used by the router wrapper
   headerHTML(){
     const logo = new URL("./assets/CQ%20Logo.png", import.meta.url).href;
     return `
@@ -23,18 +22,17 @@ export const skin = {
   }
 };
 
-export async function loadSkin(){
+export function loadSkin(){
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  // Path is relative to index.html
-  link.href = "./src/skins/cooking/skin.css";
+  link.href = "./src/skins/cooking/skin.css"; // path from index.html
   document.head.appendChild(link);
+  return Promise.resolve();
 }
 
-// Skin-owned routes
 export const routes = {
   lobby:    async () => (await import("./screens/IntroScreen.js")).render,
   rsvp:     async () => (await import("../../components/RSVPScreen.js")).render,
   started:  async () => (await import("../../components/GameScreen.js")).render,
   finished: async () => (await import("../../components/ResultsScreen.js")).render
-}
+};
