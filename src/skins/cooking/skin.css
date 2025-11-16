@@ -28,7 +28,7 @@ body {
 
   /* Tablecloth background */
   background-color: #f4f4f4; /* fallback */
-  background-image: url("./assets/tablecloth.png");
+  background-image: url("./assets/tablecloth.jpg");
   background-repeat: repeat;
   background-size: auto;
   background-position: center;
