@@ -4,11 +4,10 @@
 export function render(root, model, actions) {
   root.innerHTML = `
     <section class="menu-card">
-      <!-- Brand hero: logo only (no big headline) -->
       <div class="menu-hero">
         <img
           class="menu-logo"
-          src="./assets/CQ%20Logo.png"
+          src="./assets/logo.png"   <!-- update to your real logo filename -->
           alt="Culinary Quest"
         />
       </div>
@@ -24,7 +23,6 @@ export function render(root, model, actions) {
         </p>
       </section>
 
-      <!-- Fancy separator between sections -->
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <section class="menu-section">
@@ -50,16 +48,7 @@ export function render(root, model, actions) {
   const nameInput = root.querySelector("#hostName");
   const beginBtn  = root.querySelector("#begin");
 
-  // iOS focus shim: ensure keyboard stays up
-  const focusShim = (ev) => {
-    if (!nameInput) return;
-    const t = ev.target;
-    if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLButtonElement)) {
-      nameInput.focus({ preventScroll: true }); // why: avoid scroll jump on iOS
-    }
-  };
-  root.addEventListener("touchstart", focusShim, { passive: true });
-  root.addEventListener("pointerdown", focusShim, { passive: true });
+  // ⬇️ Removed the focusShim and its event listeners
 
   // Enter submits
   if (nameInput) {
@@ -82,7 +71,6 @@ export function render(root, model, actions) {
 
       await actions.join(name);
 
-      // remove any lingering ?route=… to avoid being forced back to lobby
       const u = new URL(location.href);
       u.searchParams.delete("route");
       history.replaceState(null, "", u.toString());
@@ -98,4 +86,3 @@ export function render(root, model, actions) {
 
   return () => {};
 }
-
