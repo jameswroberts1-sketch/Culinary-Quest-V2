@@ -207,13 +207,15 @@ input[type="number"] {
 }
 
 /* Logo + tagline at top of card */
+/* Logo + tagline at top of card */
 .menu-hero {
   display: flex;
   flex-direction: column;      /* stack logo over text */
   align-items: center;
   justify-content: center;
-  gap: 4px;                    /* space BETWEEN logo and text */
-  margin-bottom: 8px;          /* space under the tagline before divider */
+
+  gap: 0;                      /* NO gap between logo and tagline */
+  margin-bottom: 4px;          /* small gap under tagline before divider */
 }
 
 .menu-logo {
@@ -230,7 +232,8 @@ input[type="number"] {
   line-height: 1.5;
   color: #596276;
   text-align: center;
-  margin: 0 14px;              /* side padding, no top/bottom margin */
+  margin: 2px 14px 0;          /* tiny top margin, no bottom margin */
+}
 }
 /* Numbered steps under HOW IT WORKS */
 .menu-steps {
