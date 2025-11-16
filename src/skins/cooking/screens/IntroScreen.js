@@ -4,6 +4,15 @@
 export function render(root, model, actions) {
   root.innerHTML = `
     <section class="menu-card">
+      <!-- Brand hero: logo only (no big headline) -->
+      <div class="menu-hero">
+        <img
+          class="menu-logo"
+          src="./assets/logo.png"   <!-- 🔁 update this to your actual logo file -->
+          alt="Culinary Quest"
+        />
+      </div>
+
       <div class="menu-divider" aria-hidden="true"></div>
 
       <section class="menu-section">
@@ -15,7 +24,8 @@ export function render(root, model, actions) {
         </p>
       </section>
 
-      <div class="menu-divider" aria-hidden="true"></div>
+      <!-- Fancy separator between sections -->
+      <div class="menu-ornament" aria-hidden="true"></div>
 
       <section class="menu-section">
         <div class="menu-course">DESSERT</div>
@@ -65,7 +75,10 @@ export function render(root, model, actions) {
 
     if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
-      if (!name && nameInput) { nameInput.focus({ preventScroll: true }); return; } // why: prevent empty organiser
+      if (!name && nameInput) {
+        nameInput.focus({ preventScroll: true });
+        return; // prevent empty organiser
+      }
 
       await actions.join(name);
 
@@ -76,6 +89,7 @@ export function render(root, model, actions) {
 
       actions.setState("rsvp");
     }
+
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
@@ -84,3 +98,4 @@ export function render(root, model, actions) {
 
   return () => {};
 }
+
