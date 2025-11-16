@@ -198,7 +198,7 @@ input[type="number"] {
 .skin-cooking .menu-card {
   border-radius: 16px;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
-  padding: 26px 22px 30px;
+  padding: 14px 22px 30px;
   position: relative;
   overflow: visible;
 }
