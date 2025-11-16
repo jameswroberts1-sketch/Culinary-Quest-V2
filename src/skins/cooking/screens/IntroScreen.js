@@ -7,7 +7,7 @@ export function render(root, model, actions) {
       <div class="menu-hero">
         <img
         class="menu-logo"
-        src="./src/skins/cooking/assets/CQ%20Logo.png"  <!-- or CQ Logo.png -->
+        src="./src/skins/cooking/assets/cq-logo.png"
         alt="Culinary Quest"
         />
       </div>
