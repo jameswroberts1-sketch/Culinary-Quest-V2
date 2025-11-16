@@ -45,14 +45,15 @@ body {
    (still used elsewhere in the app)
    ----------------------------------------- */
 
-.paper--menu {
+.paper--menu{
   width: min(760px, 92vw);
-  background: #fbf9f3;
-  border-radius: 16px;
-  padding: 24px 24px 28px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
-  border: 2px solid rgba(0, 0, 0, 0.06);
   margin: 24px auto;
+  padding: 24px 24px 28px;
+
+  /* no extra card layer */
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .brand {
