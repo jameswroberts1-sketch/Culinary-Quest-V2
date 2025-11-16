@@ -23,7 +23,7 @@ export function render(root, model, actions) {
         <h2 class="menu-h2">HOW IT WORKS</h2>
 
         <p class="menu-copy">
-          Here’s how to roll out the red tablecloth:
+          The next few screens will ask you to:
         </p>
 
         <ol class="menu-steps">
