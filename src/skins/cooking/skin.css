@@ -182,10 +182,15 @@ input[type="number"] {
 
 /* Menu card container */
 /* Menu card container – reverted to earlier “card” style (no paper texture) */
+/* Menu card container – older “card” style, safely centred */
 .menu-card {
-  /* width tuned for mobile + desktop */
-  width: clamp(280px, 88vw, 360px);
-  margin: 0 auto;
+  /* width: full width on tiny phones, max 340px on larger screens */
+  width: 100%;
+  max-width: 340px;            /* try 340; you can tweak to 320/360 later */
+
+  /* auto margins will centre it inside #app */
+  margin-left: auto;
+  margin-right: auto;
 
   /* padding similar to the old version, slightly reduced for small screens */
   padding: 24px 20px 22px;
