@@ -38,7 +38,7 @@ export const skin = {
 
   // Centered logo only (no title/tagline)
 headerHTML: function(){
-  var logo = "./src/skins/cooking/assets/CQ%20Logo.png"; // path from index.html
+  var logo = "./assets/CQ%20Logo.png"; // path from index.html
   return (
     '<div class="brand brand--center">' +
       '<img class="brand__logo brand__logo--xl" src="'+logo+'" alt="Culinary Quest logo"/>' +
