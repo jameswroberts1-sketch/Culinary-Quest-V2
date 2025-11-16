@@ -1,173 +1,21 @@
-/* Menu card + tablecloth */
-/* IMPORTANT: url relative to this CSS file */
-.skin-cooking{
-  min-height:100vh;
-}
-.paper--menu{
-  width:min(760px,92vw);
-  background:#fbf9f3;border-radius:16px;padding:24px 24px 28px;
-  box-shadow:0 12px 36px rgba(0,0,0,.20);border:2px solid rgba(0,0,0,.06);
-  margin:24px auto;
-}
-.brand{display:flex;align-items:center;gap:16px;margin-bottom:12px}
-.brand__logo{height:56px;width:auto;display:block}
-.brand__title{font-size:1.75rem;margin:0;letter-spacing:.3px}
-.brand__tag{color:#3a3a3a;margin:2px 0 16px 72px}
-.card{background:#fff;border-radius:12px;padding:16px;margin:12px 0;border:1px solid rgba(0,0,0,.06);box-shadow:0 10px 24px rgba(0,0,0,.12)}
-.list{margin:8px 0 0;padding:0;list-style:none}
-.list li{padding:6px 0;border-bottom:1px dashed rgba(0,0,0,.1)}
-.row{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:8px;border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
-.btn-primary{background:#f59e0b;color:#fff}
-.btn-secondary{background:#1f2937;color:#fff}
-input[type="date"],input[type="time"],input[type="number"]{padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-weight:600}
-@media (prefers-color-scheme: dark){
-  /* don’t override the tablecloth */
-  /* .skin-cooking{background-color:#0b0b0b} */
-  .paper--menu{background:#111315;color:#f3f4f6;border-color:#1f2937}
-  .card{background:#0f1113;border-color:#1f2937}
-  .brand__tag{color:#9ca3af}
-  .list li{border-bottom-color:rgba(255,255,255,.08)}
-}
-.wrap{display:flex;align-items:center;justify-content:center;padding:24px}
-.muted{color:#6b7280;font-size:.9rem}
-.grid{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center}
-.chip{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.06)}
-/* ===========================
-   APPEND BELOW in: src/skins/cooking/skin.css
-   Intro "menu" styling for the Cooking skin
-   =========================== */
+/* =========================================
+   COOKING SKIN – Culinary Quest
+   file: src/skins/cooking/skin.css
+   ========================================= */
 
-/* Optional: elegant menu fonts (remove if you prefer system fonts only) */
+/* Elegant menu fonts (optional) */
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;600&display=swap");
 
-/* Menu card container inside your existing .paper--menu wrapper */
-.menu-card {
-  width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
-  padding: 20px 18px 18px;
+/* -----------------------------------------
+   GLOBAL / ROOT
+   ----------------------------------------- */
 
-  /* Paper look */
-  background-image:
-    linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,248,248,0.96)),
-    url("./assets/paper.png");
-  background-size: 100% 100%, 200px 200px;
-  background-repeat: no-repeat, repeat;
-  background-blend-mode: multiply;
+html {
+  -webkit-text-size-adjust: 100%; /* avoid auto-zoom / resize on iOS */
 }
-
-/* Top brand row: logo + script title */
-.menu-hero{
-  display:flex; align-items:center; gap:14px; justify-content:center; margin-bottom:6px;
-}
-.menu-logo{
-  height:48px; width:auto; display:block; opacity:.9;
-}
-.menu-script{
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-weight:400; font-size:28px; letter-spacing:.3px; color:#1d1d1d;
-}
-
-/* Big centred headline */
-.menu-title{
-  text-align:center; margin:10px 0 8px;
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-weight:600; font-size:30px; letter-spacing:2.5px;
-}
-
-/* Thin horizontal separators left/right from center */
-.menu-divider{
-  position:relative; height:18px; margin:6px 0 14px;
-}
-.menu-divider:before,
-.menu-divider:after{
-  content:""; position:absolute; top:50%; width:40%; height:1px; background:rgba(0,0,0,.18);
-  transform: translateY(-50%);
-}
-.menu-divider:before{ left:0; }
-.menu-divider:after { right:0; }
-
-/* Sections read like a restaurant menu */
-.menu-section{ text-align:center; padding:6px 8px; }
-.menu-course{
-  font-family:"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  font-weight:600; letter-spacing:6px; color:#6b7280; font-size:12px; margin-bottom:8px;
-}
-.menu-h2{
-  font-family:"Cormorant Garamond", Georgia, serif;
-  font-weight:600; font-size:22px; margin:0 0 6px; letter-spacing:1.2px;
-}
-.menu-copy{
-  color:#596276; margin:0 12px 8px; font-size:15px; line-height:1.5;
-}
-
-/* Input matches the menu-card feel */
-.menu-input{
-  width:100%; max-width:520px; margin:8px auto 0; display:block;
-  background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px 14px; font-weight:600;
-  box-shadow: inset 0 1px 0 rgba(0,0,0,.03);
-}
-
-/* Primary/secondary action row */
-.menu-actions{
-  display:flex; gap:12px; justify-content:center; margin-top:16px;
-}
-
-/* Dark-mode polish */
-@media (prefers-color-scheme: dark){
-  .menu-script{ color:#f3f4f6; }
-  .menu-title{ color:#f3f4f6; }
-  .menu-divider:before, .menu-divider:after{ background:rgba(255,255,255,.18); }
-  .menu-copy{ color:#cfd3db; }
-  .menu-input{
-    background:#0f1113; color:#f3f4f6; border-color:#1f2937;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
-  }
-}
-/* append to: src/skins/cooking/skin.css */
-
-/* Prevent iOS auto-zoom and odd form chrome */
-.skin-cooking input,
-.skin-cooking select,
-.skin-cooking textarea {
-  font-size: 17px;               /* why: iOS won't zoom ≥16px */
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-/* Your named field inherits this, but set explicitly too */
-.menu-input {
-  font-size: 17px;               /* ensure ≥16px on the intro field */
-  line-height: 1.4;
-}
-/* iOS: prevent auto-zoom and weird focus issues */
-input, select, textarea {
-  font-size: 17px;                 /* ≥16px stops Safari zoom */
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-/* Make the intro field “win” hit-testing */
-.menu-input {
-  font-size: 17px;                 /* explicit in case the selector above is overridden */
-  line-height: 1.4;
-  position: relative;              /* create stacking context */
-  z-index: 2;                      /* above any pseudo-elements */
-  touch-action: manipulation;      /* better tap UX */
-}
-
-/* Ensure decorative lines never steal taps */
-.menu-divider { pointer-events: none; }
-
-/* Buttons: better on iOS */
-.btn { touch-action: manipulation; }
-
-/* Optional: avoid text size auto-adjust on iOS */
-html { -webkit-text-size-adjust: 100%; }
-
 
 body {
+  margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   color: #222;
@@ -187,41 +35,194 @@ body {
   padding: clamp(12px, 3vw, 24px);
 }
 
-/* Keep content readable over the cloth */
-.skin-cooking .card,
-.skin-cooking .menu-card{
-  background: #fff;
+/* Wrapper class for the cooking skin if used by the router */
+.skin-cooking {
+  min-height: 100vh;
+}
+
+/* -----------------------------------------
+   LEGACY LAYOUT & COMPONENTS
+   (still used elsewhere in the app)
+   ----------------------------------------- */
+
+.paper--menu {
+  width: min(760px, 92vw);
+  background: #fbf9f3;
   border-radius: 16px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+  padding: 24px 24px 28px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(0, 0, 0, 0.06);
+  margin: 24px auto;
 }
 
-/* Brand header: center the logo and size it up */
-.brand.brand--center{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  margin: clamp(8px, 3vw, 20px) auto 14px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
 }
-.brand__logo.brand__logo--xl{
-  width: clamp(140px, 44vw, 260px);   /* tweak to taste */
-  height: auto;
+
+.brand__logo {
+  height: 56px;
+  width: auto;
   display: block;
-  opacity: .95;
 }
 
-/* Remove any leftover brand text if present */
-.brand__title,
-.brand__tag{ display:none !important; }
-/* Centered, larger logo */
-.brand.brand--center{
-  display:flex; justify-content:center; align-items:center;
-  margin: clamp(8px, 3vw, 20px) auto 14px;
+.brand__title {
+  font-size: 1.75rem;
+  margin: 0;
+  letter-spacing: 0.3px;
 }
-.brand__logo.brand__logo--xl{ width: clamp(140px, 44vw, 260px); height:auto; display:block; opacity:.95; }
 
-/* Headline “WELCOME TO / CULINARY QUEST” */
-.hero-welcome{
-  text-align:center;
+.brand__tag {
+  color: #3a3a3a;
+  margin: 2px 0 16px 72px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  touch-action: manipulation; /* better tap UX on iOS */
+}
+
+.btn-primary {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #1f2937;
+  color: #fff;
+}
+
+/* Legacy inputs */
+input[type="date"],
+input[type="time"],
+input[type="number"] {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-weight: 600;
+}
+
+/* -----------------------------------------
+   INTRO MENU – FINE DINING STYLE
+   (used by IntroScreen)
+   ----------------------------------------- */
+
+/* Menu card container */
+.menu-card {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 20px 18px 18px;
+
+  /* Paper look: gradient + subtle texture */
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 248, 248, 0.96)),
+    url("./assets/paper.png");
+  background-size: 100% 100%, 200px 200px;
+  background-repeat: no-repeat, repeat;
+  background-blend-mode: multiply;
+}
+
+/* Additional polish when inside the skin wrapper */
+.skin-cooking .menu-card {
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
+  padding: 26px 22px 30px;
+  position: relative;
+  overflow: visible;
+}
+
+/* Logo + script title row (if used) */
+.menu-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.menu-logo {
+  height: 48px;
+  width: auto;
+  display: block;
+  opacity: 0.9;
+}
+
+.menu-script {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: 0.3px;
+  color: #1d1d1d;
+}
+
+/* Big centred headline (if you use “WELCOME TO / CULINARY QUEST”) */
+.menu-title,
+.hero-welcome {
+  text-align: center;
   margin: 6px 0 10px;
   font-family: "Cormorant Garamond", Georgia, serif;
   font-weight: 600;
@@ -229,52 +230,213 @@ body {
   letter-spacing: 2.5px;
 }
 
-/* --- MENU DIVIDER WITH DIAMONDS (robust) --- */
-.menu-ornament{
+/* Simple horizontal separator (IntroScreen uses .menu-divider) */
+.menu-divider {
   position: relative;
-  height: 26px;
-  margin: 10px 0 16px;
-  pointer-events: none;                 /* never steal taps */
-  /* hairline across the center */
-  background: linear-gradient(rgba(0,0,0,.22), rgba(0,0,0,.22)) 0 50% / 100% 1px no-repeat;
-  z-index: 1;
+  height: 18px;
+  margin: 6px 0 14px;
+  pointer-events: none; /* never steal taps */
 }
 
-/* the two diamonds */
-.menu-ornament::before,
-.menu-ornament::after{
+.menu-divider::before,
+.menu-divider::after {
   content: "";
   position: absolute;
   top: 50%;
-  width: 10px;                          /* diamond size */
+  width: 40%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.18);
+  transform: translateY(-50%);
+}
+
+.menu-divider::before {
+  left: 0;
+}
+
+.menu-divider::after {
+  right: 0;
+}
+
+/* Fancy ornament with diamonds (if you use .menu-ornament anywhere) */
+.menu-ornament {
+  position: relative;
+  height: 26px;
+  margin: 10px 0 16px;
+  pointer-events: none;
+  background: linear-gradient(
+      rgba(0, 0, 0, 0.22),
+      rgba(0, 0, 0, 0.22)
+    )
+    0 50% / 100% 1px no-repeat;
+  z-index: 1;
+}
+
+.menu-ornament::before,
+.menu-ornament::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 10px;
   height: 10px;
   transform: translate(-50%, -50%) rotate(45deg);
-  background: #fff;                      /* same as card so they look “cut out” */
-  border: 1px solid rgba(0,0,0,.28);
-  box-shadow: 0 0 0 1px #fff;           /* tiny halo to separate from the line */
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 1px #fff;
   z-index: 2;
 }
 
-/* place them near the ends */
-.menu-ornament::before{ left: 12%; }
-.menu-ornament::after { left: 88%; }
+.menu-ornament::before {
+  left: 12%;
+}
 
-/* ensure the card doesn't hide them */
-.skin-cooking .menu-card{ position: relative; overflow: visible; }
+.menu-ornament::after {
+  left: 88%;
+}
 
-/* Tweak menu text rhythm */
-.menu-section{ text-align:center; padding:6px 10px; }
-.menu-course{ letter-spacing:6px; color:#6b7280; font-size:12px; margin-bottom:8px; font-weight:600; }
-.menu-h2{ font-family:"Cormorant Garamond", Georgia, serif; font-size:22px; margin:0 0 6px; font-weight:600; letter-spacing:1.2px; }
-.menu-copy{ color:#596276; margin:0 12px 8px; font-size:15px; line-height:1.55; }
+/* Sections read like a restaurant menu */
+.menu-section {
+  text-align: center;
+  padding: 6px 10px;
+}
 
-/* iOS input comfort (prevents zoom + keeps focus) */
-input, select, textarea{ font-size:17px; -webkit-appearance:none; appearance:none; }
-.menu-input{ font-size:17px; line-height:1.4; }
+.menu-course {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  font-weight: 600;
+  letter-spacing: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
 
-/* Card polish over the tablecloth */
-.skin-cooking .menu-card{
-  border-radius:16px;
-  box-shadow: 0 18px 40px rgba(0,0,0,.08);
-  padding: 26px 22px 30px;
+.menu-h2 {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 600;
+  font-size: 22px;
+  margin: 0 0 6px;
+  letter-spacing: 1.2px;
+}
+
+.menu-copy {
+  color: #596276;
+  margin: 0 12px 8px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Intro input field */
+.menu-input {
+  width: 100%;
+  max-width: 520px;
+  margin: 8px auto 0;
+  display: block;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 600;
+  font-size: 17px;   /* ≥16px to prevent iOS zoom */
+  line-height: 1.4;
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.03);
+  position: relative;
+  z-index: 2;
+  touch-action: manipulation;
+}
+
+/* Primary/secondary action row */
+.menu-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* -----------------------------------------
+   iOS FORM COMFORT & TAP BEHAVIOUR
+   ----------------------------------------- */
+
+.skin-cooking input,
+.skin-cooking select,
+.skin-cooking textarea,
+input,
+select,
+textarea {
+  font-size: 17px; /* iOS: ≥16px stops Safari zoom */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Buttons already have touch-action: manipulation in .btn */
+
+/* -----------------------------------------
+   BRAND HEADER – CENTERED LOGO VARIANT
+   ----------------------------------------- */
+
+.brand.brand--center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: clamp(8px, 3vw, 20px) auto 14px;
+}
+
+.brand__logo.brand__logo--xl {
+  width: clamp(140px, 44vw, 260px);
+  height: auto;
+  display: block;
+  opacity: 0.95;
+}
+
+/* Hide text title/tag if using logo-only hero */
+.brand__title,
+.brand__tag {
+  display: none !important;
+}
+
+/* -----------------------------------------
+   DARK MODE POLISH
+   ----------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  /* keep the tablecloth; don’t overwrite body background here */
+
+  .paper--menu {
+    background: #111315;
+    color: #f3f4f6;
+    border-color: #1f2937;
+  }
+
+  .card {
+    background: #0f1113;
+    border-color: #1f2937;
+  }
+
+  .brand__tag {
+    color: #9ca3af;
+  }
+
+  .list li {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .menu-script,
+  .menu-title,
+  .hero-welcome {
+    color: #f3f4f6;
+  }
+
+  .menu-divider::before,
+  .menu-divider::after {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .menu-copy {
+    color: #cfd3db;
+  }
+
+  .menu-input {
+    background: #0f1113;
+    color: #f3f4f6;
+    border-color: #1f2937;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
 }
