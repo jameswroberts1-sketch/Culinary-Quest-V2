@@ -213,7 +213,7 @@ input[type="number"] {
 }
 
 .menu-logo {
-  width: clamp(80px, 25vw, 220px);  /* min, preferred, max */
+  width: clamp(80px, 30vw, 300px);  /* min, preferred, max */
   height: auto;
   display: block;
   opacity: 0.9;
