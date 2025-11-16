@@ -77,6 +77,8 @@ import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
 
       // TEMP: for development, always show the intro (lobby) screen
       const key = "lobby";
+      // When done developing, replace the above line with the below
+      // const key  = (ROUTE_OVERRIDE && routes[ROUTE_OVERRIDE]) ? ROUTE_OVERRIDE : model.state;
       const hash = stableHash({ st:model.state, p:model.players, sched:model.schedule, sc:model.scores });
 
       if (key === lastKey && hash === lastHash) return; // preserve focus on iOS
