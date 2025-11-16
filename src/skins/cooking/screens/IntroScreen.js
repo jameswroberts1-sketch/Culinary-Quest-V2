@@ -21,13 +21,20 @@ export function render(root, model, actions) {
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOW IT WORKS</h2>
+
         <p class="menu-copy">
           Here’s how to roll out the red tablecloth:
-🎯 Choose your scoring style — single score or category-by-category showdown.
-👥 Add your contestants and send their personalised invite links.
-📅 Wait for RSVPs as each player locks in a unique hosting date.
-Once the line-up is complete, review the schedule and hit Start Competition to launch your Quest.
-💡 Optional twist: invite each player to contribute equally towards
+        </p>
+
+        <ol class="menu-steps">
+          <li>Choose your scoring style — single score or category-by-category showdown.</li>
+          <li>Add your contestants and send their personalised invite links.</li>
+          <li>Wait for RSVPs as each player locks in a unique hosting date.</li>
+          <li>Once the line-up is complete, review the schedule and hit <strong>Start Competition</strong> to launch your Quest.</li>
+        </ol>
+
+        <p class="menu-copy menu-copy--hint">
+          Optional twist: invite each player to contribute equally towards a prize pot for your eventual Culinary Conquistador.
         </p>
       </section>
 
