@@ -170,16 +170,26 @@ input, select, textarea {
 
 /* Optional: avoid text size auto-adjust on iOS */
 html { -webkit-text-size-adjust: 100%; }
-/* Cooking-only tablecloth (CSS is in /skins/cooking/, so path is ./assets/...) */
-.skin-cooking .paper--menu{
+
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #222;
+  -webkit-font-smoothing: antialiased;
+
+  /* Tablecloth background */
+  background-color: #f4f4f4; /* fallback */
+  background-image: url("./assets/Tablecloth.png");
+  background-repeat: repeat;
+  background-size: auto;
+  background-position: center;
+}
+
+#app {
   min-height: 100vh;
   box-sizing: border-box;
   padding: clamp(12px, 3vw, 24px);
-
-  background-color: #f8f5ed;                 /* warm linen base */
-  background-image: url("./assets/Tablecloth.png");
-  background-repeat: repeat;
-  background-size: 28px 28px;                /* tweak scale as you like */
 }
 
 /* Keep content readable over the cloth */
@@ -190,8 +200,6 @@ html { -webkit-text-size-adjust: 100%; }
   box-shadow: 0 12px 30px rgba(0,0,0,.08);
 }
 
-/* Ensure container stretches so cloth isn’t clipped */
-#app { min-height: 100vh; }
 /* Brand header: center the logo and size it up */
 .brand.brand--center{
   display:flex;
