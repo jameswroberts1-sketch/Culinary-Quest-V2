@@ -22,8 +22,12 @@ export function render(root, model, actions) {
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOW IT WORKS</h2>
         <p class="menu-copy">
-          Choose scoring, add contestants, each picks a unique hosting date.
-          After the final dinner, reveal results and crown the winner.
+          Here’s how to roll out the red tablecloth:
+🎯 Choose your scoring style — single score or category-by-category showdown.
+👥 Add your contestants and send their personalised invite links.
+📅 Wait for RSVPs as each player locks in a unique hosting date.
+Once the line-up is complete, review the schedule and hit Start Competition to launch your Quest.
+💡 Optional twist: invite each player to contribute equally towards
         </p>
       </section>
 
