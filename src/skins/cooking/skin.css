@@ -22,7 +22,8 @@
 .btn-secondary{background:#1f2937;color:#fff}
 input[type="date"],input[type="time"],input[type="number"]{padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-weight:600}
 @media (prefers-color-scheme: dark){
-  .skin-cooking{background-color:#0b0b0b}
+  /* don’t override the tablecloth */
+  /* .skin-cooking{background-color:#0b0b0b} */
   .paper--menu{background:#111315;color:#f3f4f6;border-color:#1f2937}
   .card{background:#0f1113;border-color:#1f2937}
   .brand__tag{color:#9ca3af}
