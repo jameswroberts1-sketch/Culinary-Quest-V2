@@ -404,10 +404,10 @@ textarea {
    DARK MODE POLISH
    ----------------------------------------- */
 
-@media (prefers-color-scheme: dark) {
+/*@media (prefers-color-scheme: dark) {*/
   /* keep the tablecloth; don’t overwrite body background here */
 
-  .paper--menu {
+/*  .paper--menu {
     background: #111315;
     color: #f3f4f6;
     border-color: #1f2937;
@@ -447,4 +447,4 @@ textarea {
     border-color: #1f2937;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
-}
+}*/
