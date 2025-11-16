@@ -6,18 +6,15 @@ export function render(root, model, actions) {
     <section class="menu-card">
       <div class="menu-hero">
         <img
-        class="menu-logo"
-        src="./src/skins/cooking/assets/cq-logo.png"
-        alt="Culinary Quest"
+          class="menu-logo"
+          src="./src/skins/cooking/assets/cq-logo.png"
+          alt="Culinary Quest"
         />
+        <p class="menu-tagline">
+          As the organiser of this event, you're hosting the grandest
+          dining spectacle your friends have ever seen.
+        </p>
       </div>
-      
-      <section class="menu-section menu-section--intro">
-      <p class="menu-copy">
-        As the organiser of this event, you're hosting the grandest
-        dining spectacle your friends have ever seen.
-      </p>
-      </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
@@ -35,7 +32,9 @@ export function render(root, model, actions) {
       <section class="menu-section">
         <div class="menu-course">DESSERT</div>
         <h2 class="menu-h2">YOUR HOST NAME</h2>
-        <p class="menu-copy">Shown to your guests throughout the competition.</p>
+        <p class="menu-copy">
+          Shown to your guests throughout the competition.
+        </p>
         <input id="hostName" class="menu-input"
                type="text"
                placeholder="Your name (visible to all players)"
