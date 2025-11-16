@@ -27,11 +27,11 @@ export function render(root, model, actions) {
         </p>
 
         <ol class="menu-steps">
-          <li>Choose your scoring style — single score or category-by-category showdown.</li>
-          <li>Add your contestants and send their personalised invite links.</li>
-          <li>Wait for RSVPs as each player locks in a unique hosting date.</li>
-          <li>Once the line-up is complete, review the schedule and hit <strong>Start Competition</strong> to launch your Quest.</li>
-        </ol>
+  <li>🎯 Choose your scoring style — single score or category-by-category showdown.</li>
+  <li>👥 Add your contestants and send their personalised invite links.</li>
+  <li>📅 Wait for RSVPs as each player locks in a unique hosting date.</li>
+  <li>🚀 Once the line-up is complete, review the schedule and hit <strong>Start Competition</strong> to launch your Quest.</li>
+</ol>
 
         <p class="menu-copy menu-copy--hint">
           Optional twist: invite each player to contribute equally towards a prize pot for your eventual Culinary Conquistador.
