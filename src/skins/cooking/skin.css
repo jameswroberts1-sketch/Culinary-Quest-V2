@@ -209,10 +209,11 @@ input[type="number"] {
 /* Logo row at top of card */
 .menu-hero {
   display: flex;
+  flex-direction: column;      /* stack logo over text */
   align-items: center;
-  gap: 14px;
   justify-content: center;
-  margin-bottom: 0px;
+  gap: 6px;                    /* space between logo and text */
+  margin-bottom: 6px;
 }
 
 .menu-logo {
@@ -220,6 +221,16 @@ input[type="number"] {
   height: auto;
   display: block;
   opacity: 0.9;
+}
+
+.menu-tagline {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #596276;
+  text-align: center;
+  margin: 0 10px;
 }
 
 /* Optional script title if you ever use it */
@@ -335,18 +346,6 @@ input[type="number"] {
   margin: 0 12px 8px;
   font-size: 15px;
   line-height: 1.55;
-}
-
-/* Intro blurb just under the logo */
-.menu-section--intro {
-  padding-top: 0px;       /* less gap below logo */
-  padding-bottom: 4px;    /* a bit tighter overall */
-}
-
-.menu-section--intro .menu-copy {
-  margin-left: 1px;       /* was 12px */
-  margin-right: 1px;
-  margin-top: 4px;
 }
 
 /* Intro input field */
