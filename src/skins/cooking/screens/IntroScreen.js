@@ -8,7 +8,7 @@ export function render(root, model, actions) {
       <div class="menu-hero">
         <img
           class="menu-logo"
-          src="./assets/logo.png"   <!-- 🔁 update this to your actual logo file -->
+          src="./assets/CQ%20Logo.png"
           alt="Culinary Quest"
         />
       </div>
