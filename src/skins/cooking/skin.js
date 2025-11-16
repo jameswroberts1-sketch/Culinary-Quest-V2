@@ -38,12 +38,8 @@ export const skin = {
 
   // Centered logo only (no title/tagline)
 headerHTML: function(){
-  var logo = "./assets/CQ%20Logo.png"; // path from index.html
-  return (
-    '<div class="brand brand--center">' +
-      '<img class="brand__logo brand__logo--xl" src="'+logo+'" alt="Culinary Quest logo"/>' +
-    '</div>'
-  );
+  // No global header in this skin – logo is handled per screen
+  return "";
 }
 };
 
