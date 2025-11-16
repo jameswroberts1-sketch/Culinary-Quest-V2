@@ -280,16 +280,17 @@ input[type="number"] {
 }
 
 .menu-ornament::before,
-.menu-ornament::after {
+.menu-ornament::after{
   content: "";
   position: absolute;
   top: 50%;
   width: 10px;
   height: 10px;
   transform: translate(-50%, -50%) rotate(45deg);
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.28);
-  box-shadow: 0 0 0 1px #fff;
+
+  background: transparent;               /* let the paper show through */
+  border: 1px solid rgba(0,0,0,.28);
+  box-shadow: 0 0 2px rgba(0,0,0,0.15);
   z-index: 2;
 }
 
