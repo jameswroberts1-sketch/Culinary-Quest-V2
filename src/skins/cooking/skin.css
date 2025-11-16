@@ -333,6 +333,17 @@ input[type="number"] {
   line-height: 1.55;
 }
 
+/* Intro blurb just under the logo */
+.menu-section--intro {
+  padding-top: 2px;       /* less gap below logo */
+  padding-bottom: 4px;    /* a bit tighter overall */
+}
+
+.menu-section--intro .menu-copy {
+  margin-left: 4px;       /* was 12px */
+  margin-right: 4px;
+}
+
 /* Intro input field */
 .menu-input {
   width: 100%;
