@@ -6,11 +6,12 @@ export function render(root, model, actions) {
     <section class="menu-card">
       <div class="menu-hero">
         <img
-          class="menu-logo"
-          src="./assets/logo.png"   <!-- update to your real logo filename -->
-          alt="Culinary Quest"
+        class="menu-logo"
+        src="./src/skins/cooking/assets/CQ%20Logo.png"  <!-- or CQ Logo.png -->
+        alt="Culinary Quest"
         />
       </div>
+
 
       <div class="menu-divider" aria-hidden="true"></div>
 
