@@ -212,7 +212,7 @@ input[type="number"] {
   flex-direction: column;      /* stack logo over text */
   align-items: center;
   justify-content: center;
-  gap: 6px;                    /* space between logo and text */
+  gap: 2px;                    /* space between logo and text */
   margin-bottom: 6px;
 }
 
