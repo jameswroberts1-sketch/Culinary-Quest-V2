@@ -212,7 +212,7 @@ input[type="number"] {
   align-items: center;
   gap: 14px;
   justify-content: center;
-  margin-bottom: 6px;
+  margin-bottom: 0px;
 }
 
 .menu-logo {
@@ -339,13 +339,14 @@ input[type="number"] {
 
 /* Intro blurb just under the logo */
 .menu-section--intro {
-  padding-top: 2px;       /* less gap below logo */
+  padding-top: 0px;       /* less gap below logo */
   padding-bottom: 4px;    /* a bit tighter overall */
 }
 
 .menu-section--intro .menu-copy {
-  margin-left: 4px;       /* was 12px */
-  margin-right: 4px;
+  margin-left: 1px;       /* was 12px */
+  margin-right: 1px;
+  margin-top: 4px;
 }
 
 /* Intro input field */
