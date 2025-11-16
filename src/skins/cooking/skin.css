@@ -234,9 +234,10 @@ input[type="number"] {
 }
 /* Numbered steps under HOW IT WORKS */
 .menu-steps {
-  margin: 6px 24px 8px;        /* top / sides / bottom */
-  padding-left: 1.4em;         /* room for numbers */
-  text-align: left;
+  margin: 8px 12px 10px;        /* align with normal paragraph margins */
+  padding-left: 1.6rem;         /* room for numbers + icons */
+  text-align: left;             /* force left alignment */
+  list-style-position: outside;
   color: #596276;
   font-size: 15px;
   line-height: 1.55;
@@ -245,7 +246,6 @@ input[type="number"] {
 .menu-steps li {
   margin-bottom: 4px;
 }
-
 /* Softer style for the optional twist line */
 .menu-copy--hint {
   font-size: 14px;
