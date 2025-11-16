@@ -11,7 +11,10 @@ export function render(root, model, actions) {
         alt="Culinary Quest"
         />
       </div>
-
+      <p class="menu-copy">
+          As the organiser of this event, you're hosting the
+          grandest dining spectacle your friends have ever seen.
+        </p>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
