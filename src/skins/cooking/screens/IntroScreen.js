@@ -3,21 +3,26 @@
 
 export function render(root, model, actions) {
   root.innerHTML = `
-    <section class="menu-card">
+<section class="menu-card">
       <div class="menu-hero">
         <img
           class="menu-logo"
           src="./src/skins/cooking/assets/cq-logo.png"
           alt="Culinary Quest"
         />
-        <div class="menu-ornament" aria-hidden="true"></div>
-        <div class="menu-course">ENTREE</div>
-        
+      </div>
+
+      <!-- full-width diamond divider under the logo -->
+      <div class="menu-ornament" aria-hidden="true"></div>
+
+      <!-- ENTREE + tagline as their own section -->
+      <section class="menu-section">
+        <div class="menu-course">ENTRÉE</div>
         <p class="menu-tagline">
           As the organiser of this event, you're hosting the grandest
           dining spectacle your friends have ever seen.
         </p>
-      </div>
+      </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
