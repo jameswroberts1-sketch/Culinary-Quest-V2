@@ -10,6 +10,9 @@ export function render(root, model, actions) {
           src="./src/skins/cooking/assets/cq-logo.PNG"
           alt="Culinary Quest"
         />
+        <div class="menu-ornament" aria-hidden="true"></div>
+        <div class="menu-course">ENTREE</div>
+        
         <p class="menu-tagline">
           As the organiser of this event, you're hosting the grandest
           dining spectacle your friends have ever seen.
