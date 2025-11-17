@@ -215,7 +215,7 @@ input[type="number"] {
   justify-content: center;
 
   gap: 0;                      /* NO gap between logo and tagline */
-  margin-bottom: 4px;          /* small gap under tagline before divider */
+  margin-bottom: 0px;          /* small gap under tagline before divider */
 }
 
 .menu-logo {
