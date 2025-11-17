@@ -207,7 +207,6 @@ input[type="number"] {
 }
 
 /* Logo + tagline at top of card */
-/* Logo + tagline at top of card */
 .menu-hero {
   display: flex;
   flex-direction: column;      /* stack logo over text */
@@ -233,6 +232,10 @@ input[type="number"] {
   color: #596276;
   text-align: center;
   margin: 2px 4px 0;          /* tiny top margin, no bottom margin */
+}
+
+.menu-divider {
+  margin: 4px 0 8px;   /* smaller top/bottom gap around MAIN's divider */
 }
 
 /* Numbered steps under HOW IT WORKS */
@@ -340,6 +343,11 @@ input[type="number"] {
   left: 88%;
 }
 
+/* Tighten space under the logo ornament */
+.menu-ornament {
+  margin: 4px 0 6px;   /* was something like 10px 0 16px */
+}
+
 /* Sections read like a restaurant menu */
 .menu-section {
   text-align: center;
@@ -396,6 +404,12 @@ input[type="number"] {
   gap: 12px;
   justify-content: center;
   margin-top: 16px;
+}
+
+/* First section (ENTRÉE) sits closer to the ornament */
+.menu-card .menu-section:first-of-type {
+  padding-top: 0;
+  padding-bottom: 4px;
 }
 
 /* -----------------------------------------
