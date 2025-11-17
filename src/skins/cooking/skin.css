@@ -231,7 +231,7 @@ input[type="number"] {
   line-height: 1.5;
   color: #596276;
   text-align: center;
-  margin: 2px 2px 4px;   /* top:2, sides:2, bottom:4 */
+  margin: 2px 1px 4px;   /* top:2, sides:2, bottom:4 */
 }
 
 /* Numbered steps under HOW IT WORKS */
