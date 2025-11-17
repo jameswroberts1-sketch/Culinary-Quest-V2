@@ -279,7 +279,7 @@ input[type="number"] {
 .menu-divider {
   position: relative;
   height: 18px;
-  margin: 4px 0 8px;      /* your preferred spacing */
+  margin: 4px 0 4px;      /* your preferred spacing */
   pointer-events: none;   /* never steal taps */
 }
 
