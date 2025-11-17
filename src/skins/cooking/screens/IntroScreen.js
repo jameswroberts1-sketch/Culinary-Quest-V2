@@ -100,7 +100,7 @@ export function render(root, model, actions) {
       u.searchParams.delete("route");
       history.replaceState(null, "", u.toString());
 
-      actions.setState("rsvp");
+      actions.setState("setup");
     }
 
     if (t.id === "cancel" && nameInput) {
