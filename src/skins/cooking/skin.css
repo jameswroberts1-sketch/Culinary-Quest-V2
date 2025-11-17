@@ -213,7 +213,7 @@ input[type="number"] {
   align-items: center;
   justify-content: center;
 
-  gap: 4;                      /* NO gap between logo and tagline */
+  gap: 4px;                      /* NO gap between logo and tagline */
   margin-bottom: 0px;          /* small gap under tagline before divider */
 }
 
@@ -231,14 +231,7 @@ input[type="number"] {
   line-height: 1.5;
   color: #596276;
   text-align: center;
-  margin-left: 2px;       /* was 12px */
-  margin-right: 2px;
-  margin-top: 2px;
-  margin-bottom: 4px;          /* tiny top margin, no bottom margin */
-}
-
-.menu-divider {
-  margin: 4px 0 8px;   /* smaller top/bottom gap around MAIN's divider */
+  margin: 2px 2px 4px;   /* top:2, sides:2, bottom:4 */
 }
 
 /* Numbered steps under HOW IT WORKS */
@@ -286,8 +279,8 @@ input[type="number"] {
 .menu-divider {
   position: relative;
   height: 18px;
-  margin: 6px 0 14px;
-  pointer-events: none; /* never steal taps */
+  margin: 4px 0 8px;      /* your preferred spacing */
+  pointer-events: none;   /* never steal taps */
 }
 
 .menu-divider::before,
@@ -301,13 +294,8 @@ input[type="number"] {
   transform: translateY(-50%);
 }
 
-.menu-divider::before {
-  left: 0;
-}
-
-.menu-divider::after {
-  right: 0;
-}
+.menu-divider::before { left: 0; }
+.menu-divider::after  { right: 0; }
 
 /* Fancy ornament with diamonds */
 .menu-ornament {
