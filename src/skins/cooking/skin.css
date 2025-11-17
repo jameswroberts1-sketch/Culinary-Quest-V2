@@ -301,7 +301,7 @@ input[type="number"] {
 .menu-ornament {
   position: relative;
   height: 26px;
-  margin: 10px 0 16px;
+  margin: 4px 0 6px;
   pointer-events: none;
   background: linear-gradient(
       rgba(0, 0, 0, 0.22),
@@ -326,18 +326,8 @@ input[type="number"] {
   z-index: 2;
 }
 
-.menu-ornament::before {
-  left: 12%;
-}
-
-.menu-ornament::after {
-  left: 88%;
-}
-
-/* Tighten space under the logo ornament */
-.menu-ornament {
-  margin: 4px 0 6px;   /* was something like 10px 0 16px */
-}
+.menu-ornament::before { left: 12%; }
+.menu-ornament::after  { left: 88%; }
 
 /* Sections read like a restaurant menu */
 .menu-section {
