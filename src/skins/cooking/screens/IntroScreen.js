@@ -1,9 +1,10 @@
 // path: src/skins/cooking/screens/IntroScreen.js
-// Cooking intro screen WITHOUT the "WELCOME TO CULINARY QUEST" headline.
+// Intro screen for Culinary Quest – organiser enters their name,
+// then we move to the Setup screen (scoring + categories + themes).
 
 export function render(root, model, actions) {
   root.innerHTML = `
-<section class="menu-card">
+    <section class="menu-card">
       <div class="menu-hero">
         <img
           class="menu-logo"
@@ -26,6 +27,7 @@ export function render(root, model, actions) {
 
       <div class="menu-divider" aria-hidden="true"></div>
 
+      <!-- MAIN: how it works -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOW IT WORKS</h2>
@@ -35,32 +37,37 @@ export function render(root, model, actions) {
         </p>
 
         <ol class="menu-steps">
-  <li>🎯 Choose your scoring style — single score or category-by-category showdown.</li>
-  <li>👥 Add your contestants and send their personalised invite links.</li>
-  <li>📅 Wait for RSVPs as each player locks in a unique hosting date.</li>
-  <li>🚀 Once the line-up is complete, review the schedule and hit <strong>Start Competition</strong> to launch your Quest.</li>
-</ol>
+          <li>🎯 Choose your scoring style — single score or category-by-category showdown.</li>
+          <li>👥 Add your contestants and send their personalised invite links.</li>
+          <li>📅 Wait for RSVPs as each player locks in a unique hosting date.</li>
+          <li>🚀 Once the line-up is complete, review the schedule and hit <strong>Start Competition</strong> to launch your Quest.</li>
+        </ol>
 
         <p class="menu-copy menu-copy--hint">
-          Optional twist: invite each player to contribute equally towards a prize pot for your eventual Culinary Conquistador.
+          Optional twist: invite each player to contribute equally towards a prize pot
+          for your eventual Culinary Conquistador.
         </p>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
+      <!-- DESSERT: organiser name -->
       <section class="menu-section">
         <div class="menu-course">DESSERT</div>
         <h2 class="menu-h2">YOUR HOST NAME</h2>
         <p class="menu-copy">
           Shown to your guests throughout the competition.
         </p>
-        <input id="hostName" class="menu-input"
-               type="text"
-               placeholder="Your name (visible to all players)"
-               autocomplete="name"
-               autocapitalize="words"
-               inputmode="text"
-               enterkeyhint="go" />
+        <input
+          id="hostName"
+          class="menu-input"
+          type="text"
+          placeholder="Your name (visible to all players)"
+          autocomplete="name"
+          autocapitalize="words"
+          inputmode="text"
+          enterkeyhint="go"
+        />
       </section>
 
       <div class="menu-actions">
@@ -73,12 +80,10 @@ export function render(root, model, actions) {
   const nameInput = root.querySelector("#hostName");
   const beginBtn  = root.querySelector("#begin");
 
-  // ⬇️ Removed the focusShim and its event listeners
-
   // Enter submits
-  if (nameInput) {
+  if (nameInput && beginBtn) {
     nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && beginBtn) beginBtn.click();
+      if (e.key === "Enter") beginBtn.click();
     });
   }
 
@@ -87,6 +92,7 @@ export function render(root, model, actions) {
     const t = e.target;
     if (!t) return;
 
+    // BEGIN → join game + move to setup
     if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
       if (!name && nameInput) {
@@ -94,15 +100,19 @@ export function render(root, model, actions) {
         return; // prevent empty organiser
       }
 
+      // Register organiser in the synced game model
       await actions.join(name);
 
+      // Clear any ?route=… so the router stops forcing us to intro
       const u = new URL(location.href);
       u.searchParams.delete("route");
       history.replaceState(null, "", u.toString());
 
+      // Move to the Setup screen (scoring + categories + themes)
       actions.setState("setup");
     }
 
+    // CANCEL → clear & refocus
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
@@ -111,3 +121,4 @@ export function render(root, model, actions) {
 
   return () => {};
 }
+
