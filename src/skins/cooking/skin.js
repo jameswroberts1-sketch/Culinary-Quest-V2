@@ -1,5 +1,7 @@
 // Safe, iOS-friendly skin: dynamic-load screens with fallback stubs.
-// No import.meta; no top-level await.
+
+import { render as renderIntro } from "./screens/IntroScreen.js";
+import { render as renderSetup } from "./screens/SetupScreen.js";
 
 function pickRenderer(mod){
   if (!mod) return null;
@@ -52,6 +54,9 @@ export function loadSkin(){
 }
 
 export const routes = {
+  intro: renderIntro,
+  setup: renderSetup,
+  // rsvp: renderRsvp,
   lobby:    () => safeLoad("./screens/IntroScreen.js",   "Intro"),
   rsvp:     () => safeLoad("../../components/RSVPScreen.js", "RSVP"),
   started:  () => safeLoad("../../components/GameScreen.js",  "Game"),
