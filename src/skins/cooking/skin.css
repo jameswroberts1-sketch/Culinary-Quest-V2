@@ -234,7 +234,7 @@ input[type="number"] {
   text-align: center;
   margin: 2px 4px 0;          /* tiny top margin, no bottom margin */
 }
-}
+
 /* Numbered steps under HOW IT WORKS */
 .menu-steps {
   margin: 8px 12px 10px;        /* align with normal paragraph margins */
