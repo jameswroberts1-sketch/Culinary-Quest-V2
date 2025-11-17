@@ -434,6 +434,107 @@ textarea {
 }
 
 /* -----------------------------------------
+   SETUP SCREEN – CHOICE CARDS & CATEGORIES
+   ----------------------------------------- */
+
+/* Text + radio / checkbox rows */
+.menu-choice-group {
+  margin: 8px 10px 4px;
+  text-align: left;
+}
+
+.menu-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #596276;
+}
+
+.menu-choice input[type="radio"],
+.menu-choice input[type="checkbox"] {
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.menu-choice span strong {
+  font-weight: 600;
+}
+
+.menu-choice--inline {
+  justify-content: flex-start;
+}
+
+/* Light “ghost” button (used for custom category remove) */
+.btn-ghost {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Category chips grid */
+.cat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (min-width: 560px) {
+  .cat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.cat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  background: #ffffff;
+  white-space: normal;
+}
+
+.cat-chip span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 1.2;
+}
+
+.cat-chip input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-left: 2px;
+  margin-right: 4px;
+}
+
+.lock {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
+.menu-setup-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 6px 12px 0;
+}
+
+/* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
 
