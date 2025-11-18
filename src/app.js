@@ -68,7 +68,7 @@ import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
     function render(state){
       const model = {
         gid:      GID,
-        state:    (state && state.st) || "lobby",
+        state:    (state && state.st) || "intro",
         players:  (state && state.p) || [],
         schedule: (state && state.sched) || [],
         scores:   (state && state.sc) || {},
