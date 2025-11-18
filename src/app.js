@@ -1,68 +1,151 @@
-// path: app.js
-// Main bootstrap for Culinary Quest – wires sync to the Cooking skin routes.
+// path: src/app.js
+// Minimal app bootstrap + router for Culinary Quest (cooking skin)
 
-import { skin, loadSkin, routes } from "./src/skins/cooking/skin.js";
-import { useGameSync } from "./src/useGameSync.js"; // <-- adjust path/name if needed
+import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
 
-// Root element + simple error renderer
+/* ------------ basic error display ------------ */
+
 const root = document.getElementById("app") || document.body;
 
 function showError(msg) {
-  const target = root || document.body;
-  target.innerHTML = `
-    <section class="card">
+  const safeMsg = String(msg || "Unknown error");
+  root.innerHTML = `
+    <section class="card" style="max-width:520px;margin:24px auto;">
       <h2>Something went wrong</h2>
-      <pre style="white-space:pre-wrap;font-size:0.85rem;">${msg}</pre>
+      <pre style="white-space:pre-wrap;font-size:12px;margin-top:8px;">
+${safeMsg}
+      </pre>
     </section>
   `;
 }
 
-// Global error hooks
 window.addEventListener("error", (e) => {
-  showError(`${e.message}\n${e.filename}:${e.lineno}`);
+  showError(`${e.message}\n${e.filename || ""}:${e.lineno || ""}`);
 });
 
-window.addEventListener("unhandledrejection", (e) => {
-  const reason = e.reason && e.reason.message ? e.reason.message : String(e.reason || "Unknown promise error");
-  showError(`Unhandled promise rejection:\n${reason}`);
-});
+/* ------------ simple in-memory model + actions ------------ */
 
-// --- App bootstrap ---
+// You can extend this later with Firebase / multi-device sync.
+// For now we just keep a local state so Intro ↔ Setup works.
+const model = {
+  state: "intro",
+  organiserName: null
+};
 
-(async function bootstrap() {
+const watchers = new Set();
+
+function notifyWatchers() {
+  for (const fn of watchers) {
+    try {
+      fn(model, actions);
+    } catch (err) {
+      console.error("[watcher] render failed", err);
+    }
+  }
+}
+
+const actions = {
+  async join(name) {
+    model.organiserName = name;
+    // Hook for future: persist organiser to backend here.
+  },
+  setState(next) {
+    if (typeof next === "string" && next.trim()) {
+      model.state = next.trim();
+      notifyWatchers();
+    }
+  }
+};
+
+/* ------------ route resolution ------------ */
+
+const qs = new URLSearchParams(location.search);
+const ROUTE_OVERRIDE = qs.get("route") || null;
+
+// Keep track of current cleanup from the active screen
+let currentCleanup = null;
+
+async function resolveRenderer(key) {
+  const loader = routes[key];
+  if (!loader) return null;
+
+  const modOrFn = await loader();
+  if (typeof modOrFn === "function") return modOrFn;
+  if (modOrFn && typeof modOrFn.render === "function") return modOrFn.render;
+  return null;
+}
+
+function pickRouteKey() {
+  // Highest priority: explicit ?route=… override, if it matches a route
+  if (ROUTE_OVERRIDE && routes[ROUTE_OVERRIDE]) {
+    return ROUTE_OVERRIDE;
+  }
+
+  // Next: model.state, if recognised
+  if (model.state && routes[model.state]) {
+    return model.state;
+  }
+
+  // Fallbacks: known safe states
+  if (routes.intro) return "intro";
+  if (routes.lobby) return "lobby";
+
+  // As a last resort, pick any available route
+  const keys = Object.keys(routes);
+  return keys[0];
+}
+
+async function renderOnce() {
+  const key = pickRouteKey();
+
   try {
-    // 1) Load skin CSS and apply skin class
+    const renderer = await resolveRenderer(key);
+    if (!renderer) {
+      showError(`No renderer available for state "${key}".`);
+      return;
+    }
+
+    // Run previous screen's cleanup, if any
+    if (typeof currentCleanup === "function") {
+      try {
+        currentCleanup();
+      } catch (err) {
+        console.warn("[cleanup] failed", err);
+      }
+      currentCleanup = null;
+    }
+
+    // Call the new screen renderer; if it returns a cleanup function, keep it
+    const maybeCleanup = renderer(root, model, actions);
+    if (typeof maybeCleanup === "function") {
+      currentCleanup = maybeCleanup;
+    }
+  } catch (err) {
+    console.error("[renderOnce] failed", err);
+    showError(`Render failed for state "${key}": ${err.message || err}`);
+  }
+}
+
+/* ------------ main bootstrap ------------ */
+
+async function main() {
+  try {
     await loadSkin();
     skin.apply(root);
-
-    // 2) Initialise sync (Firebase / game state)
-    const sync = useGameSync();
-
-    // 3) Wire render loop
-    sync.watch(async (model, actions) => {
-      try {
-        const stateKey = model && model.state ? model.state : "lobby";
-        const loader   = routes[stateKey] || routes.lobby;
-
-        // Every route is a loader that returns a renderer
-        const renderer = await loader();
-        if (typeof renderer === "function") {
-          renderer(root, model, actions);
-        } else {
-          // Fallback stub if something odd comes back
-          showError(`Route "${stateKey}" did not return a renderer function.`);
-        }
-      } catch (err) {
-        console.error("[app] render cycle failed", err);
-        showError(`Render failed: ${err && err.message ? err.message : String(err)}`);
-      }
-    });
-
-    // 4) Start sync (starts listening to Firebase or your backend)
-    sync.start();
   } catch (err) {
-    console.error("[app] bootstrap failed", err);
-    showError(`App failed to start:\n${err && err.message ? err.message : String(err)}`);
+    console.error("[main] skin init failed", err);
+    showError(`Failed to load skin: ${err.message || err}`);
+    return;
   }
-})();
 
+  // Initial render
+  await renderOnce();
+
+  // Watch for model changes (state transitions)
+  watchers.add(() => {
+    renderOnce();
+  });
+}
+
+// Kick things off
+main();
