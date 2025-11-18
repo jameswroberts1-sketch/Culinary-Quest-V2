@@ -66,7 +66,7 @@ export function render(root, model = {}, actions = {}) {
       <section class="menu-section">
         <h2 class="menu-h2">YOUR HOST NAME</h2>
         <p class="menu-copy">
-          Tell us your name, and let's get you started!.
+          Tell us your name, and let's get you started!
         </p>
         <input
           id="hostName"
