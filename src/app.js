@@ -67,13 +67,13 @@ import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
 
     function render(state){
       const model = {
-        gid:      GID,
-        state:    (state && state.st) || "intro",
-        players:  (state && state.p) || [],
-        schedule: (state && state.sched) || [],
-        scores:   (state && state.sc) || {},
-        results:  computeResults(state)
-      };
+  gid:      GID,
+  state:    (state && state.st) || "lobby",
+  players:  (state && state.p) || [],
+  schedule: (state && state.sched) || [],
+  scores:   (state && state.sc) || {},
+  results:  computeResults(state)
+};
 
       // TEMP: for development, always show the intro (lobby) screen
       const key = "lobby";
