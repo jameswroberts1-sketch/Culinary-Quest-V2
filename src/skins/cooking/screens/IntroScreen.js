@@ -3,10 +3,12 @@
 // then we move to the Setup screen (scoring + categories + themes).
 
 export function render(root, model, actions) {
-  // ✅ defensive: fall back to #app or <body> if router passes no root
-  const container = root || document.getElementById("app") || document.body;
+  // Safety: if router ever calls us with no root, fall back to #app
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
 
-  container.innerHTML = `
+  root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
         <img
@@ -43,7 +45,8 @@ export function render(root, model, actions) {
           <li>🎯 Choose your scoring style — single score or category-by-category showdown.</li>
           <li>👥 Add your contestants and send their personalised invite links.</li>
           <li>📅 Wait for RSVPs as each player locks in a unique hosting date.</li>
-          <li>🚀 Once the line-up is complete, review the schedule and hit <strong>Start Competition</strong> to launch your Quest.</li>
+          <li>🚀 Once the line-up is complete, review the schedule and hit
+              <strong>Start Competition</strong> to launch your Quest.</li>
         </ol>
 
         <p class="menu-copy menu-copy--hint">
@@ -80,8 +83,8 @@ export function render(root, model, actions) {
     </section>
   `;
 
-  const nameInput = container.querySelector("#hostName");
-  const beginBtn  = container.querySelector("#begin");
+  const nameInput = root.querySelector("#hostName");
+  const beginBtn  = root.querySelector("#begin");
 
   // Enter submits
   if (nameInput && beginBtn) {
@@ -91,11 +94,10 @@ export function render(root, model, actions) {
   }
 
   // Actions
-  container.addEventListener("click", async (e) => {
+  root.addEventListener("click", async (e) => {
     const t = e.target;
     if (!t) return;
 
-    // BEGIN → join game + move to setup
     if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
       if (!name && nameInput) {
@@ -103,25 +105,31 @@ export function render(root, model, actions) {
         return; // prevent empty organiser
       }
 
+      // Remember on *this device* that the intro has been completed
+      try {
+        window.localStorage.setItem("cq_intro_done", "1");
+        window.localStorage.setItem("cq_organiser_name", name);
+      } catch (_) {}
+
       // Register organiser in the synced game model
       await actions.join(name);
 
-      // Clear any ?route=… so the router stops forcing us to intro
+      // Clear any ?route=… so the router isn't stuck forcing the intro
       const u = new URL(location.href);
       u.searchParams.delete("route");
       history.replaceState(null, "", u.toString());
-
-      // Move to the Setup screen (scoring + categories + themes)
-      actions.setState("rsvp");
+      // NOTE: no actions.setState() here – the lobby route decides what to show
     }
 
-    // CANCEL → clear & refocus
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
+      try {
+        window.localStorage.removeItem("cq_intro_done");
+        window.localStorage.removeItem("cq_organiser_name");
+      } catch (_) {}
     }
   });
 
   return () => {};
 }
-
