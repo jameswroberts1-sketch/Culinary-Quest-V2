@@ -99,30 +99,38 @@ export function render(root, model, actions) {
     if (!t) return;
 
       if (t.id === "begin") {
-      const name = nameInput ? nameInput.value.trim() : "";
-      if (!name && nameInput) {
-        nameInput.focus({ preventScroll: true });
-        return; // prevent empty organiser
-      }
+  const name = nameInput ? nameInput.value.trim() : "";
+  if (!name && nameInput) {
+    nameInput.focus({ preventScroll: true });
+    return;
+  }
 
-      // Remember on *this device* that the intro has been completed
-      try {
-        window.localStorage.setItem("cq_intro_done", "1");
-        window.localStorage.setItem("cq_organiser_name", name);
-      } catch (_) {}
+  try {
+    window.localStorage.setItem("cq_intro_done", "1");
+    window.localStorage.setItem("cq_organiser_name", name);
+  } catch (_) {}
 
-      // 1) Register organiser in the synced game model
-      await actions.join(name);
+  try {
+    await actions.join(name);
+  } catch (err) {
+    console.error("[Intro] actions.join failed", err);
+    // optional: toast-style message
+    alert("Could not start the game – please check your connection and try again.");
+    return;
+  }
 
-      // 2) Move into the RSVP / setup phase (this state name is what the engine expects)
-      await actions.setState("rsvp");
+  try {
+    await actions.setState("rsvp");
+  } catch (err) {
+    console.error("[Intro] setState('rsvp') failed", err);
+    alert("Could not change screen – please refresh and try again.");
+    return;
+  }
 
-      // 3) Clear any ?route=… so the router isn't stuck forcing a screen
-      const u = new URL(location.href);
-      u.searchParams.delete("route");
-      history.replaceState(null, "", u.toString());
-    }
-
+  const u = new URL(location.href);
+  u.searchParams.delete("route");
+  history.replaceState(null, "", u.toString());
+}
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
