@@ -99,25 +99,23 @@ export function render(root, model, actions) {
           Decide whether guests give one overall score, or score across multiple categories.
         </p>
 
-        <div class="setup-modes" aria-label="Choose scoring mode">
-          <button
-            type="button"
-            class="btn btn-secondary setup-mode"
-            data-mode="simple"
-          >
-            <strong>Simple scoring</strong><br/>
-            <span class="muted">One overall score (0–10) per dinner.</span>
-          </button>
+        <div class="setup-modes">
+  <button
+    class="setup-mode${mode === "simple" ? " setup-mode--selected" : ""}"
+    data-mode="simple"
+  >
+    <strong>Simple scoring</strong>
+    <div class="muted">One overall score (0–10) per dinner.</div>
+  </button>
 
-          <button
-            type="button"
-            class="btn btn-secondary setup-mode"
-            data-mode="category"
-          >
-            <strong>Category scoring</strong><br/>
-            <span class="muted">Food plus up to 3 extra categories.</span>
-          </button>
-        </div>
+  <button
+    class="setup-mode${mode === "category" ? " setup-mode--selected" : ""}"
+    data-mode="category"
+  >
+    <strong>Category scoring</strong>
+    <div class="muted">Food plus up to 3 extra categories.</div>
+  </button>
+</div>
 
         <div
           id="setup-cats-block"
