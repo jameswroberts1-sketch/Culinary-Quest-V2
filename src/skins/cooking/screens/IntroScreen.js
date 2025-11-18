@@ -1,9 +1,9 @@
 // path: src/skins/cooking/screens/IntroScreen.js
 // Intro screen for Culinary Quest – organiser enters their name,
-// then we move into the RSVP / setup phase.
+// then we move to the Setup screen (scoring + categories + themes).
 
-export function render(root, model, actions) {
-  // Safety: fall back to #app / body if router passes nothing
+export function render(root, model = {}, actions = {}) {
+  // Safety: if router ever calls us with no root, fall back to #app
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
@@ -80,31 +80,32 @@ export function render(root, model, actions) {
         <button class="btn btn-primary" id="begin">Begin Planning</button>
         <button class="btn btn-secondary" id="cancel">Cancel</button>
       </div>
-
-      <!-- Tiny dev stamp so you can see when this screen has updated -->
-      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        IntroScreen v3 – JS loaded
-      </p>
     </section>
   `;
 
   const nameInput = root.querySelector("#hostName");
   const beginBtn  = root.querySelector("#begin");
 
-  // --- Handlers with proper cleanup ---
+  if (nameInput && beginBtn) {
+    // Enter key triggers Begin
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter") {
+        beginBtn.click();
+      }
+    };
+    nameInput.addEventListener("keydown", handleKeyDown);
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && beginBtn) {
-      e.preventDefault();
-      beginBtn.click();
-    }
-  };
+    // We'll remove this listener in the cleanup below
+    // by capturing it in the closure:
+    render._cleanupKey = () => {
+      nameInput.removeEventListener("keydown", handleKeyDown);
+    };
+  }
 
   const handleClick = async (e) => {
     const t = e.target;
     if (!t) return;
 
-    // BEGIN → join game + move to RSVP / setup phase
     if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
       if (!name && nameInput) {
@@ -112,35 +113,30 @@ export function render(root, model, actions) {
         return; // prevent empty organiser
       }
 
+      // Store locally so the next screens can read it if they want
       try {
-        // Remember on *this device* that the intro has been completed
-        try {
-          window.localStorage.setItem("cq_intro_done", "1");
-          window.localStorage.setItem("cq_organiser_name", name);
-        } catch (_) {
-          // storage is best-effort only
-        }
+        window.localStorage.setItem("cq_intro_done", "1");
+        window.localStorage.setItem("cq_organiser_name", name);
+      } catch (_) {}
 
-        // 1) Register organiser in the synced game model
+      // If the host engine provides a join() action, call it.
+      if (actions && typeof actions.join === "function") {
         await actions.join(name);
+      }
 
-        // 2) Move into the RSVP / setup phase.
-        //    Important: we use "rsvp" because that's the state
-        //    the engine already understands for the setup/RSVP step.
-        await actions.setState("rsvp");
+      // Move to the Setup screen – we use "setup" as the logical state
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("setup");
+      }
 
-        // 3) Clear any ?route=… so the router isn't stuck forcing a screen
+      // Clear any ?route=… override from the URL so the router follows state
+      try {
         const u = new URL(location.href);
         u.searchParams.delete("route");
         history.replaceState(null, "", u.toString());
-      } catch (err) {
-        console.error("[Intro] begin failed", err);
-        // Minimal user feedback – you can polish this later
-        alert("Sorry, something went wrong starting your game. Please try again.");
-      }
+      } catch (_) {}
     }
 
-    // CANCEL → clear & refocus
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
@@ -151,17 +147,14 @@ export function render(root, model, actions) {
     }
   };
 
-  if (nameInput) {
-    nameInput.addEventListener("keydown", handleKeyDown);
-  }
   root.addEventListener("click", handleClick);
 
-  // Expose cleanup so the router can unmount cleanly
+  // Cleanup: remove listeners when this screen is unmounted
   return () => {
-    if (nameInput) {
-      nameInput.removeEventListener("keydown", handleKeyDown);
-    }
     root.removeEventListener("click", handleClick);
+    if (render._cleanupKey) {
+      render._cleanupKey();
+      render._cleanupKey = null;
+    }
   };
 }
-
