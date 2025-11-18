@@ -80,8 +80,8 @@ export function render(root, model, actions) {
     </section>
   `;
 
-  const nameInput = root.querySelector("#hostName");
-  const beginBtn  = root.querySelector("#begin");
+  const nameInput = container.querySelector("#hostName");
+  const beginBtn  = container.querySelector("#begin");
 
   // Enter submits
   if (nameInput && beginBtn) {
@@ -91,7 +91,7 @@ export function render(root, model, actions) {
   }
 
   // Actions
-  root.addEventListener("click", async (e) => {
+  container.addEventListener("click", async (e) => {
     const t = e.target;
     if (!t) return;
 
