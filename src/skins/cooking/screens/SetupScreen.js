@@ -1,7 +1,7 @@
 // path: src/skins/cooking/screens/SetupScreen.js
 // Setup screen – organiser chooses scoring style + theme options (layout stub for now)
 
-export function render(root, model, actions) {
+export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
@@ -66,29 +66,29 @@ export function render(root, model, actions) {
     if (!t) return;
 
     if (t.id === "setup-back") {
-      // Go back to lobby / intro
-      try {
-        actions.setState("lobby");
-      } catch (err) {
-        console.error("[Setup] setState('lobby') failed", err);
+      // Back to intro
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("intro");
       }
+      try {
+        const u = new URL(location.href);
+        u.searchParams.set("route", "intro");
+        history.replaceState(null, "", u.toString());
+      } catch (_) {}
     }
 
     if (t.id === "setup-next") {
-      // Placeholder: when you wire the next real screen (e.g. "started" or "players"),
-      // change this state string accordingly.
-      try {
-        actions.setState("started"); // or "rsvp" if you prefer to loop for now
-      } catch (err) {
-        console.error("[Setup] setState('started') failed", err);
+      // Placeholder: you might go to an RSVP screen or "started" state later.
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("setup"); // stay here for now, until next step is ready
       }
     }
   };
 
   root.addEventListener("click", handleClick);
 
+  // Cleanup
   return () => {
     root.removeEventListener("click", handleClick);
   };
 }
-
