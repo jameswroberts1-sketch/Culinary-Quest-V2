@@ -48,20 +48,26 @@ export function render(root, model = {}, actions = {}) {
               <strong>Start Competition</strong> to launch your Quest.</li>
         </ol>
 
+      <div class="menu-divider" aria-hidden="true"></div>
+      
+      <!-- DESSERT: OPTIONAL TWIST -->
+      <section class="menu-section">
+        <div class="menu-course">DESSERT</div>
+        <h2 class="menu-h2">OPTIONAL TWIST</h2>
         <p class="menu-copy menu-copy--hint">
-          Optional twist: invite each player to contribute equally towards a prize pot
+          Invite each player to contribute equally towards a prize pot
           for your eventual Culinary Conquistador.
         </p>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- DESSERT: organiser name -->
+      <!-- Organiser name -->
       <section class="menu-section">
-        <div class="menu-course">DESSERT</div>
+      /*  <div class="menu-course">DESSERT</div> */
         <h2 class="menu-h2">YOUR HOST NAME</h2>
         <p class="menu-copy">
-          Shown to your guests throughout the competition.
+          Tell us your name, and let's get you started!.
         </p>
         <input
           id="hostName"
