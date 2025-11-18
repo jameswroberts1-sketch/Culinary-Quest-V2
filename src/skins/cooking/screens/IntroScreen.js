@@ -1,6 +1,6 @@
 // path: src/skins/cooking/screens/IntroScreen.js
 // Intro screen for Culinary Quest – organiser enters their name,
-// then we move to the Setup screen (scoring + categories + themes).
+// then we move to the RSVP/Setup phase (scoring + categories + themes).
 
 export function render(root, model, actions) {
   // Safety: if router ever calls us with no root, fall back to #app
@@ -80,6 +80,10 @@ export function render(root, model, actions) {
         <button class="btn btn-primary" id="begin">Begin Planning</button>
         <button class="btn btn-secondary" id="cancel">Cancel</button>
       </div>
+
+      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+        IntroScreen v3 – JS loaded
+      </p>
     </section>
   `;
 
@@ -98,39 +102,31 @@ export function render(root, model, actions) {
     const t = e.target;
     if (!t) return;
 
-      if (t.id === "begin") {
-  const name = nameInput ? nameInput.value.trim() : "";
-  if (!name && nameInput) {
-    nameInput.focus({ preventScroll: true });
-    return;
-  }
+    if (t.id === "begin") {
+      const name = nameInput ? nameInput.value.trim() : "";
+      if (!name && nameInput) {
+        nameInput.focus({ preventScroll: true });
+        return; // prevent empty organiser
+      }
 
-  try {
-    window.localStorage.setItem("cq_intro_done", "1");
-    window.localStorage.setItem("cq_organiser_name", name);
-  } catch (_) {}
+      // Remember on *this device* that the intro has been completed
+      try {
+        window.localStorage.setItem("cq_intro_done", "1");
+        window.localStorage.setItem("cq_organiser_name", name);
+      } catch (_) {}
 
-  try {
-    await actions.join(name);
-  } catch (err) {
-    console.error("[Intro] actions.join failed", err);
-    // optional: toast-style message
-    alert("Could not start the game – please check your connection and try again.");
-    return;
-  }
+      // 1) Register organiser in the synced game model
+      await actions.join(name);
 
-  try {
-    await actions.setState("rsvp");
-  } catch (err) {
-    console.error("[Intro] setState('rsvp') failed", err);
-    alert("Could not change screen – please refresh and try again.");
-    return;
-  }
+      // 2) Move into the RSVP/Setup phase – this is a core engine state
+      await actions.setState("rsvp");
 
-  const u = new URL(location.href);
-  u.searchParams.delete("route");
-  history.replaceState(null, "", u.toString());
-}
+      // 3) Clear any ?route=… so the router isn't stuck forcing a screen
+      const u = new URL(location.href);
+      u.searchParams.delete("route");
+      history.replaceState(null, "", u.toString());
+    }
+
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
