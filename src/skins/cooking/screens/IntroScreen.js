@@ -64,7 +64,6 @@ export function render(root, model = {}, actions = {}) {
 
       <!-- Organiser name -->
       <section class="menu-section">
-      /*  <div class="menu-course">DESSERT</div> */
         <h2 class="menu-h2">YOUR HOST NAME</h2>
         <p class="menu-copy">
           Tell us your name, and let's get you started!.
