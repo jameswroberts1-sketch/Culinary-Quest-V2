@@ -3,7 +3,10 @@
 // then we move to the Setup screen (scoring + categories + themes).
 
 export function render(root, model, actions) {
-  root.innerHTML = `
+  // ✅ defensive: fall back to #app or <body> if router passes no root
+  const container = root || document.getElementById("app") || document.body;
+
+  container.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
         <img
