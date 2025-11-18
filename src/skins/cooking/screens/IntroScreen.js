@@ -1,6 +1,5 @@
 // path: src/skins/cooking/screens/IntroScreen.js
-// Intro screen for Culinary Quest – organiser enters their name,
-// then we move to the Setup screen (scoring + categories + themes).
+// Intro screen – organiser enters their name, then we move to the Setup screen.
 
 export function render(root, model = {}, actions = {}) {
   // Safety: if router ever calls us with no root, fall back to #app
@@ -77,84 +76,100 @@ export function render(root, model = {}, actions = {}) {
       </section>
 
       <div class="menu-actions">
-        <button class="btn btn-primary" id="begin">Begin Planning</button>
-        <button class="btn btn-secondary" id="cancel">Cancel</button>
+        <button class="btn btn-primary" id="begin" type="button">Begin Planning</button>
+        <button class="btn btn-secondary" id="cancel" type="button">Cancel</button>
       </div>
     </section>
   `;
 
   const nameInput = root.querySelector("#hostName");
   const beginBtn  = root.querySelector("#begin");
+  const cancelBtn = root.querySelector("#cancel");
 
-  if (nameInput && beginBtn) {
-    // Enter key triggers Begin
-    const handleKeyDown = (e) => {
-      if (e.key === "Enter") {
-        beginBtn.click();
-      }
-    };
-    nameInput.addEventListener("keydown", handleKeyDown);
+  // --- Handlers ----------------------------------------------------
 
-    // We'll remove this listener in the cleanup below
-    // by capturing it in the closure:
-    render._cleanupKey = () => {
-      nameInput.removeEventListener("keydown", handleKeyDown);
-    };
-  }
-
-  const handleClick = async (e) => {
-    const t = e.target;
-    if (!t) return;
-
-    if (t.id === "begin") {
-      const name = nameInput ? nameInput.value.trim() : "";
-      if (!name && nameInput) {
-        nameInput.focus({ preventScroll: true });
-        return; // prevent empty organiser
-      }
-
-      // Store locally so the next screens can read it if they want
-      try {
-        window.localStorage.setItem("cq_intro_done", "1");
-        window.localStorage.setItem("cq_organiser_name", name);
-      } catch (_) {}
-
-      // If the host engine provides a join() action, call it.
-      if (actions && typeof actions.join === "function") {
-        await actions.join(name);
-      }
-
-      // Move to the Setup screen – we use "setup" as the logical state
-      if (actions && typeof actions.setState === "function") {
-        actions.setState("setup");
-      }
-
-      // Clear any ?route=… override from the URL so the router follows state
-      try {
-        const u = new URL(location.href);
-        u.searchParams.delete("route");
-        history.replaceState(null, "", u.toString());
-      } catch (_) {}
-    }
-
-    if (t.id === "cancel" && nameInput) {
-      nameInput.value = "";
-      nameInput.focus({ preventScroll: true });
-      try {
-        window.localStorage.removeItem("cq_intro_done");
-        window.localStorage.removeItem("cq_organiser_name");
-      } catch (_) {}
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && beginBtn) {
+      e.preventDefault();
+      beginBtn.click();
     }
   };
 
-  root.addEventListener("click", handleClick);
+  const handleBeginClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  // Cleanup: remove listeners when this screen is unmounted
+    if (!nameInput) return;
+
+    // Close keyboard / blur field first (helps on iOS)
+    const name = nameInput.value.trim();
+    nameInput.blur();
+
+    if (!name) {
+      nameInput.focus({ preventScroll: true });
+      return;
+    }
+
+    // Remember locally on this device
+    try {
+      window.localStorage.setItem("cq_intro_done", "1");
+      window.localStorage.setItem("cq_organiser_name", name);
+    } catch (_) {}
+
+    // Let the host engine know who the organiser is (if supported)
+    if (actions && typeof actions.join === "function") {
+      await actions.join(name);
+    }
+
+    // Move into Setup
+    if (actions && typeof actions.setState === "function") {
+      actions.setState("setup");
+    }
+
+    // Clear any ?route=… override so router follows state
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete("route");
+      history.replaceState(null, "", u.toString());
+    } catch (_) {}
+  };
+
+  const handleCancelClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!nameInput) return;
+    nameInput.value = "";
+    nameInput.focus({ preventScroll: true });
+
+    try {
+      window.localStorage.removeItem("cq_intro_done");
+      window.localStorage.removeItem("cq_organiser_name");
+    } catch (_) {}
+  };
+
+  // --- Wire listeners ----------------------------------------------
+
+  if (nameInput) {
+    nameInput.addEventListener("keydown", handleKeyDown);
+  }
+  if (beginBtn) {
+    beginBtn.addEventListener("click", handleBeginClick);
+  }
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", handleCancelClick);
+  }
+
+  // Cleanup when the screen is unmounted
   return () => {
-    root.removeEventListener("click", handleClick);
-    if (render._cleanupKey) {
-      render._cleanupKey();
-      render._cleanupKey = null;
+    if (nameInput) {
+      nameInput.removeEventListener("keydown", handleKeyDown);
+    }
+    if (beginBtn) {
+      beginBtn.removeEventListener("click", handleBeginClick);
+    }
+    if (cancelBtn) {
+      cancelBtn.removeEventListener("click", handleCancelClick);
     }
   };
 }
