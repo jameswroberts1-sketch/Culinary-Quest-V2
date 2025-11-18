@@ -56,7 +56,7 @@ export function render(root, model, actions) {
 
       <!-- Tiny dev stamp so you can see when this screen has updated -->
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        SetupScreen v3 – JS loaded
+        SetupScreen v4 – JS loaded
       </p>
     </section>
   `;
@@ -76,10 +76,9 @@ export function render(root, model, actions) {
     }
 
     if (t.id === "setup-next") {
-      // Placeholder: later this will go to the true RSVP / guest-add step.
-      // For now we'll just stay in rsvp/started flows once they exist.
+      // For now, keep it simple: this will later become the RSVP / next step.
       try {
-        actions.setState("started");  // or keep as "rsvp" until game start is wired
+        actions.setState("started"); // or "rsvp" once we wire the real flow
       } catch (err) {
         console.error("[Setup] setState('started') failed", err);
       }
