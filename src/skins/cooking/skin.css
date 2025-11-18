@@ -535,6 +535,116 @@ textarea {
 }
 
 /* -----------------------------------------
+   SETUP SCREEN – SCORING MODE & CATEGORIES
+   ----------------------------------------- */
+
+.setup-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.setup-mode {
+  /* reuse .btn styles but make them card-like */
+  width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-direction: column;
+  text-align: left;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+/* clearly highlight the active mode */
+.setup-mode--selected {
+  background: #111827;            /* dark navy */
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.setup-mode--selected .muted {
+  color: #e5e7eb;
+}
+
+.setup-cats-block {
+  margin-top: 10px;
+}
+
+/* grid of chips */
+.cat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (min-width: 480px) {
+  .cat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* each category "pill" */
+.cat-chip {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+/* checkbox itself */
+.cat-chip input {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
+
+/* make selected categories visually bolder */
+.cat-chip input:checked + span {
+  font-weight: 600;
+}
+
+/* small note for compulsory label */
+.lock {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
+/* row for "Add custom category" */
+.setup-custom-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.setup-custom-row .menu-input {
+  margin: 0;   /* override default top margin */
+}
+
+/* theme toggle */
+
+.theme-toggle-row {
+  margin-top: 8px;
+}
+
+.theme-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.theme-toggle-label input {
+  width: 18px;
+  height: 18px;
+}
+
+/* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
 
