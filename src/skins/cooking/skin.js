@@ -1,17 +1,22 @@
-// Safe, iOS-friendly skin: dynamic-load screens with fallback stubs.
+// path: src/skins/cooking/skin.js
+// Safe, iOS-friendly skin + router glue for the Cooking theme.
 
 import { render as renderIntro } from "./screens/IntroScreen.js";
 import { render as renderSetup } from "./screens/SetupScreen.js";
 
-function pickRenderer(mod){
+function pickRenderer(mod) {
   if (!mod) return null;
   if (typeof mod.render  === "function") return mod.render;
   if (typeof mod.default === "function") return mod.default;
-  for (const k in mod) if (typeof mod[k] === "function") return mod[k];
+  for (const k in mod) {
+    if (typeof mod[k] === "function") return mod[k];
+  }
   return null;
 }
-function stubRenderer(name){
-  return function render(root){
+
+function stubRenderer(name) {
+  return function render(root) {
+    if (!root) root = document.getElementById("app") || document.body;
     root.innerHTML = `
       <section class="card">
         <h2>${name} (stub)</h2>
@@ -19,12 +24,13 @@ function stubRenderer(name){
       </section>`;
   };
 }
-function safeLoad(relPath, name){
-  try{
+
+function safeLoad(relPath, name) {
+  try {
     return import(relPath)
-      .then(m => pickRenderer(m) || stubRenderer(name))
+      .then((m) => pickRenderer(m) || stubRenderer(name))
       .catch(() => stubRenderer(name));
-  }catch(e){
+  } catch (e) {
     return Promise.resolve(stubRenderer(name));
   }
 }
@@ -36,44 +42,63 @@ export const skin = {
   tagline: "Cook. Judge. Crown a champion.",
   classes: { paper: "paper--menu" },
 
-  apply(root){ (root || document.body).classList.add("skin-cooking"); },
+  apply(root) {
+    (root || document.body).classList.add("skin-cooking");
+  },
 
-  // Centered logo only (no title/tagline)
-headerHTML: function(){
-  // No global header in this skin – logo is handled per screen
-  return "";
-}
+  // No global header – each screen draws its own logo
+  headerHTML: function () {
+    return "";
+  }
 };
 
-export function loadSkin(){
-  var link = document.createElement("link");
-  link.rel  = "stylesheet";
+export function loadSkin() {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
   link.href = "./src/skins/cooking/skin.css";
   document.head.appendChild(link);
   return Promise.resolve();
 }
 
 export const routes = {
-  // Phase 1: organiser intro (logo + ENTREE / MAIN / DESSERT)
-  lobby: () => Promise.resolve(renderIntro),
+  // Single logical state 'lobby':
+  //   - before intro completed → IntroScreen
+  //   - after intro completed  → SetupScreen
+  lobby: function (root, model, actions) {
+    if (!root) root = document.getElementById("app") || document.body;
 
-  // Phase 2: organiser setup (scoring + categories + themes)
-  rsvp: () => Promise.resolve(renderSetup),
+    let introDone = false;
+    try {
+      introDone =
+        window.localStorage.getItem("cq_intro_done") === "1";
+    } catch (_) {}
 
-  // Phase 3: dinner rounds (existing game screen, lazy-loaded)
+    if (introDone) {
+      renderSetup(root, model, actions);
+    } else {
+      renderIntro(root, model, actions);
+    }
+  },
+
+  // Game in progress – keep using the existing lazy-loaded screens
   started: () => safeLoad("../../components/GameScreen.js", "Game"),
-
-  // Phase 4: final results (existing results screen, lazy-loaded)
   finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
-  // Special route to soft-reset back to lobby
-  reset: () => Promise.resolve((root, model, actions) => {
-    root.innerHTML = `
-      <section class="card">
-        <h2>Resetting…</h2>
-        <p>Sending game back to the intro screen.</p>
-      </section>
-    `;
-    actions.setState("lobby");
-  })
+  // Soft reset helper – clears local intro flag and sends state back to lobby
+  reset: () =>
+    Promise.resolve((root, model, actions) => {
+      if (!root) root = document.getElementById("app") || document.body;
+      root.innerHTML = `
+        <section class="card">
+          <h2>Resetting…</h2>
+          <p>Sending game back to the intro screen.</p>
+        </section>`;
+
+      try {
+        window.localStorage.removeItem("cq_intro_done");
+        window.localStorage.removeItem("cq_organiser_name");
+      } catch (_) {}
+
+      actions.setState("lobby");
+    })
 };
