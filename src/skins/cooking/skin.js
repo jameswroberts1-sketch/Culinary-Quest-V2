@@ -1,8 +1,10 @@
 // path: src/skins/cooking/skin.js
-// Safe, iOS-friendly skin + router glue for the Cooking theme.
+// Safe, iOS-friendly skin + router wiring for Intro + Setup etc.
 
 import { render as renderIntro } from "./screens/IntroScreen.js";
 import { render as renderSetup } from "./screens/SetupScreen.js";
+
+/* ------------ helpers for lazy-loaded screens ------------ */
 
 function pickRenderer(mod) {
   if (!mod) return null;
@@ -16,12 +18,13 @@ function pickRenderer(mod) {
 
 function stubRenderer(name) {
   return function render(root) {
-    if (!root) root = document.getElementById("app") || document.body;
-    root.innerHTML = `
+    const target = root || document.getElementById("app") || document.body;
+    target.innerHTML = `
       <section class="card">
         <h2>${name} (stub)</h2>
         <p>This screen isn't wired yet or failed to load. We'll keep the app running.</p>
-      </section>`;
+      </section>
+    `;
   };
 }
 
@@ -35,6 +38,8 @@ function safeLoad(relPath, name) {
   }
 }
 
+/* ------------ skin metadata ------------ */
+
 export const skin = {
   id: "cooking",
   name: "Culinary Quest",
@@ -46,62 +51,43 @@ export const skin = {
     (root || document.body).classList.add("skin-cooking");
   },
 
-  // No global header – each screen draws its own logo
+  // No global header; each screen renders its own logo.
   headerHTML: function () {
     return "";
   }
 };
 
+/* ------------ load CSS for this skin ------------ */
+
 export function loadSkin() {
-  const link = document.createElement("link");
+  var link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = "./src/skins/cooking/skin.css";
   document.head.appendChild(link);
   return Promise.resolve();
 }
 
+/* ------------ route table ------------ */
+
 export const routes = {
-  // Single logical state 'lobby':
-  //   - before intro completed → IntroScreen
-  //   - after intro completed  → SetupScreen
-  lobby: () =>
-    Promise.resolve(function renderLobby(root, model, actions, skin) {
-      if (!root) root = document.getElementById("app") || document.body;
+  // New explicit states
+  intro: renderIntro,
+  setup: renderSetup,
 
-      let introDone = false;
-      try {
-        introDone = window.localStorage.getItem("cq_intro_done") === "1";
-      } catch (_) {}
+  // Backwards-compatible alias: any old "lobby" state shows Intro
+  lobby: renderIntro,
 
-      if (introDone) {
-        // Screen 2 – scoring + themes (stub for now)
-        renderSetup(root, model, actions);
-      } else {
-        // Screen 1 – organiser intro
-        renderIntro(root, model, actions);
-      }
-    }),
+  // Existing screens – still lazy-loaded from components
+  rsvp:     () => safeLoad("../../components/RSVPScreen.js",   "RSVP"),
+  started:  () => safeLoad("../../components/GameScreen.js",   "Game"),
+  finished: () => safeLoad("../../components/ResultsScreen.js","Results"),
 
-  // Game in progress – keep using existing lazy-loaded screens
-  started: () => safeLoad("../../components/GameScreen.js", "Game"),
-  finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
-
-  // Soft reset helper – clears local intro flag and sends state back to lobby
+  // Soft reset → bounce back to Intro
   reset: () =>
-    Promise.resolve(function renderReset(root, model, actions, skin) {
-      if (!root) root = document.getElementById("app") || document.body;
-
-      root.innerHTML = `
-        <section class="card">
-          <h2>Resetting…</h2>
-          <p>Sending game back to the intro screen.</p>
-        </section>`;
-
-      try {
-        window.localStorage.removeItem("cq_intro_done");
-        window.localStorage.removeItem("cq_organiser_name");
-      } catch (_) {}
-
-      actions.setState("lobby");
+    Promise.resolve((root, model, actions) => {
+      const target = root || document.getElementById("app") || document.body;
+      target.innerHTML =
+        '<section class="card"><h2>Resetting…</h2><p>Sending game back to the intro screen.</p></section>';
+      actions.setState("intro");
     })
 };
