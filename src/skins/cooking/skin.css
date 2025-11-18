@@ -438,31 +438,61 @@ textarea {
    ----------------------------------------- */
 
 /* Text + radio / checkbox rows */
+/* SETUP SCREEN – CHOICE ROWS (SCORING + CATEGORIES) */
 .menu-choice-group {
   margin: 8px 10px 4px;
   text-align: left;
 }
 
+/* Base row style */
 .menu-choice {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   margin: 4px 0;
+  padding: 8px 10px;
   font-size: 14px;
   line-height: 1.5;
   color: #596276;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;               /* feels tappable */
 }
 
+/* Native controls */
 .menu-choice input[type="radio"],
 .menu-choice input[type="checkbox"] {
   margin-top: 3px;
   flex: 0 0 auto;
+  accent-color: #f59e0b;         /* make the dot/checkbox gold where supported */
 }
 
+/* Text block */
+.menu-choice span {
+  display: block;
+}
+
+/* Emphasis for the main label line */
 .menu-choice span strong {
   font-weight: 600;
 }
 
+/* Selected state – works via class OR :checked */
+.menu-choice--active,
+.menu-choice input:checked + span {
+  background: #fff8e6;           /* soft gold wash */
+  border-color: #f59e0b;
+  color: #374151;
+}
+
+/* Optional “locked” variant – e.g. for Food */
+.menu-choice--locked {
+  opacity: 0.8;
+  cursor: default;
+}
+
+/* Horizontal layout helper if you ever need it */
 .menu-choice--inline {
   justify-content: flex-start;
 }
