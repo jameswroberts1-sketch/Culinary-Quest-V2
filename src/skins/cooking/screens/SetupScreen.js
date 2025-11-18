@@ -14,58 +14,56 @@ const DEFAULT_SETUP = {
 // Built-in optional categories (besides "Food")
 const BUILT_INS = ["Table Setting", "Drinks", "Atmosphere", "Entertainment"];
 
-export function render(root, model, actions) {
+export function render(root, model = {}, actions) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
 
   // ---- hydrate initial setup state ----
+
+  // Start from defaults
   let setup = { ...DEFAULT_SETUP };
 
-  // 1) try model.setup if engine already stores it
-  if (model && model.setup) {
-    const m = model.setup;
-    if (m.mode === "simple" || m.mode === "category") setup.mode = m.mode;
-    if (Array.isArray(m.categories) && m.categories.includes("Food")) {
-      setup.categories = m.categories.slice(0, 4);
-    }
-    if (Array.isArray(m.customCategories)) {
-      setup.customCategories = m.customCategories.slice(0, 3);
-    }
-    if (typeof m.allowThemes === "boolean") {
-      setup.allowThemes = m.allowThemes;
-    }
+  // 1) merge in anything the sync engine already knows
+  if (model && model.setup && typeof model.setup === "object") {
+    setup = { ...setup, ...model.setup };
   } else {
-    // 2) fall back to localStorage (dev-friendly)
+    // 2) otherwise, try localStorage (dev-friendly)
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved && typeof saved === "object") {
-          if (saved.mode === "simple" || saved.mode === "category") {
-            setup.mode = saved.mode;
-          }
-          if (Array.isArray(saved.categories) && saved.categories.includes("Food")) {
-            setup.categories = saved.categories.slice(0, 4);
-          }
-          if (Array.isArray(saved.customCategories)) {
-            setup.customCategories = saved.customCategories.slice(0, 3);
-          }
-          if (typeof saved.allowThemes === "boolean") {
-            setup.allowThemes = saved.allowThemes;
-          }
+          setup = { ...setup, ...saved };
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // ignore storage failures
+    }
   }
 
-  // Ensure invariants
+  // ---- enforce invariants ----
+  // Food must always be present and first, max 4 total categories
+  if (!Array.isArray(setup.categories)) {
+    setup.categories = ["Food"];
+  }
+  setup.categories = setup.categories.filter(Boolean);
   if (!setup.categories.includes("Food")) {
-    setup.categories = ["Food", ...setup.categories.filter(c => c !== "Food")].slice(0, 4);
+    setup.categories = ["Food", ...setup.categories.filter(c => c !== "Food")];
   }
-  if (setup.customCategories.length > 3) {
-    setup.customCategories = setup.customCategories.slice(0, 3);
+  setup.categories = setup.categories.slice(0, 4);
+
+  // Custom categories is always an array, max 3
+  if (!Array.isArray(setup.customCategories)) {
+    setup.customCategories = [];
   }
+  setup.customCategories = setup.customCategories.slice(0, 3);
+
+  // allowThemes is always boolean
+  setup.allowThemes = !!setup.allowThemes;
+
+  // ---- make locals for the template ----
+  const { mode, categories, customCategories, allowThemes } = setup;
 
   // ---- skeleton HTML ----
   root.innerHTML = `
