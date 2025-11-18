@@ -69,12 +69,12 @@ export function loadSkin() {
 export const routes = {
   // Intro – organiser name screen
   lobby: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
-  intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"), // alias, just in case
+  intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"), // alias
 
-  // Setup / RSVP – we reuse the original "rsvp" state for your Setup screen
+  // RSVP/Setup – use your Setup screen for the engine's "rsvp" state
   rsvp:  () => safeLoad("./screens/SetupScreen.js",  "Setup"),
 
-  // In-game + results
+  // In-game + results (existing components)
   started:  () => safeLoad("../../components/GameScreen.js",    "Game"),
   finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
