@@ -2,6 +2,10 @@
 // Setup screen – organiser chooses scoring style + theme options (layout stub for now)
 
 export function render(root, model, actions) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -52,13 +56,13 @@ export function render(root, model, actions) {
 
       <!-- Tiny dev stamp so you can see when this screen has updated -->
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        SetupScreen v2 – JS loaded
+        SetupScreen v3 – JS loaded
       </p>
     </section>
   `;
 
   // Click handling (delegated on the root)
-    root.addEventListener("click", (ev) => {
+  root.addEventListener("click", (ev) => {
     const t = ev.target;
     if (!t) return;
 
@@ -72,11 +76,12 @@ export function render(root, model, actions) {
     }
 
     if (t.id === "setup-next") {
-      // For now, keep it simple: stay on rsvp until we wire the next screen
+      // Placeholder: later this will go to the true RSVP / guest-add step.
+      // For now we'll just stay in rsvp/started flows once they exist.
       try {
-        actions.setState("rsvp");
+        actions.setState("started");  // or keep as "rsvp" until game start is wired
       } catch (err) {
-        console.error("[Setup] setState('rsvp') failed", err);
+        console.error("[Setup] setState('started') failed", err);
       }
     }
   });
