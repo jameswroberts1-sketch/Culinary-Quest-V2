@@ -1,8 +1,5 @@
 // path: src/skins/cooking/skin.js
-// Safe, iOS-friendly skin + router wiring for Intro + Setup etc.
-
-import { render as renderIntro } from "./screens/IntroScreen.js";
-import { render as renderSetup } from "./screens/SetupScreen.js";
+// Cooking skin – uses lazy loaders for every route (Intro, Setup, etc.)
 
 /* ------------ helpers for lazy-loaded screens ------------ */
 
@@ -60,27 +57,27 @@ export const skin = {
 /* ------------ load CSS for this skin ------------ */
 
 export function loadSkin() {
-  var link = document.createElement("link");
+  const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = "./src/skins/cooking/skin.css";
   document.head.appendChild(link);
   return Promise.resolve();
 }
 
-/* ------------ route table ------------ */
+/* ------------ route table (all as loaders) ------------ */
 
 export const routes = {
-  // New explicit states
-  intro: renderIntro,
-  setup: renderSetup,
+  // Intro / Setup – use your JS modules in ./screens/
+  intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
+  setup: () => safeLoad("./screens/SetupScreen.js",  "Setup"),
 
   // Backwards-compatible alias: any old "lobby" state shows Intro
-  lobby: renderIntro,
+  lobby: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
 
-  // Existing screens – still lazy-loaded from components
-  rsvp:     () => safeLoad("../../components/RSVPScreen.js",   "RSVP"),
-  started:  () => safeLoad("../../components/GameScreen.js",   "Game"),
-  finished: () => safeLoad("../../components/ResultsScreen.js","Results"),
+  // Existing flows – still lazy-loaded from /components
+  rsvp:     () => safeLoad("../../components/RSVPScreen.js",    "RSVP"),
+  started:  () => safeLoad("../../components/GameScreen.js",    "Game"),
+  finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
   // Soft reset → bounce back to Intro
   reset: () =>
