@@ -1,7 +1,11 @@
 // path: src/skins/cooking/skin.js
-// Cooking skin – uses lazy loaders for every route (Intro, Setup, etc.)
+// Cooking skin – routes wired directly for Intro + Setup,
+// lazy-loaded only for the shared Game/Results components.
 
-/* ------------ helpers for lazy-loaded screens ------------ */
+import { render as renderIntro } from "./screens/IntroScreen.js";
+import { render as renderSetup } from "./screens/SetupScreen.js";
+
+/* ------------ helpers for lazy-loaded shared components ------------ */
 
 function pickRenderer(mod) {
   if (!mod) return null;
@@ -48,8 +52,8 @@ export const skin = {
     (root || document.body).classList.add("skin-cooking");
   },
 
-  // No global header; each screen renders its own logo.
-  headerHTML: function () {
+  // No global header; each screen renders its own logo/card.
+  headerHTML() {
     return "";
   }
 };
@@ -64,17 +68,17 @@ export function loadSkin() {
   return Promise.resolve();
 }
 
-/* ------------ route table (all as loaders) ------------ */
+/* ------------ route table ------------ */
 
 export const routes = {
-  // Intro – organiser name screen
-  lobby: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
-  intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"), // alias
+  // Engine "lobby" / "intro" → your Intro screen
+  lobby: renderIntro,
+  intro: renderIntro,
 
-  // RSVP/Setup – use your Setup screen for the engine's "rsvp" state
-  rsvp:  () => safeLoad("./screens/SetupScreen.js",  "Setup"),
+  // Engine "rsvp" state → your Setup screen
+  rsvp:  renderSetup,
 
-  // In-game + results (existing components)
+  // In-game + results still use the shared components
   started:  () => safeLoad("../../components/GameScreen.js",    "Game"),
   finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
