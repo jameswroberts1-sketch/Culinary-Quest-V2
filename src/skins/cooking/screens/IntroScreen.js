@@ -98,7 +98,7 @@ export function render(root, model, actions) {
     const t = e.target;
     if (!t) return;
 
-    if (t.id === "begin") {
+        if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
       if (!name && nameInput) {
         nameInput.focus({ preventScroll: true });
@@ -114,11 +114,13 @@ export function render(root, model, actions) {
       // Register organiser in the synced game model
       await actions.join(name);
 
+      // Move into the setup phase (scoring + categories + themes)
+      await actions.setState("setup");
+
       // Clear any ?route=… so the router isn't stuck forcing the intro
       const u = new URL(location.href);
       u.searchParams.delete("route");
       history.replaceState(null, "", u.toString());
-      // NOTE: no actions.setState() here – the lobby route decides what to show
     }
 
     if (t.id === "cancel" && nameInput) {
