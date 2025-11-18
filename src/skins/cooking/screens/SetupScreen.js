@@ -56,18 +56,17 @@ export function render(root, model, actions) {
 
       <!-- Tiny dev stamp so you can see when this screen has updated -->
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        SetupScreen v4 – JS loaded
+        SetupScreen v3 – JS loaded
       </p>
     </section>
   `;
 
-  // Click handling (delegated on the root)
-  root.addEventListener("click", (ev) => {
+  const handleClick = (ev) => {
     const t = ev.target;
     if (!t) return;
 
     if (t.id === "setup-back") {
-      // Go back to the Intro / lobby state
+      // Go back to lobby / intro
       try {
         actions.setState("lobby");
       } catch (err) {
@@ -76,14 +75,20 @@ export function render(root, model, actions) {
     }
 
     if (t.id === "setup-next") {
-      // For now, keep it simple: this will later become the RSVP / next step.
+      // Placeholder: when you wire the next real screen (e.g. "started" or "players"),
+      // change this state string accordingly.
       try {
-        actions.setState("started"); // or "rsvp" once we wire the real flow
+        actions.setState("started"); // or "rsvp" if you prefer to loop for now
       } catch (err) {
         console.error("[Setup] setState('started') failed", err);
       }
     }
-  });
+  };
 
-  return () => {};
+  root.addEventListener("click", handleClick);
+
+  return () => {
+    root.removeEventListener("click", handleClick);
+  };
 }
+
