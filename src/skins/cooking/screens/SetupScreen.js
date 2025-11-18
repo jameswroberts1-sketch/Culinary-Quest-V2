@@ -58,19 +58,26 @@ export function render(root, model, actions) {
   `;
 
   // Click handling (delegated on the root)
-  root.addEventListener("click", (ev) => {
+    root.addEventListener("click", (ev) => {
     const t = ev.target;
     if (!t) return;
 
     if (t.id === "setup-back") {
-      // Go back to the Intro screen
-      actions.setState("intro");
+      // Go back to the Intro / lobby state
+      try {
+        actions.setState("lobby");
+      } catch (err) {
+        console.error("[Setup] setState('lobby') failed", err);
+      }
     }
 
     if (t.id === "setup-next") {
-      // Placeholder: this is where you'll eventually go to the RSVP / next step
-      // For now, just keep it on setup or nudge towards "rsvp" once that screen exists.
-      actions.setState("rsvp");
+      // For now, keep it simple: stay on rsvp until we wire the next screen
+      try {
+        actions.setState("rsvp");
+      } catch (err) {
+        console.error("[Setup] setState('rsvp') failed", err);
+      }
     }
   });
 
