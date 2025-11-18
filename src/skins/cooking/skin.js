@@ -64,30 +64,33 @@ export const routes = {
   // Single logical state 'lobby':
   //   - before intro completed → IntroScreen
   //   - after intro completed  → SetupScreen
-  lobby: function (root, model, actions) {
-    if (!root) root = document.getElementById("app") || document.body;
+  lobby: () =>
+    Promise.resolve(function renderLobby(root, model, actions, skin) {
+      if (!root) root = document.getElementById("app") || document.body;
 
-    let introDone = false;
-    try {
-      introDone =
-        window.localStorage.getItem("cq_intro_done") === "1";
-    } catch (_) {}
+      let introDone = false;
+      try {
+        introDone = window.localStorage.getItem("cq_intro_done") === "1";
+      } catch (_) {}
 
-    if (introDone) {
-      renderSetup(root, model, actions);
-    } else {
-      renderIntro(root, model, actions);
-    }
-  },
+      if (introDone) {
+        // Screen 2 – scoring + themes (stub for now)
+        renderSetup(root, model, actions);
+      } else {
+        // Screen 1 – organiser intro
+        renderIntro(root, model, actions);
+      }
+    }),
 
-  // Game in progress – keep using the existing lazy-loaded screens
+  // Game in progress – keep using existing lazy-loaded screens
   started: () => safeLoad("../../components/GameScreen.js", "Game"),
   finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
   // Soft reset helper – clears local intro flag and sends state back to lobby
   reset: () =>
-    Promise.resolve((root, model, actions) => {
+    Promise.resolve(function renderReset(root, model, actions, skin) {
       if (!root) root = document.getElementById("app") || document.body;
+
       root.innerHTML = `
         <section class="card">
           <h2>Resetting…</h2>
