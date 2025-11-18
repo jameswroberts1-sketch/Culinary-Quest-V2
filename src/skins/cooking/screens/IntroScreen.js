@@ -2,6 +2,8 @@
 // Intro screen for Culinary Quest – organiser enters their name,
 // then we move to the RSVP/Setup phase (scoring + categories + themes).
 
+import { render as renderSetup } from "./SetupScreen.js";
+
 export function render(root, model, actions) {
   // Safety: if router ever calls us with no root, fall back to #app
   if (!root) {
@@ -82,7 +84,7 @@ export function render(root, model, actions) {
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        IntroScreen v3 – JS loaded
+        IntroScreen v4 – JS loaded
       </p>
     </section>
   `;
@@ -116,15 +118,35 @@ export function render(root, model, actions) {
       } catch (_) {}
 
       // 1) Register organiser in the synced game model
-      await actions.join(name);
+      try {
+        await actions.join(name);
+      } catch (err) {
+        console.error("[Intro] actions.join failed", err);
+        alert("Sorry, something went wrong saving your name. Please try again.");
+        return;
+      }
 
-      // 2) Move into the RSVP/Setup phase – this is a core engine state
-      await actions.setState("rsvp");
+      // 2) Ask the engine to move into the RSVP/Setup phase
+      try {
+        await actions.setState("rsvp");
+      } catch (err) {
+        console.error("[Intro] setState('rsvp') failed", err);
+        // Even if this fails, fallback below should still show Setup.
+      }
 
-      // 3) Clear any ?route=… so the router isn't stuck forcing a screen
-      const u = new URL(location.href);
-      u.searchParams.delete("route");
-      history.replaceState(null, "", u.toString());
+      // 3) As a fallback, render Setup directly so you definitely see the next screen
+      try {
+        renderSetup(root, { ...model, state: "rsvp" }, actions);
+      } catch (err) {
+        console.error("[Intro] direct renderSetup fallback failed", err);
+      }
+
+      // 4) Clear any ?route=… so the router isn't stuck forcing a screen
+      try {
+        const u = new URL(location.href);
+        u.searchParams.delete("route");
+        history.replaceState(null, "", u.toString());
+      } catch (_) {}
     }
 
     if (t.id === "cancel" && nameInput) {
