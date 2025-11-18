@@ -1,11 +1,9 @@
 // path: src/skins/cooking/screens/IntroScreen.js
 // Intro screen for Culinary Quest – organiser enters their name,
-// then we move to the RSVP/Setup phase (scoring + categories + themes).
-
-import { render as renderSetup } from "./SetupScreen.js";
+// then we move into the RSVP / setup phase.
 
 export function render(root, model, actions) {
-  // Safety: if router ever calls us with no root, fall back to #app
+  // Safety: fall back to #app / body if router passes nothing
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
@@ -83,8 +81,9 @@ export function render(root, model, actions) {
         <button class="btn btn-secondary" id="cancel">Cancel</button>
       </div>
 
+      <!-- Tiny dev stamp so you can see when this screen has updated -->
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        IntroScreen v4 – JS loaded
+        IntroScreen v3 – JS loaded
       </p>
     </section>
   `;
@@ -92,18 +91,20 @@ export function render(root, model, actions) {
   const nameInput = root.querySelector("#hostName");
   const beginBtn  = root.querySelector("#begin");
 
-  // Enter submits
-  if (nameInput && beginBtn) {
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") beginBtn.click();
-    });
-  }
+  // --- Handlers with proper cleanup ---
 
-  // Actions
-  root.addEventListener("click", async (e) => {
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && beginBtn) {
+      e.preventDefault();
+      beginBtn.click();
+    }
+  };
+
+  const handleClick = async (e) => {
     const t = e.target;
     if (!t) return;
 
+    // BEGIN → join game + move to RSVP / setup phase
     if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
       if (!name && nameInput) {
@@ -111,44 +112,35 @@ export function render(root, model, actions) {
         return; // prevent empty organiser
       }
 
-      // Remember on *this device* that the intro has been completed
       try {
-        window.localStorage.setItem("cq_intro_done", "1");
-        window.localStorage.setItem("cq_organiser_name", name);
-      } catch (_) {}
+        // Remember on *this device* that the intro has been completed
+        try {
+          window.localStorage.setItem("cq_intro_done", "1");
+          window.localStorage.setItem("cq_organiser_name", name);
+        } catch (_) {
+          // storage is best-effort only
+        }
 
-      // 1) Register organiser in the synced game model
-      try {
+        // 1) Register organiser in the synced game model
         await actions.join(name);
-      } catch (err) {
-        console.error("[Intro] actions.join failed", err);
-        alert("Sorry, something went wrong saving your name. Please try again.");
-        return;
-      }
 
-      // 2) Ask the engine to move into the RSVP/Setup phase
-      try {
+        // 2) Move into the RSVP / setup phase.
+        //    Important: we use "rsvp" because that's the state
+        //    the engine already understands for the setup/RSVP step.
         await actions.setState("rsvp");
-      } catch (err) {
-        console.error("[Intro] setState('rsvp') failed", err);
-        // Even if this fails, fallback below should still show Setup.
-      }
 
-      // 3) As a fallback, render Setup directly so you definitely see the next screen
-      try {
-        renderSetup(root, { ...model, state: "rsvp" }, actions);
-      } catch (err) {
-        console.error("[Intro] direct renderSetup fallback failed", err);
-      }
-
-      // 4) Clear any ?route=… so the router isn't stuck forcing a screen
-      try {
+        // 3) Clear any ?route=… so the router isn't stuck forcing a screen
         const u = new URL(location.href);
         u.searchParams.delete("route");
         history.replaceState(null, "", u.toString());
-      } catch (_) {}
+      } catch (err) {
+        console.error("[Intro] begin failed", err);
+        // Minimal user feedback – you can polish this later
+        alert("Sorry, something went wrong starting your game. Please try again.");
+      }
     }
 
+    // CANCEL → clear & refocus
     if (t.id === "cancel" && nameInput) {
       nameInput.value = "";
       nameInput.focus({ preventScroll: true });
@@ -157,7 +149,19 @@ export function render(root, model, actions) {
         window.localStorage.removeItem("cq_organiser_name");
       } catch (_) {}
     }
-  });
+  };
 
-  return () => {};
+  if (nameInput) {
+    nameInput.addEventListener("keydown", handleKeyDown);
+  }
+  root.addEventListener("click", handleClick);
+
+  // Expose cleanup so the router can unmount cleanly
+  return () => {
+    if (nameInput) {
+      nameInput.removeEventListener("keydown", handleKeyDown);
+    }
+    root.removeEventListener("click", handleClick);
+  };
 }
+
