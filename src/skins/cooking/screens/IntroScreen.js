@@ -98,7 +98,7 @@ export function render(root, model, actions) {
     const t = e.target;
     if (!t) return;
 
-    if (t.id === "begin") {
+        if (t.id === "begin") {
       const name = nameInput ? nameInput.value.trim() : "";
       if (!name && nameInput) {
         nameInput.focus({ preventScroll: true });
@@ -111,15 +111,25 @@ export function render(root, model, actions) {
         window.localStorage.setItem("cq_organiser_name", name);
       } catch (_) {}
 
-      // Register organiser in the synced game model
-      await actions.join(name);
+      // 1) Register organiser in the synced game model
+      try {
+        await actions.join(name);
+      } catch (err) {
+        console.error("[Intro] join() failed", err);
+        // we still carry on so you can test the flow
+      }
 
-      // Move into the setup phase (we reuse the existing "rsvp" state slot)
-      await actions.setState("rsvp");
+      // 2) Tell the backend "we’re in the setup / rsvp phase" (best effort)
+      try {
+        await actions.setState("rsvp");
+      } catch (err) {
+        console.error("[Intro] setState('rsvp') failed", err);
+        // not fatal for the UI transition during dev
+      }
 
-      // Clear any ?route=… so the router isn't stuck forcing the intro
+      // 3) Force the router to use the SetupScreen via ?route=rsvp
       const u = new URL(location.href);
-      u.searchParams.delete("route");
+      u.searchParams.set("route", "rsvp");   // <— key line
       history.replaceState(null, "", u.toString());
     }
 
