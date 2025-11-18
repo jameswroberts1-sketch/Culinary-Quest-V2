@@ -1,5 +1,5 @@
 // path: src/skins/cooking/skin.js
-// Cooking skin – uses lazy loaders for Intro, Setup, Game, Results.
+// Cooking skin – uses lazy loaders for every route (Intro, Setup, etc.)
 
 /* ------------ helpers for lazy-loaded screens ------------ */
 
@@ -48,8 +48,8 @@ export const skin = {
     (root || document.body).classList.add("skin-cooking");
   },
 
-  // No global header; each screen renders its own logo/card.
-  headerHTML() {
+  // No global header; each screen renders its own logo.
+  headerHTML: function () {
     return "";
   }
 };
@@ -57,11 +57,18 @@ export const skin = {
 /* ------------ load CSS for this skin ------------ */
 
 export function loadSkin() {
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = "./src/skins/cooking/skin.css";
-  document.head.appendChild(link);
-  return Promise.resolve();
+  // Slightly smarter loader: resolves when CSS loads (or fails)
+  return new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.rel  = "stylesheet";
+    link.href = "./src/skins/cooking/skin.css";
+    link.onload  = () => resolve();
+    link.onerror = () => {
+      console.error("[skin] Failed to load Cooking skin CSS");
+      resolve(); // fail soft – app can still run without skin styles
+    };
+    document.head.appendChild(link);
+  });
 }
 
 /* ------------ route table (all as loaders) ------------ */
@@ -69,12 +76,12 @@ export function loadSkin() {
 export const routes = {
   // Intro – organiser name screen
   lobby: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
-  intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
+  intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"), // alias, just in case
 
-  // RSVP / setup – your new Setup screen
+  // Setup / RSVP – we reuse the original "rsvp" state for your Setup screen
   rsvp:  () => safeLoad("./screens/SetupScreen.js",  "Setup"),
 
-  // In-game + results – shared components
+  // In-game + results
   started:  () => safeLoad("../../components/GameScreen.js",    "Game"),
   finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
@@ -87,3 +94,4 @@ export const routes = {
       actions.setState("lobby");
     })
 };
+
