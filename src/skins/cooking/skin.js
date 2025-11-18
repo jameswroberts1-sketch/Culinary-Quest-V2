@@ -67,24 +67,25 @@ export function loadSkin() {
 /* ------------ route table (all as loaders) ------------ */
 
 export const routes = {
-  // Intro / Setup – use your JS modules in ./screens/
+  // Intro / Setup – both in ./screens/
   intro: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
-  setup: () => safeLoad("./screens/SetupScreen.js",  "Setup"),
 
-  // Backwards-compatible alias: any old "lobby" state shows Intro
+  // We now use "rsvp" as the Setup phase
+  rsvp:  () => safeLoad("./screens/SetupScreen.js",  "Setup"),
+
+  // Any old "lobby" state also shows Intro
   lobby: () => safeLoad("./screens/IntroScreen.js",  "Intro"),
 
-  // Existing flows – still lazy-loaded from /components
-  rsvp:     () => safeLoad("../../components/RSVPScreen.js",    "RSVP"),
+  // Later-game states
   started:  () => safeLoad("../../components/GameScreen.js",    "Game"),
   finished: () => safeLoad("../../components/ResultsScreen.js", "Results"),
 
-  // Soft reset → bounce back to Intro
+  // Soft reset → bounce back to Intro / lobby
   reset: () =>
     Promise.resolve((root, model, actions) => {
       const target = root || document.getElementById("app") || document.body;
       target.innerHTML =
         '<section class="card"><h2>Resetting…</h2><p>Sending game back to the intro screen.</p></section>';
-      actions.setState("intro");
+      actions.setState("lobby");
     })
 };
