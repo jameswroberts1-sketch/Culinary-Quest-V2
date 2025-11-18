@@ -109,7 +109,7 @@ export function render(root, model, actions) {
       history.replaceState(null, "", u.toString());
 
       // Move to the Setup screen (scoring + categories + themes)
-      actions.setState("setup");
+      actions.setState("rsvp");
     }
 
     // CANCEL → clear & refocus
