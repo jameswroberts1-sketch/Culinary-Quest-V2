@@ -1,95 +1,68 @@
-/* =====================================
-   file: src/app.js  (FULL REPLACEMENT)
-   ===================================== */
-// --- SAFE BOOTSTRAP (never blank) ---
-const rootEl = document.getElementById("app") || document.body;
+// path: app.js
+// Main bootstrap for Culinary Quest – wires sync to the Cooking skin routes.
 
-function show(msg){
-  try {
-    rootEl.innerHTML =
-      `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${msg}</pre>`;
-  } catch(e) {}
+import { skin, loadSkin, routes } from "./src/skins/cooking/skin.js";
+import { useGameSync } from "./src/useGameSync.js"; // <-- adjust path/name if needed
+
+// Root element + simple error renderer
+const root = document.getElementById("app") || document.body;
+
+function showError(msg) {
+  const target = root || document.body;
+  target.innerHTML = `
+    <section class="card">
+      <h2>Something went wrong</h2>
+      <pre style="white-space:pre-wrap;font-size:0.85rem;">${msg}</pre>
+    </section>
+  `;
 }
 
-// Put something on screen immediately
-try { rootEl.innerHTML = '<div style="font:16px system-ui;padding:12px">Booting…</div>'; } catch(e){}
-
-// Surface all uncaught errors on page
-window.addEventListener("error",  e => show(`${e.message}\n${e.filename}:${e.lineno}`));
-window.addEventListener("unhandledrejection", e => show(String(e.reason)));
-import { createRouter }   from "./engine/router.js";
-import { useGameSync }    from "./engine/sync.js";
-import { computeResults } from "./engine/gameLogic.js";
-
-// Always show something immediately
-const root = document.getElementById("app");
-root.innerHTML = '<div style="font:16px system-ui;padding:12px">Booting…</div>';
-
-// Never go blank on errors
-window.addEventListener("error", e => {
-  root.innerHTML = `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${e.message}\n${e.filename}:${e.lineno}</pre>`;
-});
-window.addEventListener("unhandledrejection", e => {
-  root.innerHTML = `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${e.reason}</pre>`;
+// Global error hooks
+window.addEventListener("error", (e) => {
+  showError(`${e.message}\n${e.filename}:${e.lineno}`);
 });
 
-// Lock to cooking skin (maximum compatibility on iOS)
-import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = e.reason && e.reason.message ? e.reason.message : String(e.reason || "Unknown promise error");
+  showError(`Unhandled promise rejection:\n${reason}`);
+});
 
-(function bootstrap(){
-  const params = new URL(location.href).searchParams;
-  const GID    = params.get("gid")   || "dev-demo";
-  const ROUTE_OVERRIDE = params.get("route") || "";
+// --- App bootstrap ---
 
-  (async function init(){
+(async function bootstrap() {
+  try {
+    // 1) Load skin CSS and apply skin class
     await loadSkin();
+    skin.apply(root);
 
-    const router = createRouter(root);
-    router.use(routes);
+    // 2) Initialise sync (Firebase / game state)
+    const sync = useGameSync();
 
-    const sync = useGameSync(GID);
+    // 3) Wire render loop
+    sync.watch(async (model, actions) => {
+      try {
+        const stateKey = model && model.state ? model.state : "lobby";
+        const loader   = routes[stateKey] || routes.lobby;
 
-    // Guard: avoid re-render while typing (prevents iOS input blur)
-    let lastKey = "";
-    let lastHash = "";
+        // Every route is a loader that returns a renderer
+        const renderer = await loader();
+        if (typeof renderer === "function") {
+          renderer(root, model, actions);
+        } else {
+          // Fallback stub if something odd comes back
+          showError(`Route "${stateKey}" did not return a renderer function.`);
+        }
+      } catch (err) {
+        console.error("[app] render cycle failed", err);
+        showError(`Render failed: ${err && err.message ? err.message : String(err)}`);
+      }
+    });
 
-    const actions = {
-      join:        function(name){ return sync.join(name); },
-      rsvp:        function(idx, iso, time){ return sync.setSchedule(idx, iso, time); },
-      submitScore: function(hostIdx, value){ return sync.score(hostIdx, value); },
-      startGame:   function(){ return sync.setState("started"); },
-      setState:    function(st){ return sync.setState(st); }
-    };
-
-    function stableHash(obj){
-      try { return JSON.stringify(obj); } catch (e) { return String(Date.now()); }
-    }
-
-    function render(state){
-      const model = {
-  gid:      GID,
-  state:    (state && state.st) || "lobby",
-  players:  (state && state.p) || [],
-  schedule: (state && state.sched) || [],
-  scores:   (state && state.sc) || {},
-  results:  computeResults(state)
-};
-
-      // TEMP: for development, always show the intro (lobby) screen
-      const key = "lobby";
-      // When done developing, replace the above line with the below
-      // const key  = (ROUTE_OVERRIDE && routes[ROUTE_OVERRIDE]) ? ROUTE_OVERRIDE : model.state;
-      const hash = stableHash({ st:model.state, p:model.players, sched:model.schedule, sc:model.scores });
-
-      if (key === lastKey && hash === lastHash) return; // preserve focus on iOS
-      lastKey  = key;
-      lastHash = hash;
-
-      router.route(key, model, actions, skin);
-    }
-
-    sync.watch(render);
-  })().catch(function(err){
-    root.innerHTML = `<pre style="color:#f66;background:#111;padding:8px;border-radius:8px;white-space:pre-wrap">${String(err)}</pre>`;
-  });
+    // 4) Start sync (starts listening to Firebase or your backend)
+    sync.start();
+  } catch (err) {
+    console.error("[app] bootstrap failed", err);
+    showError(`App failed to start:\n${err && err.message ? err.message : String(err)}`);
+  }
 })();
+
