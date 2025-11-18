@@ -1,5 +1,5 @@
 // path: src/skins/cooking/screens/SetupScreen.js
-// Setup screen – organiser chooses scoring style, categories, and whether themes are allowed.
+// Setup screen – organiser chooses scoring style, categories, and theme option.
 
 const STORAGE_KEY = "cq_setup_v1";
 
@@ -19,16 +19,15 @@ export function render(root, model = {}, actions) {
     root = document.getElementById("app") || document.body;
   }
 
-  // ---- hydrate initial setup state ----
+  /* ---------- hydrate setup state ---------- */
 
-  // Start from defaults
   let setup = { ...DEFAULT_SETUP };
 
-  // 1) merge in anything the sync engine already knows
+  // 1) merge from synced model if present
   if (model && model.setup && typeof model.setup === "object") {
     setup = { ...setup, ...model.setup };
   } else {
-    // 2) otherwise, try localStorage (dev-friendly)
+    // 2) fall back to localStorage (dev-friendly)
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -37,35 +36,30 @@ export function render(root, model = {}, actions) {
           setup = { ...setup, ...saved };
         }
       }
-    } catch (_) {
-      // ignore storage failures
-    }
+    } catch (_) {}
   }
 
   // ---- enforce invariants ----
-  // Food must always be present and first, max 4 total categories
-  if (!Array.isArray(setup.categories)) {
-    setup.categories = ["Food"];
-  }
+  if (!Array.isArray(setup.categories)) setup.categories = ["Food"];
   setup.categories = setup.categories.filter(Boolean);
+
   if (!setup.categories.includes("Food")) {
     setup.categories = ["Food", ...setup.categories.filter(c => c !== "Food")];
   }
-  setup.categories = setup.categories.slice(0, 4);
+  setup.categories = setup.categories.slice(0, 4); // Food + up to 3 more
 
-  // Custom categories is always an array, max 3
-  if (!Array.isArray(setup.customCategories)) {
-    setup.customCategories = [];
-  }
+  if (!Array.isArray(setup.customCategories)) setup.customCategories = [];
   setup.customCategories = setup.customCategories.slice(0, 3);
 
-  // allowThemes is always boolean
   setup.allowThemes = !!setup.allowThemes;
+  if (setup.mode !== "simple" && setup.mode !== "category") {
+    setup.mode = "simple";
+  }
 
-  // ---- make locals for the template ----
   const { mode, categories, customCategories, allowThemes } = setup;
 
-  // ---- skeleton HTML ----
+  /* ---------- template ---------- */
+
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -78,12 +72,13 @@ export function render(root, model = {}, actions) {
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- ENTREE: scoring & themes intro -->
+      <!-- ENTREE: overview -->
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">SCORING & THEMES</h2>
         <p class="menu-copy">
-          Choose how your guests will score each dinner, and whether hosts can set a dress-up theme.
+          Choose how your guests will score each dinner, and whether hosts can set a
+          dress-up theme.
         </p>
       </section>
 
@@ -97,358 +92,269 @@ export function render(root, model = {}, actions) {
           Decide whether guests give one overall score, or score across multiple categories.
         </p>
 
-        <div class="setup-modes">
-  <button
-    class="setup-mode${mode === "simple" ? " setup-mode--selected" : ""}"
-    data-mode="simple"
-  >
-    <strong>Simple scoring</strong>
-    <div class="muted">One overall score (0–10) per dinner.</div>
-  </button>
+        <!-- scoring mode choices -->
+        <div class="setup-choice-group" role="radiogroup" aria-label="Scoring mode">
+          <button
+            type="button"
+            class="setup-choice ${mode === "simple" ? "setup-choice--active" : ""}"
+            data-mode="simple"
+            aria-pressed="${mode === "simple"}"
+          >
+            <span class="setup-choice__radio" aria-hidden="true"></span>
+            <span class="setup-choice__text">
+              <span class="setup-choice__label">Simple scoring</span>
+              <span class="setup-choice__hint">
+                One overall score (0–10) per dinner.
+              </span>
+            </span>
+          </button>
 
-  <button
-    class="setup-mode${mode === "category" ? " setup-mode--selected" : ""}"
-    data-mode="category"
-  >
-    <strong>Category scoring</strong>
-    <div class="muted">Food plus up to 3 extra categories.</div>
-  </button>
-</div>
+          <button
+            type="button"
+            class="setup-choice ${mode === "category" ? "setup-choice--active" : ""}"
+            data-mode="category"
+            aria-pressed="${mode === "category"}"
+          >
+            <span class="setup-choice__radio" aria-hidden="true"></span>
+            <span class="setup-choice__text">
+              <span class="setup-choice__label">Category scoring</span>
+              <span class="setup-choice__hint">
+                Food plus up to 3 extra categories.
+              </span>
+            </span>
+          </button>
+        </div>
 
-        <div
-          id="setup-cats-block"
-          class="setup-cats-block"
-          aria-label="Category selection"
-        >
-          <p class="menu-copy" style="margin-top:10px;">
-            <strong>Categories (max 4):</strong> Food is compulsory. Add up to 3 more,
-            including up to 3 of your own.
+        ${
+          mode === "category"
+            ? `
+        <div class="setup-cats">
+          <p class="menu-copy">
+            <strong>Food</strong> is compulsory. Choose up to 3 extra categories.
           </p>
 
-          <div id="setup-cats-list" class="cat-grid"></div>
+          <div class="setup-cat-list" aria-label="Scoring categories">
+            ${["Food", ...BUILT_INS]
+              .map((cat) => {
+                const selected = categories.includes(cat);
+                const locked = cat === "Food";
+                return `
+                  <button
+                    type="button"
+                    class="setup-cat
+                      ${selected ? "setup-cat--active" : ""}
+                      ${locked ? "setup-cat--locked" : ""}"
+                    data-cat="${cat}"
+                    ${locked ? 'aria-disabled="true"' : ""}
+                  >
+                    <span class="setup-cat__box" aria-hidden="true"></span>
+                    <span class="setup-cat__label">${cat}</span>
+                    ${
+                      locked
+                        ? '<span class="setup-cat__hint">Compulsory</span>'
+                        : ""
+                    }
+                  </button>
+                `;
+              })
+              .join("")}
 
-          <div class="setup-custom-row">
+            ${customCategories
+              .map((cat) => {
+                const selected = categories.includes(cat);
+                return `
+                  <button
+                    type="button"
+                    class="setup-cat ${
+                      selected ? "setup-cat--active" : ""
+                    }"
+                    data-cat="${cat}"
+                  >
+                    <span class="setup-cat__box" aria-hidden="true"></span>
+                    <span class="setup-cat__label">${cat}</span>
+                    <span class="setup-cat__hint">Custom</span>
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+
+          <div class="setup-cat-add">
             <input
               id="setup-custom-input"
-              class="menu-input"
               type="text"
-              placeholder="Add custom category (up to 3)"
+              class="menu-input"
+              placeholder="Add custom category (max 3)"
+              inputmode="text"
               autocomplete="off"
             />
             <button
               type="button"
-              class="btn btn-secondary setup-add-custom"
+              class="btn btn-secondary btn-small"
               id="setup-add-custom"
             >
               Add
             </button>
           </div>
 
-          <p class="muted" id="setup-count" style="margin-top:6px;font-size:0.85rem;">
-            &nbsp;
+          <p class="menu-copy menu-copy--hint">
+            Maximum of 4 categories in total (Food + 3 extras).
           </p>
-        </div>
+        </div>`
+            : ""
+        }
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- DESSERT: themes toggle -->
+      <!-- DESSERT: theme nights -->
       <section class="menu-section">
         <div class="menu-course">DESSERT</div>
         <h2 class="menu-h2">THEME NIGHTS</h2>
         <p class="menu-copy">
-          Allow each host to set a theme (e.g. “Mexican Fiesta”, “Feathers & Fedoras”) as a cue for guests.
+          Allow each host to set a theme (e.g. “Mexican Fiesta”, “Feathers & Fedoras”)
+          as a cue for guests.
+        </p>
+        <p class="menu-copy">
+          Allow hosts to set a theme for their night.
         </p>
 
-        <div class="theme-toggle-row">
-          <label class="theme-toggle-label">
-            <input
-              id="setup-theme-toggle"
-              type="checkbox"
-            />
-            <span>Allow hosts to set a theme for their night</span>
-          </label>
-        </div>
+        <button
+          type="button"
+          id="setup-toggle-themes"
+          class="setup-toggle ${allowThemes ? "setup-toggle--on" : ""}"
+          aria-pressed="${allowThemes}"
+        >
+          <span class="setup-toggle__switch" aria-hidden="true"></span>
+          <span class="setup-toggle__label">
+            ${allowThemes ? "Themes enabled" : "Themes disabled"}
+          </span>
+        </button>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <div class="menu-actions">
         <button class="btn btn-secondary" id="setup-back">Back</button>
-        <button class="btn btn-primary"   id="setup-next">Continue</button>
+        <button class="btn btn-primary" id="setup-next">Continue</button>
       </div>
 
-      <!-- Tiny dev stamp so you can see when this screen has updated -->
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
         SetupScreen – scoring & themes wired
       </p>
     </section>
   `;
 
-  const modesContainer   = root.querySelector(".setup-modes");
-  const catsBlock        = root.querySelector("#setup-cats-block");
-  const catsList         = root.querySelector("#setup-cats-list");
-  const countLabel       = root.querySelector("#setup-count");
-  const customInput      = root.querySelector("#setup-custom-input");
-  const themeToggleInput = root.querySelector("#setup-theme-toggle");
+  /* ---------- helpers ---------- */
 
-  // ---- helper: push setup into localStorage + engine (if supported) ----
-  function persistSetup() {
-    // Local storage (dev-friendly)
+  function persist() {
+    // localStorage for dev
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(setup));
     } catch (_) {}
 
-    // If the sync layer supports a "setup" field, store it there too
-    if (actions && typeof actions.updateGame === "function") {
-      // Non-destructive patch: we just attach a "setup" block
-      actions.updateGame({ setup });
-    } else if (actions && typeof actions.patch === "function") {
-      // Generic patch-style API
-      actions.patch({ setup });
+    // push into synced model if available
+    if (actions && typeof actions.update === "function") {
+      actions.update({ setup });
     }
   }
-
-  // ---- helper: render category chips & counters ----
-  function renderCategories() {
-    // Show/hide category block based on mode
-    if (catsBlock) {
-      catsBlock.style.display = (setup.mode === "category") ? "block" : "none";
-    }
-
-    if (!catsList) return;
-
-    const selected = new Set(setup.categories);
-    const customs  = new Set(setup.customCategories);
-
-    const parts = [];
-
-    // Food (compulsory)
-    parts.push(`
-      <label class="cat-chip">
-        <input type="checkbox" checked disabled data-cat="Food" />
-        <span>Food <span class="lock">(compulsory)</span></span>
-      </label>
-    `);
-
-    // Built-in optionals
-    for (const c of BUILT_INS) {
-      const on = selected.has(c);
-      parts.push(`
-        <label class="cat-chip">
-          <input type="checkbox" data-cat="${c}" ${on ? "checked" : ""}/>
-          <span>${c}</span>
-        </label>
-      `);
-    }
-
-    // Custom categories
-    for (const c of setup.customCategories) {
-      const on = selected.has(c);
-      parts.push(`
-        <label class="cat-chip">
-          <input type="checkbox" data-cat="${c}" ${on ? "checked" : ""}/>
-          <span>${c} <button type="button" class="btn-ghost setup-remove" data-remove="${c}">Remove</button></span>
-        </label>
-      `);
-    }
-
-    catsList.innerHTML = parts.join("");
-
-    // Counter text
-    if (countLabel) {
-      const total = setup.categories.length;
-      countLabel.textContent = `Enabled: ${total} / 4 categories total (including “Food”).`;
-    }
-  }
-
-  // ---- helper: update mode & refresh UI ----
-  function setMode(nextMode) {
-    if (nextMode !== "simple" && nextMode !== "category") return;
-    setup.mode = nextMode;
-
-    // When switching back to simple, we can keep categories in setup,
-    // but they won't be used until category mode is active again.
-    persistSetup();
-    syncModeButtons();
-    renderCategories();
-  }
-
-  function syncModeButtons() {
-    if (!modesContainer) return;
-    const buttons = modesContainer.querySelectorAll(".setup-mode");
-    buttons.forEach((btn) => {
-      const mode = btn.getAttribute("data-mode");
-      btn.classList.toggle("setup-mode--selected", mode === setup.mode);
-    });
-  }
-
-  // ---- init visuals from current setup state ----
-  if (themeToggleInput) {
-    themeToggleInput.checked = !!setup.allowThemes;
-  }
-
-  syncModeButtons();
-  renderCategories();
-
-  // ---- events ----
 
   const handleClick = (ev) => {
-    const t = ev.target;
-    if (!t) return;
+    const btn = ev.target.closest("button");
+    if (!btn) return;
 
-    // Mode buttons
-    if (t.closest(".setup-mode")) {
-      const btn = t.closest(".setup-mode");
-      const mode = btn.getAttribute("data-mode");
-      setMode(mode);
+    // 1) scoring mode buttons
+    const modeVal = btn.dataset.mode;
+    if (modeVal === "simple" || modeVal === "category") {
+      if (setup.mode !== modeVal) {
+        setup.mode = modeVal;
+        // reset categories if we go back to simple
+        if (modeVal === "simple") {
+          setup.categories = ["Food"];
+        }
+        persist();
+      }
       return;
     }
 
-    // Category toggles (delegated)
-    if (t.matches("input[type='checkbox'][data-cat]")) {
-      const cat = t.getAttribute("data-cat");
+    // 2) category pill clicks
+    if (btn.classList.contains("setup-cat")) {
+      const cat = btn.dataset.cat;
       if (!cat) return;
+      if (cat === "Food") return; // locked
 
-      if (cat === "Food") {
-        // Food is always on and cannot be removed
-        t.checked = true;
-        return;
-      }
+      const isSelected = setup.categories.includes(cat);
 
-      const selected = new Set(setup.categories);
-      if (t.checked) {
-        // adding
-        if (selected.size >= 4) {
-          // revert this checkbox and warn
-          t.checked = false;
-          window.alert("You can select up to 4 categories in total (including Food).");
+      if (isSelected) {
+        setup.categories = setup.categories.filter((c) => c !== cat);
+      } else {
+        if (setup.categories.length >= 4) {
+          // already Food + 3, do nothing
           return;
         }
-        selected.add(cat);
-        if (
-          !setup.customCategories.includes(cat) &&
-          !BUILT_INS.includes(cat) &&
-          cat !== "Food"
-        ) {
-          // re-add to customs if somehow missing
-          if (setup.customCategories.length < 3) {
-            setup.customCategories.push(cat);
-          }
-        }
-      } else {
-        // removing
-        selected.delete(cat);
+        setup.categories = [...setup.categories, cat];
       }
-
-      setup.categories = Array.from(selected);
-      persistSetup();
-      renderCategories();
+      persist();
       return;
     }
 
-    // Remove custom category
-    if (t.classList.contains("setup-remove") && t.hasAttribute("data-remove")) {
-      const name = t.getAttribute("data-remove");
-      if (!name) return;
-      setup.customCategories = setup.customCategories.filter((c) => c !== name);
-      setup.categories = setup.categories.filter((c) => c !== name);
-      persistSetup();
-      renderCategories();
+    // 3) add custom category
+    if (btn.id === "setup-add-custom") {
+      const input = root.querySelector("#setup-custom-input");
+      if (!input) return;
+
+      const value = input.value.trim();
+      if (!value) return;
+
+      const allNames = [
+        ...setup.categories,
+        ...setup.customCategories,
+        "Food",
+        ...BUILT_INS
+      ].map((c) => c.toLowerCase());
+
+      if (allNames.includes(value.toLowerCase())) {
+        return; // already exists
+      }
+
+      if (setup.customCategories.length >= 3) return;
+      if (setup.categories.length >= 4) return;
+
+      setup.customCategories = [...setup.customCategories, value];
+      setup.categories = [...setup.categories, value].slice(0, 4);
+      input.value = "";
+      persist();
       return;
     }
 
-    // Add custom category
-    if (t.id === "setup-add-custom") {
-      if (!customInput) return;
-      const raw = customInput.value.trim();
-      if (!raw) return;
-
-      const name = raw.replace(/\s+/g, " ").trim();
-      if (!name) return;
-
-      // check duplicates vs all categories (case-insensitive)
-      const allNames = new Set(
-        [...setup.categories, ...setup.customCategories, "Food", ...BUILT_INS]
-          .map((c) => c.toLowerCase())
-      );
-      if (allNames.has(name.toLowerCase())) {
-        window.alert("That category is already in your list.");
-        return;
-      }
-
-      if (setup.customCategories.length >= 3) {
-        window.alert("You can add up to 3 custom categories.");
-        return;
-      }
-
-      if (setup.categories.length >= 4) {
-        window.alert("You already have 4 categories selected (including Food).");
-        return;
-      }
-
-      setup.customCategories = [...setup.customCategories, name];
-      setup.categories = [...setup.categories, name];
-      customInput.value = "";
-      persistSetup();
-      renderCategories();
+    // 4) theme toggle
+    if (btn.id === "setup-toggle-themes") {
+      setup.allowThemes = !setup.allowThemes;
+      persist();
       return;
     }
 
-    // Theme toggle (label click)
-    if (t.id === "setup-theme-toggle" || t.closest("#setup-theme-toggle")) {
-      if (themeToggleInput) {
-        setup.allowThemes = !!themeToggleInput.checked;
-        persistSetup();
+    // 5) navigation
+    if (btn.id === "setup-back") {
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("intro");
       }
       return;
     }
 
-    // Back → return to intro / lobby
-    if (t.id === "setup-back") {
-      try {
-        if (actions && typeof actions.setState === "function") {
-          actions.setState("lobby"); // alias of intro in your skin.js
-        }
-      } catch (err) {
-        console.error("[Setup] setState('lobby') failed", err);
+    if (btn.id === "setup-next") {
+      // Make sure setup is persisted, then move on to host setup
+      persist();
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("hosts");
       }
       return;
-    }
-
-    // Continue → for now, just persist and stay in the same state
-    // When the Hosts screen is ready, this is where you'll switch to:
-    //    actions.setState("hosts")
-    if (t.id === "setup-next") {
-      persistSetup();
-      try {
-        if (actions && typeof actions.setState === "function") {
-          // TEMP: keep on 'rsvp' (mapped to Setup in skin.js) until Hosts screen exists
-          actions.setState("rsvp");
-        }
-      } catch (err) {
-        console.error("[Setup] setState('rsvp') failed", err);
-      }
-      return;
-    }
-  };
-
-  const handleChange = (ev) => {
-    const t = ev.target;
-    if (!t) return;
-
-    if (t.id === "setup-theme-toggle") {
-      setup.allowThemes = !!t.checked;
-      persistSetup();
     }
   };
 
   root.addEventListener("click", handleClick);
-  root.addEventListener("change", handleChange);
 
-  // Cleanup when this screen is replaced
   return () => {
     root.removeEventListener("click", handleClick);
-    root.removeEventListener("change", handleChange);
   };
 }
