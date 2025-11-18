@@ -54,16 +54,24 @@ export function loadSkin(){
 }
 
 export const routes = {
-  intro: renderIntro,
-  setup: renderSetup,
-  // rsvp: renderRsvp,
-  lobby:    () => safeLoad("./screens/IntroScreen.js",   "Intro"),
-  rsvp:     () => safeLoad("../../components/RSVPScreen.js", "RSVP"),
-  started:  () => safeLoad("../../components/GameScreen.js",  "Game"),
-  finished: () => safeLoad("../../components/ResultsScreen.js","Results"),
-  reset: () => Promise.resolve((root, model, actions) => {
-  root.innerHTML = '<section class="card"><h2>Resetting…</h2><p>Sending game back to the intro screen.</p></section>';
-  actions.setState('lobby');   // soft reset to the intro
-})
+  // Initial organiser screen: logo + ENTREE / MAIN / DESSERT
+  lobby: renderIntro,
 
+  // Setup screen: scoring mode + category style + theme option
+  rsvp: renderSetup,
+
+  // Later phases can still lazy-load the old components:
+  started:  () => safeLoad("../../components/GameScreen.js",   "Game"),
+  finished: () => safeLoad("../../components/ResultsScreen.js","Results"),
+
+  // Special reset route: shows a small message, then returns to lobby
+  reset: () => Promise.resolve((root, model, actions) => {
+    root.innerHTML = `
+      <section class="card">
+        <h2>Resetting…</h2>
+        <p>Sending game back to the intro screen.</p>
+      </section>
+    `;
+    actions.setState("lobby");   // soft reset to the intro
+  })
 };
