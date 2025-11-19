@@ -623,6 +623,39 @@ input[type="radio"],
 }
 
 /* -----------------------------------------
+   Setup categories – force column & left align
+   ----------------------------------------- */
+
+/* if you're using the newer list-style layout */
+.setup-categories-block,
+.setup-category-list {
+  text-align: left;
+}
+
+.setup-category-row label {
+  justify-content: flex-start;
+}
+
+/* if you're still on the pill/grid layout */
+.cat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (min-width: 520px) {
+  .cat-grid {
+    grid-template-columns: 1fr; /* keep a single column even on wider screens */
+  }
+}
+
+.cat-chip {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
 
