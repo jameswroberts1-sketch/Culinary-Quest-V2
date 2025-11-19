@@ -1,7 +1,7 @@
 // path: src/skins/cooking/screens/SetupScreen.js
 // Setup screen – organiser chooses scoring mode, categories & theme toggle
 
-const STORAGE_KEY = "cq_setup_v2"; // bump key so old experiments don't leak in
+const STORAGE_KEY = "cq_setup_v2"; // bumped so old experiments don't bleed in
 
 // Default setup config
 const DEFAULT_SETUP = {
@@ -29,7 +29,7 @@ function hydrateSetup(model) {
       setup.allowThemes = m.allowThemes;
     }
   } else {
-    // 2) Fall back to localStorage (dev-friendly; key bumped to v2)
+    // 2) Fall back to localStorage
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -49,16 +49,14 @@ function hydrateSetup(model) {
           }
         }
       }
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
   }
 
   // Ensure invariants
   if (!setup.categories.includes("Food")) {
-    setup.categories = ["Food", ...setup.categories.filter(c => c !== "Food")];
+    setup.categories = ["Food", ...setup.categories.filter((c) => c !== "Food")];
   }
-  const extras = setup.categories.filter(c => c !== "Food");
+  const extras = setup.categories.filter((c) => c !== "Food");
   if (extras.length > 3) {
     setup.categories = ["Food", ...extras.slice(0, 3)];
   }
@@ -70,12 +68,12 @@ function hydrateSetup(model) {
 }
 
 function persistSetup(setup, actions) {
-  // Local device cache
+  // Local cache
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(setup));
   } catch (_) {}
 
-  // Try to push into the shared model, but stay defensive
+  // Try to push into the shared model in a defensive way
   try {
     if (actions && typeof actions.updateSetup === "function") {
       actions.updateSetup(setup);
@@ -209,7 +207,7 @@ export function render(root, model = {}, actions = {}) {
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        SetupScreen – scoring, categories & theme wired
+        SetupScreen – scoring, categories & themes wired
       </p>
     </section>
   `;
@@ -221,11 +219,14 @@ export function render(root, model = {}, actions = {}) {
   const customInput  = root.querySelector("#customCat");
   const themeToggle  = root.querySelector("#themeToggle");
 
+  const simpleCard   = root.querySelector('.setup-option-card[data-mode="simple"]');
+  const catCard      = root.querySelector('.setup-option-card[data-mode="category"]');
+
   function ensureInvariants() {
     if (!setup.categories.includes("Food")) {
-      setup.categories = ["Food", ...setup.categories.filter(c => c !== "Food")];
+      setup.categories = ["Food", ...setup.categories.filter((c) => c !== "Food")];
     }
-    const extras = setup.categories.filter(c => c !== "Food");
+    const extras = setup.categories.filter((c) => c !== "Food");
     if (extras.length > 3) {
       setup.categories = ["Food", ...extras.slice(0, 3)];
     }
@@ -235,8 +236,9 @@ export function render(root, model = {}, actions = {}) {
   }
 
   function updateModeUI() {
-    const cards = modesEl ? modesEl.querySelectorAll(".setup-option-card") : [];
-    cards.forEach(card => {
+    if (!modesEl) return;
+    const cards = modesEl.querySelectorAll(".setup-option-card");
+    cards.forEach((card) => {
       if (card.dataset.mode === setup.mode) {
         card.classList.add("is-selected");
       } else {
@@ -261,12 +263,11 @@ export function render(root, model = {}, actions = {}) {
 
     ensureInvariants();
 
-    const extras = setup.categories.filter(c => c !== "Food");
     const enabledSet = new Set(setup.categories);
 
     const lines = [];
 
-    // Food – always present, always enabled, but visually “locked”
+    // Food – always present, always enabled, visually locked
     lines.push({
       name: "Food",
       compulsory: true,
@@ -275,7 +276,7 @@ export function render(root, model = {}, actions = {}) {
     });
 
     // Built-ins
-    BUILT_INS.forEach(name => {
+    BUILT_INS.forEach((name) => {
       lines.push({
         name,
         compulsory: false,
@@ -284,8 +285,8 @@ export function render(root, model = {}, actions = {}) {
       });
     });
 
-    // Customs (known list)
-    setup.customCategories.forEach(name => {
+    // Custom categories
+    setup.customCategories.forEach((name) => {
       lines.push({
         name,
         compulsory: false,
@@ -295,9 +296,8 @@ export function render(root, model = {}, actions = {}) {
     });
 
     catListEl.innerHTML = lines
-      .map(line => {
+      .map((line) => {
         const { name, compulsory, custom, enabled } = line;
-
         const disabledAttr = compulsory ? "disabled" : "";
         const checkedAttr  = enabled ? "checked" : "";
 
@@ -340,31 +340,30 @@ export function render(root, model = {}, actions = {}) {
     updateCategoryCount();
   }
 
-  // Initial paint of categories & mode UI
+  // Initial paint
   renderCategories();
   updateModeUI();
 
-  // --- events ---
+  // --- explicit mode handlers (fixes tap issues) ---
+
+  function setMode(mode) {
+    if (mode !== "simple" && mode !== "category") return;
+    setup.mode = mode;
+    updateModeUI();
+    persistSetup(setup, actions);
+  }
+
+  const onSimpleClick = () => setMode("simple");
+  const onCategoryClick = () => setMode("category");
+
+  if (simpleCard) simpleCard.addEventListener("click", onSimpleClick);
+  if (catCard)     catCard.addEventListener("click", onCategoryClick);
+
+  // --- delegated click/change for everything else ---
 
   const handleClick = (ev) => {
     const t = ev.target;
     if (!t) return;
-
-    // Mode cards (Simple vs Category)
-    const card = t.closest(".setup-option-card");
-    if (card && modesEl && modesEl.contains(card)) {
-      const mode = card.dataset.mode;
-      if (mode === "simple" || mode === "category") {
-        setup.mode = mode;
-        if (mode === "simple") {
-          // In simple mode, categories still matter later but chooser is hidden
-          // (we leave them as-is).
-        }
-        updateModeUI();
-        persistSetup(setup, actions);
-      }
-      return;
-    }
 
     // Add custom category
     if (t.id === "addCustom") {
@@ -391,8 +390,7 @@ export function render(root, model = {}, actions = {}) {
 
       setup.customCategories = [...setup.customCategories, name];
 
-      // Automatically enable it if we still have room for extras
-      const extras = setup.categories.filter(c => c !== "Food");
+      const extras = setup.categories.filter((c) => c !== "Food");
       if (extras.length < 3) {
         setup.categories = [...setup.categories, name];
       }
@@ -406,14 +404,14 @@ export function render(root, model = {}, actions = {}) {
     // Remove custom category
     if (t.matches(".setup-custom-remove") && t.dataset.removeCustom) {
       const name = t.dataset.removeCustom;
-      setup.customCategories = setup.customCategories.filter(c => c !== name);
-      setup.categories = setup.categories.filter(c => c !== name);
+      setup.customCategories = setup.customCategories.filter((c) => c !== name);
+      setup.categories = setup.categories.filter((c) => c !== name);
       renderCategories();
       persistSetup(setup, actions);
       return;
     }
 
-    // Navigation buttons
+    // Navigation
     if (t.id === "setupBack") {
       try {
         actions.setState && actions.setState("lobby");
@@ -425,7 +423,7 @@ export function render(root, model = {}, actions = {}) {
       ensureInvariants();
       persistSetup(setup, actions);
       try {
-        actions.setState && actions.setState("hosts"); // next screen: add other hosts
+        actions.setState && actions.setState("hosts"); // next step: add other hosts
       } catch (_) {}
       return;
     }
@@ -442,38 +440,4 @@ export function render(root, model = {}, actions = {}) {
       return;
     }
 
-    // Category checkbox changed
-    if (t.classList && t.classList.contains("setup-category-checkbox")) {
-      const name = t.dataset.name;
-      if (!name || name === "Food") return;
-
-      let extras = setup.categories.filter(c => c !== "Food");
-      const has = extras.includes(name);
-
-      if (t.checked && !has) {
-        if (extras.length < 3) {
-          extras = [...extras, name];
-        } else {
-          // Reached max; undo the check visually
-          t.checked = false;
-        }
-      } else if (!t.checked && has) {
-        extras = extras.filter(c => c !== name);
-      }
-
-      setup.categories = ["Food", ...extras];
-      updateCategoryCount();
-      persistSetup(setup, actions);
-      return;
-    }
-  };
-
-  root.addEventListener("click", handleClick);
-  root.addEventListener("change", handleChange);
-
-  // Cleanup when this screen is unmounted
-  return () => {
-    root.removeEventListener("click", handleClick);
-    root.removeEventListener("change", handleChange);
-  };
-}
+    //
