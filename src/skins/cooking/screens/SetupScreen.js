@@ -96,6 +96,14 @@ export function render(root, model = {}, actions = {}) {
 
   root.innerHTML = `
     <section class="menu-card">
+      // Always start this screen scrolled to the top
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    scroller.scrollTop = 0;
+  } catch (_) {}
       <div class="menu-hero">
         <img
           class="menu-logo"
