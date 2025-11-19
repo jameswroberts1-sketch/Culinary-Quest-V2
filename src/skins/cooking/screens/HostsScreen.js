@@ -1,108 +1,93 @@
 // path: src/skins/cooking/screens/HostsScreen.js
-// Screen 3 – organiser adds up to 5 more hosts (6 total incl. organiser)
+// Hosts screen – organiser + up to 5 additional hosts
 
 const HOSTS_STORAGE_KEY = "cq_hosts_v1";
+const MAX_HOSTS = 6; // organiser + up to 5 more
+const MIN_HOSTS = 2;
 
-// Simple HTML escaper for safety
+// Basic HTML escaping for host names
 function esc(str) {
   if (str == null) return "";
-  return String(str).replace(/[&<>"']/g, (ch) => {
-    switch (ch) {
-      case "&": return "&amp;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case '"': return "&quot;";
-      case "'": return "&#39;";
-      default: return ch;
-    }
-  });
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-// Work out organiser name from model / localStorage
-function getOrganiserName(model) {
-  let name =
-    (model && model.hostName) ||
-    (model && model.organiserName) ||
-    "";
-
-  try {
-    const lsName =
-      window.localStorage.getItem("cq_organiser_name") ||
-      window.localStorage.getItem("cq_host_name");
-    if (!name && lsName) name = lsName;
-  } catch (_) {}
-
-  return name || "Host 1";
-}
-
-// Hydrate host list from model or localStorage
-function hydrateHosts(model, organiserName) {
+// Build hosts array from model or localStorage
+function hydrateHosts(model = {}) {
   let hosts = [];
 
-  if (model && Array.isArray(model.hosts) && model.hosts.length) {
+  // Prefer any existing hosts in the shared model
+  if (Array.isArray(model.hosts) && model.hosts.length) {
     hosts = model.hosts.map((h) => ({
-      name: typeof h.name === "string" ? h.name : "",
-      isOrganiser: !!h.isOrganiser,
+      name: h && typeof h.name === "string" ? h.name : "",
     }));
   } else {
-    try {
-      const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (Array.isArray(saved)) {
-          hosts = saved.map((h) => ({
-            name: typeof h.name === "string" ? h.name : "",
-            isOrganiser: !!h.isOrganiser,
-          }));
-        }
+    // Fall back to organiser name fields we might have stored earlier
+    const organiserName =
+      model.organiserName ||
+      model.hostName ||
+      model.name ||
+      model.organiser ||
+      "";
+
+    if (organiserName) {
+      hosts = [{ name: organiserName }];
+    }
+  }
+
+  // If still empty, give a generic Host 1
+  if (hosts.length === 0) {
+    hosts = [{ name: "" }];
+  }
+
+  // Clamp length
+  if (hosts.length > MAX_HOSTS) {
+    hosts = hosts.slice(0, MAX_HOSTS);
+  }
+
+  // Merge in cached names from localStorage (non-destructive)
+  try {
+    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved) && saved.length) {
+        saved.forEach((entry, idx) => {
+          if (!hosts[idx]) hosts[idx] = { name: "" };
+          if (entry && typeof entry.name === "string" && entry.name.trim()) {
+            hosts[idx].name = entry.name;
+          }
+        });
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 
-  if (!hosts.length) {
-    hosts = [{ name: organiserName, isOrganiser: true }];
-  }
-
-  // Ensure first entry is organiser and name is in sync
-  hosts[0] = {
-    name: organiserName,
-    isOrganiser: true,
-  };
-
-  // Max 6 total (organiser + 5)
-  if (hosts.length > 6) {
-    hosts = hosts.slice(0, 6);
+  // Always at least Host 1
+  if (!hosts[0]) {
+    hosts[0] = { name: "" };
   }
 
   return hosts;
 }
 
-// Persist to localStorage + shared model
 function persistHosts(hosts, actions) {
-  const clean = hosts
-    .map((h, idx) => ({
-      name: (h.name || "").trim(),
-      isOrganiser: idx === 0 ? true : !!h.isOrganiser,
-    }))
-    .filter((h) => h.name); // ignore completely empty rows
-
   try {
-    window.localStorage.setItem(HOSTS_STORAGE_KEY, JSON.stringify(clean));
+    window.localStorage.setItem(HOSTS_STORAGE_KEY, JSON.stringify(hosts));
   } catch (_) {}
 
   try {
     if (actions && typeof actions.updateHosts === "function") {
-      actions.updateHosts(clean);
+      actions.updateHosts(hosts);
     } else if (actions && typeof actions.setHosts === "function") {
-      actions.setHosts(clean);
+      actions.setHosts(hosts);
     } else if (actions && typeof actions.patch === "function") {
-      actions.patch({ hosts: clean });
+      actions.patch({ hosts });
     }
   } catch (_) {
     // non-fatal
   }
-
-  return clean;
 }
 
 export function render(root, model = {}, actions = {}) {
@@ -110,8 +95,7 @@ export function render(root, model = {}, actions = {}) {
     root = document.getElementById("app") || document.body;
   }
 
-  const organiserName = getOrganiserName(model);
-  let hosts = hydrateHosts(model, organiserName);
+  let hosts = hydrateHosts(model);
 
   root.innerHTML = `
     <section class="menu-card">
@@ -130,32 +114,29 @@ export function render(root, model = {}, actions = {}) {
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">ADD YOUR HOSTS</h2>
         <p class="menu-copy">
-          You're Host&nbsp;#1. Add up to five more hosts who'll each
-          host a night of your Culinary Quest.
+          You're Host #1. Add up to five more hosts who'll each host a night of your Culinary Quest.
         </p>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
-      <!-- MAIN: host list -->
+      <!-- MAIN -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOST LINE-UP</h2>
         <p class="menu-copy">
-          List everyone who will take a turn hosting. You can have between
-          two and six hosts in total (including you).
+          List everyone who will take a turn hosting. You can have between two and six hosts in total (including you).
         </p>
 
-        <ul class="host-list" id="hostList"></ul>
+        <ul class="hosts-list" id="hostsList"></ul>
 
-        <div class="host-add-row">
-          <button type="button" class="btn btn-secondary" id="addHost">
-            Add another host
-          </button>
-        </div>
+        <button type="button" class="btn btn-secondary hosts-add-btn" id="hostsAdd">
+          Add another host
+        </button>
 
-        <p class="menu-setup-hint" id="hostCountHint"></p>
-        <p class="menu-setup-hint host-error" id="hostError" role="alert"></p>
+        <p class="menu-copy hosts-summary">
+          Hosts listed: <span id="hostsCount"></span> / ${MAX_HOSTS} (including you).
+        </p>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -171,148 +152,144 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-  const hostListEl = root.querySelector("#hostList");
-  const hostCountHint = root.querySelector("#hostCountHint");
-  const hostError = root.querySelector("#hostError");
-  const addBtn = root.querySelector("#addHost");
+  const listEl = root.querySelector("#hostsList");
+  const addBtn = root.querySelector("#hostsAdd");
+  const backBtn = root.querySelector("#hostsBack");
+  const nextBtn = root.querySelector("#hostsNext");
+  const countEl = root.querySelector("#hostsCount");
 
-  function setError(msg) {
-    if (!hostError) return;
-    hostError.textContent = msg || "";
-    hostError.style.display = msg ? "block" : "none";
+  if (!listEl) return;
+
+  function countNonEmpty() {
+    return hosts.filter((h) => h.name && h.name.trim()).length;
   }
 
-  function renderHosts() {
-    if (!hostListEl) return;
+  function updateSummaryAndButton() {
+    const totalNamed = countNonEmpty();
+    if (countEl) {
+      countEl.textContent = String(totalNamed);
+    }
+    if (nextBtn) {
+      nextBtn.disabled = totalNamed < MIN_HOSTS;
+      nextBtn.style.opacity = totalNamed < MIN_HOSTS ? "0.6" : "1";
+    }
+  }
 
-    const maxTotal = 6;
-    const total = hosts.length;
-    const namedCount = hosts.filter((h) => (h.name || "").trim()).length;
-
-    hostListEl.innerHTML = hosts
-      .map((h, idx) => {
-        if (idx === 0) {
-          // organiser row – locked
-          return `
-            <li class="host-row host-row--organiser">
-              <span class="host-number">Host 1</span>
-              <span class="host-name-label">${esc(organiserName)}</span>
-              <span class="host-tag">Organiser (you)</span>
-            </li>
-          `;
-        }
-
-        const label = `Host ${idx + 1}`;
-        const value = esc(h.name || "");
-
+  function renderList() {
+    const rows = hosts.map((host, index) => {
+      if (index === 0) {
+        // organiser row (read-only)
+        const name = esc(host.name || "");
         return `
-          <li class="host-row">
-            <span class="host-number">${label}</span>
+          <li class="host-row host-row--organiser">
+            <div class="host-row-label">Host 1</div>
+            <div class="host-row-main">
+              <div class="host-row-name">${name || "Host 1"}</div>
+              <div class="host-row-meta">Organiser (you)</div>
+            </div>
+          </li>
+        `;
+      }
+
+      const displayIndex = index + 1;
+      const value = esc(host.name || "");
+
+      return `
+        <li class="host-row">
+          <div class="host-row-label">Host ${displayIndex}</div>
+          <div class="host-row-main">
             <input
               type="text"
               class="host-name-input"
-              data-index="${idx}"
+              data-index="${index}"
+              placeholder="Host ${displayIndex} name"
               value="${value}"
-              placeholder="Host name"
-              maxlength="40"
+              autocomplete="name"
+              autocapitalize="words"
             />
-            <button
-              type="button"
-              class="host-remove"
-              data-remove-index="${idx}"
-            >
-              Remove
-            </button>
-          </li>
-        `;
-      })
-      .join("");
+          </div>
+          <button
+            type="button"
+            class="host-remove-btn"
+            data-remove-index="${index}"
+          >
+            Remove
+          </button>
+        </li>
+      `;
+    });
 
-    if (hostCountHint) {
-      hostCountHint.textContent = `Hosts listed: ${namedCount} / ${maxTotal} (including you).`;
-    }
-
-    if (addBtn) {
-      addBtn.disabled = hosts.length >= maxTotal;
-    }
+    listEl.innerHTML = rows.join("");
+    updateSummaryAndButton();
   }
 
-  // initial paint
-  renderHosts();
-  setError("");
+  // Initial paint
+  renderList();
 
-  // --- event handlers ---
-
-  function handleClick(ev) {
+  // INPUT: update host name & summary only (no re-render → keeps focus)
+  listEl.addEventListener("input", (ev) => {
     const t = ev.target;
-    if (!t) return;
+    if (!t || !t.classList.contains("host-name-input")) return;
+    const idx = Number(t.dataset.index);
+    if (Number.isNaN(idx) || !hosts[idx]) return;
+    hosts[idx].name = t.value;
+    updateSummaryAndButton();
+    persistHosts(hosts, actions);
+  });
 
-    // Add another host (max 6 total incl organiser)
-    if (t.id === "addHost") {
-      if (hosts.length >= 6) return;
-      hosts.push({ name: "", isOrganiser: false });
-      renderHosts();
-      setError("");
-      return;
-    }
+  // CLICK: remove buttons (these do re-render)
+  listEl.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".host-remove-btn");
+    if (!btn) return;
+    const idx = Number(btn.dataset.removeIndex);
+    if (!Number.isInteger(idx) || idx <= 0 || idx >= hosts.length) return;
 
-    // Remove a non-organiser host
-    if (t.classList.contains("host-remove") && t.dataset.removeIndex) {
-      const idx = parseInt(t.dataset.removeIndex, 10);
-      if (!Number.isNaN(idx) && idx > 0 && idx < hosts.length) {
-        hosts.splice(idx, 1);
-        renderHosts();
-        setError("");
-      }
-      return;
-    }
+    hosts.splice(idx, 1);
+    renderList();
+    persistHosts(hosts, actions);
+  });
 
-    // Navigation: Back → Setup
-    if (t.id === "hostsBack") {
+  // Add another host
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      if (hosts.length >= MAX_HOSTS) return;
+      hosts.push({ name: "" });
+      renderList();
+      persistHosts(hosts, actions);
+
+      // Focus the new input on next frame
+      requestAnimationFrame(() => {
+        const newInput = root.querySelector(
+          '.host-name-input[data-index="' + (hosts.length - 1) + '"]'
+        );
+        if (newInput && typeof newInput.focus === "function") {
+          newInput.focus();
+        }
+      });
+    });
+  }
+
+  // Navigation
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
       persistHosts(hosts, actions);
       try {
         actions.setState && actions.setState("setup");
       } catch (_) {}
-      return;
-    }
+    });
+  }
 
-    // Navigation: Continue → Links
-    if (t.id === "hostsNext") {
-      const cleaned = persistHosts(hosts, actions);
-      const count = cleaned.length;
-
-      if (count < 2) {
-        setError("Please add at least one more host to continue.");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      const totalNamed = countNonEmpty();
+      if (totalNamed < MIN_HOSTS) {
+        // Belt-and-braces guard; button should be disabled anyway
         return;
       }
-
-      // continue to invite-links screen
+      persistHosts(hosts, actions);
       try {
-        actions.setState && actions.setState("links");
+        actions.setState && actions.setState("links"); // next: per-host invite links
       } catch (_) {}
-    }
+    });
   }
-
-  function handleInput(ev) {
-    const t = ev.target;
-    if (!t) return;
-
-    if (t.classList.contains("host-name-input") && t.dataset.index) {
-      const idx = parseInt(t.dataset.index, 10);
-      if (!Number.isNaN(idx) && idx > 0 && idx < hosts.length) {
-        hosts[idx].name = t.value;
-        setError("");
-        renderHosts(); // keep counts up to date
-      }
-    }
-  }
-
-  root.addEventListener("click", handleClick);
-  root.addEventListener("input", handleInput);
-
-  // cleanup when router swaps screens
-  return () => {
-    root.removeEventListener("click", handleClick);
-    root.removeEventListener("input", handleInput);
-  };
 }
