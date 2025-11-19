@@ -693,68 +693,79 @@ input[type="radio"],
    HOSTS SCREEN – HOST LIST
    ----------------------------------------- */
 
-.host-list {
+/* Hosts list – keep everything inside the card width */
+.hosts-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   text-align: left;
 }
 
+/* One row: label | main (name) | Remove */
 .host-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.host-row--organiser {
+/* Organiser row a little bolder */
+.host-row--organiser .host-row-name {
   font-weight: 600;
 }
 
-.host-number {
-  width: 64px;
-  font-size: 13px;
-  color: #6b7280;
+/* “Host 1”, “Host 2”, etc. */
+.host-row-label {
   flex: 0 0 auto;
+  font-size: 14px;
+  color: #6b7280;
 }
 
-.host-name-label {
+/* Main column (organiser text or input) */
+.host-row-main {
   flex: 1 1 auto;
+  min-width: 0;              /* <-- stops the row pushing the page wider */
+}
+
+.host-row-name {
   font-size: 15px;
 }
 
-.host-tag {
+/* “Organiser (you)” */
+.host-row-meta {
   font-size: 12px;
   color: #6b7280;
-  margin-left: 4px;
 }
 
+/* Editable host name input */
 .host-name-input {
-  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border-radius: 999px;
   border: 1px solid #e5e7eb;
   padding: 10px 14px;
-  font-size: 17px; /* ≥16px to avoid iOS zoom */
+  font-size: 16px;           /* ≥16px so iOS doesn’t zoom */
   background: #ffffff;
 }
 
-.host-remove {
+/* Remove button – stays inside the card */
+.host-remove-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
   border-radius: 999px;
   border: 1px solid #e5e7eb;
   background: #f9fafb;
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: 12px;
   cursor: pointer;
 }
 
-.host-add-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
+/* Optional error text if you still use it */
 .host-error {
   color: #b91c1c;
+  font-size: 13px;
+  margin-top: 4px;
 }
 
 /* -----------------------------------------
