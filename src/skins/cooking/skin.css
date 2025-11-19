@@ -466,6 +466,19 @@ input[type="number"] {
   transform: translateY(1px);
 }
 
+/* White tick inside the fake checkbox when selected */
+.setup-option-card.is-selected::after {
+  content: "";
+  position: absolute;
+  left: 20px;           /* roughly inside the green square */
+  top: 50%;
+  width: 6px;
+  height: 10px;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: translateY(-60%) rotate(45deg);
+}
+
 /* “Checkbox” square */
 .setup-option-card::before {
   content: "";
