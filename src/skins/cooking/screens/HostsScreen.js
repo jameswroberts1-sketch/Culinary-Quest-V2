@@ -95,6 +95,20 @@ export function render(root, model = {}, actions = {}) {
     root = document.getElementById("app") || document.body;
   }
 
+  // Always start this screen scrolled to the very top
+  try {
+    // Hard reset the window scroll (covers iOS Safari quirks)
+    window.scrollTo(0, 0);
+  } catch (_) {}
+
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    scroller.scrollTop = 0;
+  } catch (_) {}
+
   let hosts = hydrateHosts(model);
 
   root.innerHTML = `
