@@ -68,22 +68,29 @@ export function loadSkin() {
 
 /* ------------ route table (all as loaders) ------------ */
 
+/* ------------ route table (all as loaders) ------------ */
+
 export const routes = {
   // Intro – organiser name screen
   intro: () => safeLoad("./screens/IntroScreen.js", "Intro"),
   lobby: () => safeLoad("./screens/IntroScreen.js", "Intro"), // alias for safety
 
-  // Setup – scoring & themes (we also alias "rsvp" to this for future compatibility)
+  // Setup – scoring & themes
   setup: () => safeLoad("./screens/SetupScreen.js", "Setup"),
-  rsvp:  () => safeLoad("./screens/SetupScreen.js", "Setup"),
 
-  // NEW: Hosts – organiser + up to 5 additional hosts
+  // Hosts – organiser + up to 5 additional hosts
   hosts: () => safeLoad("./screens/HostsScreen.js", "Hosts"),
 
-  // Per-host invite links screen
+  // Invite links – per-host links screen
   links: () => safeLoad("./screens/LinksScreen.js", "Links"),
 
-  // Future states can point to stubs for now
+  // NEW: Invite screen – what each host sees from their link (stub for now)
+  invite: () => safeLoad("./screens/InviteScreen.js", "Invite"),
+
+  // Legacy alias: rsvp was our old setup/RSVP step
+  rsvp: () => safeLoad("./screens/SetupScreen.js", "Setup"),
+
+  // In-game + results (still stubs for now or your real components later)
   started:  () => Promise.resolve(stubRenderer("Game")),
   finished: () => Promise.resolve(stubRenderer("Results")),
 
