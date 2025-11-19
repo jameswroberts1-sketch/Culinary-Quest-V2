@@ -115,25 +115,27 @@ export function render(root, model, actions) {
           Decide whether guests give one overall score, or score across multiple categories.
         </p>
 
-        <div class="setup-modes" id="setupModes">
-          <button
-            type="button"
-            class="btn setup-mode ${setup.mode === "simple" ? "setup-mode--selected" : ""}"
-            data-mode="simple"
-          >
-            <strong>Simple scoring</strong>
-            <span class="muted">One overall score (0–10) per dinner.</span>
-          </button>
+        <div class="setup-option-group" id="setupModes">
+  <div
+    class="setup-option-card ${setup.mode === "simple" ? "is-selected" : ""}"
+    data-mode="simple"
+  >
+    <div class="setup-option-title">Simple scoring</div>
+    <div class="setup-option-body">
+      One overall score (0–10) per dinner.
+    </div>
+  </div>
 
-          <button
-            type="button"
-            class="btn setup-mode ${setup.mode === "category" ? "setup-mode--selected" : ""}"
-            data-mode="category"
-          >
-            <strong>Category scoring</strong>
-            <span class="muted">Food plus up to 3 extra categories.</span>
-          </button>
-        </div>
+  <div
+    class="setup-option-card ${setup.mode === "category" ? "is-selected" : ""}"
+    data-mode="category"
+  >
+    <div class="setup-option-title">Category scoring</div>
+    <div class="setup-option-body">
+      Food plus up to 3 extra categories.
+    </div>
+  </div>
+</div>
 
         <!-- Category selection (only visible in category mode) -->
         <div id="categoryBlock" class="setup-cats-block" style="${
