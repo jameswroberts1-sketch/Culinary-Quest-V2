@@ -585,6 +585,65 @@ input[type="radio"],
 }
 
 /* -----------------------------------------
+   SETUP SCREEN – CATEGORY CHECKBOX LIST
+   (used by SetupScreen.js: .cat-grid / .cat-chip)
+   ----------------------------------------- */
+
+.cat-grid {
+  /* stack categories in a neat column */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Each category row as a pill with a checkbox + label (+ optional Remove) */
+.cat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+/* Native checkbox */
+.cat-chip input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+/* Category label text */
+.cat-chip span {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Optional "(compulsory)" note on Food */
+.cat-chip .lock {
+  font-size: 12px;
+  color: #6b7280;
+  margin-left: 4px;
+}
+
+/* Small "Remove" button for custom categories inside the pill */
+.cat-chip button {
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
 
