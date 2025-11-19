@@ -98,6 +98,21 @@ export function render(root, model = {}, actions = {}) {
   let hosts = hydrateHosts(model);
 
   root.innerHTML = `
+    let hosts = hydrateHosts(model);
+
+  root.innerHTML = `
+    <section class="menu-card">
+      ...
+  `;
+
+  // Always start this screen scrolled to the top
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    scroller.scrollTop = 0;
+  } catch (_) {}
     <section class="menu-card">
       <div class="menu-hero">
         <img
