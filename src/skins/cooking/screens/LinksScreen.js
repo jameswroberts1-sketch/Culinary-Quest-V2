@@ -1,8 +1,11 @@
 // path: src/skins/cooking/screens/LinksScreen.js
-// Invite links screen – one copy button per host, no raw URLs shown
+// Links screen – per-host invite links with opaque tokens
 
-const LINKS_STORAGE_KEY = "cq_links_v1";
-const MAX_HOSTS = 6;
+const HOSTS_STORAGE_KEY   = "cq_hosts_v1";   // same as HostsScreen
+const TOKENS_STORAGE_KEY  = "cq_host_tokens_v1";
+const MAX_HOSTS           = 6;
+
+// --- helpers --------------------------------------------------
 
 // Basic HTML escaping
 function esc(str) {
@@ -14,162 +17,183 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-// Generate a short token for a host if one doesn't exist yet
-function makeToken(index) {
-  return `h${index}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-// Build the invite URL for a host
-function buildInviteUrl(index, token, model = {}) {
-  const base =
-    (model && model.baseUrl) ||
-    (typeof window !== "undefined"
-      ? window.location.origin + window.location.pathname
-      : "");
-
-  // You can tweak these query params later when we wire the join flow
-  const params = new URLSearchParams();
-  params.set("host", String(index));
-  params.set("token", token);
-
-  return base ? `${base}?${params.toString()}` : `?host=${index}&token=${token}`;
-}
-
-// Hydrate per-host tokens from model or localStorage
-function hydrateTokens(hosts, model = {}) {
-  const count = hosts.length;
-  let tokens = new Array(count).fill(null);
-
-  // 1) From shared model, if it already has something like model.links
-  if (Array.isArray(model.links) && model.links.length) {
-    model.links.forEach((entry, idx) => {
-      if (idx < count && entry && typeof entry.token === "string") {
-        tokens[idx] = entry.token;
-      }
-    });
-  }
-
-  // 2) Merge in from localStorage
-  try {
-    const raw = window.localStorage.getItem(LINKS_STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved)) {
-        saved.forEach((entry, idx) => {
-          if (idx < count && entry && typeof entry.token === "string") {
-            if (!tokens[idx]) tokens[idx] = entry.token;
-          }
-        });
-      }
-    }
-  } catch (_) {}
-
-  // 3) Ensure we have a token for each host
-  tokens = tokens.map((tok, idx) => tok || makeToken(idx));
-
-  return tokens;
-}
-
-// Persist tokens in both localStorage and the shared model (if possible)
-function persistTokens(tokens, hosts, actions) {
-  const payload = tokens.map((token, index) => ({
-    token,
-    hostIndex: index,
-    name: hosts[index] && hosts[index].name ? hosts[index].name : ""
-  }));
-
-  try {
-    window.localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(payload));
-  } catch (_) {}
-
-  try {
-    if (actions && typeof actions.updateLinks === "function") {
-      actions.updateLinks(payload);
-    } else if (actions && typeof actions.setLinks === "function") {
-      actions.setLinks(payload);
-    } else if (actions && typeof actions.patch === "function") {
-      actions.patch({ links: payload });
-    }
-  } catch (_) {
-    // non-fatal
-  }
-}
-
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  // Always start this screen scrolled to the top
-  try {
-    const scroller =
-      document.scrollingElement ||
-      document.documentElement ||
-      document.body;
-    scroller.scrollTop = 0;
-  } catch (_) {}
-
-  // Hosts from model (same structure as HostsScreen)
+// Hydrate hosts array the same way as HostsScreen
+function hydrateHosts(model = {}) {
   let hosts = [];
+
   if (Array.isArray(model.hosts) && model.hosts.length) {
     hosts = model.hosts.map((h) => ({
       name: h && typeof h.name === "string" ? h.name : ""
     }));
-  }
-
-  // Fallback if somehow empty
-  if (!hosts.length) {
+  } else {
     const organiserName =
       model.organiserName ||
       model.hostName ||
       model.name ||
       model.organiser ||
       "";
-    hosts = [{ name: organiserName || "Host 1" }];
+
+    if (organiserName) {
+      hosts = [{ name: organiserName }];
+    }
   }
 
-  // Clamp to expected maximum
+  if (hosts.length === 0) {
+    hosts = [{ name: "" }];
+  }
+
   if (hosts.length > MAX_HOSTS) {
     hosts = hosts.slice(0, MAX_HOSTS);
   }
 
-  // Get or create per-host tokens
-  const tokens = hydrateTokens(hosts, model);
+  // Merge in any cached host names from localStorage (non-destructive)
+  try {
+    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved) && saved.length) {
+        saved.forEach((entry, idx) => {
+          if (!hosts[idx]) hosts[idx] = { name: "" };
+          if (entry && typeof entry.name === "string" && entry.name.trim()) {
+            hosts[idx].name = entry.name;
+          }
+        });
+      }
+    }
+  } catch (_) {}
 
-  // Build row HTML
-  const rows = hosts
-    .map((host, index) => {
-      const displayIndex = index + 1;
-      const name = host.name && host.name.trim()
-        ? host.name.trim()
-        : `Host ${displayIndex}`;
-      const safeName = esc(name);
+  if (!hosts[0]) hosts[0] = { name: "" };
+  return hosts;
+}
 
-      // We keep the URL only as a data attribute (not visibly rendered)
-      const url = esc(buildInviteUrl(index, tokens[index], model));
+// Random opaque token – prefer crypto, fall back to Math.random
+function makeToken(length = 16) {
+  const alphabet =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const n = alphabet.length;
 
-      const roleLabel =
-        index === 0 ? "Organiser (you)" : `Guest host #${displayIndex}`;
+  // crypto if available
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    let out = "";
+    for (let i = 0; i < length; i++) {
+      out += alphabet[bytes[i] % n];
+    }
+    return out;
+  }
 
-      return `
-        <li class="host-row">
-          <div class="host-row-label">Host ${displayIndex}</div>
-          <div class="host-row-main">
-            <div class="host-row-name">${safeName}</div>
-            <div class="host-row-meta">${esc(roleLabel)}</div>
-          </div>
-          <button
-            type="button"
-            class="btn btn-secondary host-copy-btn"
-            data-url="${url}"
-            data-host-index="${index}"
-          >
-            Copy ${safeName}'s link
-          </button>
-        </li>
-      `;
-    })
-    .join("");
+  // fallback
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += alphabet[Math.floor(Math.random() * n)];
+  }
+  return out;
+}
+
+// Build token array: from model, then localStorage, then fill gaps
+function hydrateTokens(model = {}, hostCount) {
+  let tokens = [];
+
+  // 1) From shared model.hostTokens
+  if (Array.isArray(model.hostTokens)) {
+    tokens = model.hostTokens.slice();
+  } else if (model.hostTokens && typeof model.hostTokens === "object") {
+    // support object keyed by index as well
+    tokens = [];
+    Object.keys(model.hostTokens).forEach((k) => {
+      const idx = Number(k);
+      if (!Number.isNaN(idx)) {
+        tokens[idx] = String(model.hostTokens[k] || "");
+      }
+    });
+  }
+
+  // 2) Merge in localStorage tokens (non-destructive)
+  try {
+    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved)) {
+        saved.forEach((val, idx) => {
+          if (!tokens[idx] && typeof val === "string" && val.trim()) {
+            tokens[idx] = val;
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  // 3) Ensure we have one opaque token per host
+  const used = new Set(tokens.filter((t) => typeof t === "string" && t));
+
+  for (let i = 0; i < hostCount; i++) {
+    if (typeof tokens[i] === "string" && tokens[i].length > 0) continue;
+    let t;
+    do {
+      t = makeToken(18); // a bit longer for safety
+    } while (used.has(t));
+    tokens[i] = t;
+    used.add(t);
+  }
+
+  return tokens;
+}
+
+// Persist tokens locally + into the shared model
+function persistTokens(tokens, actions) {
+  try {
+    window.localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
+  } catch (_) {}
+
+  try {
+    if (actions && typeof actions.updateHostTokens === "function") {
+      actions.updateHostTokens(tokens);
+    } else if (actions && typeof actions.setHostTokens === "function") {
+      actions.setHostTokens(tokens);
+    } else if (actions && typeof actions.patch === "function") {
+      actions.patch({ hostTokens: tokens });
+    }
+  } catch (_) {
+    // non-fatal
+  }
+}
+
+// Build the invite URL for a given token
+function buildInviteUrl(token) {
+  const loc = window.location;
+  const base = `${loc.origin}${loc.pathname}`; // ignore any current ?route=
+  const params = new URLSearchParams();
+  params.set("invite", token);
+  return `${base}?${params.toString()}`;
+}
+
+// --- main render --------------------------------------------------
+
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
+  // Always start at the top of the page (avoid “zoomed in” look on iOS)
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    if (scroller && typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } else {
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    }
+  } catch (_) {}
+
+  const hosts  = hydrateHosts(model);
+  const tokens = hydrateTokens(model, hosts.length);
+
+  // Push tokens into model / localStorage right away so they’re stable
+  persistTokens(tokens, actions);
 
   root.innerHTML = `
     <section class="menu-card">
@@ -186,9 +210,10 @@ export function render(root, model = {}, actions = {}) {
       <!-- ENTREE -->
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">INVITE YOUR HOSTS</h2>
+        <h2 class="menu-h2">SHARE YOUR INVITES</h2>
         <p class="menu-copy">
-          Each host gets their own private link. Copy and share it with them however you like.
+          Each host gets a private link to choose their date, RSVP and (optionally) set a theme.
+          Tap <strong>Copy</strong> to share each link via your favourite messaging app.
         </p>
       </section>
 
@@ -197,14 +222,16 @@ export function render(root, model = {}, actions = {}) {
       <!-- MAIN -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">INVITE LINKS</h2>
+        <h2 class="menu-h2">HOST LINKS</h2>
         <p class="menu-copy">
-          Tap “Copy link” next to each host. The full URL stays hidden – we’ll just pop it on your clipboard.
+          These links are unique and hard to guess. Please keep them private to each host.
         </p>
 
-        <ul class="hosts-list" id="linksList">
-          ${rows}
-        </ul>
+        <ul class="hosts-list" id="linksList"></ul>
+
+        <p class="menu-copy hosts-summary">
+          Links generated for <strong>${hosts.length}</strong> host${hosts.length === 1 ? "" : "s"}.
+        </p>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -215,88 +242,93 @@ export function render(root, model = {}, actions = {}) {
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        LinksScreen – per-host invite buttons, URLs hidden
+        LinksScreen – per-host opaque invite links
       </p>
     </section>
   `;
 
-  // Persist tokens now that we know hosts
-  persistTokens(tokens, hosts, actions);
+  const listEl   = root.querySelector("#linksList");
+  const backBtn  = root.querySelector("#linksBack");
+  const nextBtn  = root.querySelector("#linksNext");
 
-  const listEl  = root.querySelector("#linksList");
-  const backBtn = root.querySelector("#linksBack");
-  const nextBtn = root.querySelector("#linksNext");
+  if (!listEl) return;
 
-  async function copyToClipboard(text) {
+  // Render one row per host (organiser + all other hosts)
+  const rows = hosts.map((host, index) => {
+    const name   = (host && host.name && host.name.trim()) || `Host ${index + 1}`;
+    const label  = index === 0 ? "Organiser link (you)" : "Host link";
+    const safe   = esc(name);
+
+    return `
+      <li class="host-row host-row--links">
+        <div class="host-row-label">Host ${index + 1}</div>
+        <div class="host-row-main">
+          <div class="host-row-name">${safe}</div>
+          <div class="host-row-meta">${label}</div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-secondary host-link-copy"
+          data-host-index="${index}"
+        >
+          Copy ${safe}'s link
+        </button>
+      </li>
+    `;
+  });
+
+  listEl.innerHTML = rows.join("");
+
+  // Copy handling – one event handler for all buttons
+  listEl.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest(".host-link-copy");
+    if (!btn) return;
+
+    const idx = Number(btn.dataset.hostIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
+
+    const token = tokens[idx];
+    if (!token) return;
+
+    const url = buildInviteUrl(token);
+    const originalText = btn.textContent;
+
     try {
-      if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch (_) {
-      // fall through to fallback
-    }
-
-    // Fallback: temporary textarea
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  const handleClick = async (ev) => {
-    const t = ev.target;
-    if (!t) return;
-
-    // Copy host link
-    if (t.classList.contains("host-copy-btn")) {
-      const url = t.getAttribute("data-url");
-      if (!url) return;
-
-      const ok = await copyToClipboard(url);
-
-      // Tiny “Copied!” feedback on the button
-      const original = t.textContent;
-      if (ok) {
-        t.textContent = "Copied!";
-        setTimeout(() => {
-          t.textContent = original;
-        }, 1200);
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(url);
+      } else {
+        // Fallback – prompt with the link so it can be copied manually
+        window.prompt("Copy this invite link", url);
       }
 
-      return;
+      btn.textContent = "Copied!";
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 1500);
+    } catch (err) {
+      // As a last resort, show the link in a prompt
+      window.prompt("Copy this invite link", url);
     }
+  });
 
-    // Back → return to Hosts screen
-    if (t.id === "linksBack") {
+  // Navigation – same pattern as other screens
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
       try {
         actions.setState && actions.setState("hosts");
       } catch (_) {}
-      return;
-    }
+    });
+  }
 
-    // Next → organiser goes on to the “invite”/date-pick step
-    if (t.id === "linksNext") {
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      // Later, when we wire InviteScreen, we’ll treat this as “organiser acting as Host #1”.
+      // For now we just move state forward.
       try {
         actions.setState && actions.setState("invite");
       } catch (_) {}
-      return;
-    }
-  };
-
-  root.addEventListener("click", handleClick);
-
-  // Cleanup if router unmounts this screen
-  return () => {
-    root.removeEventListener("click", handleClick);
-  };
+    });
+  }
 }
