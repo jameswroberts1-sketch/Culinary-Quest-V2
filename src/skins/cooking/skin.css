@@ -442,9 +442,8 @@ input[type="number"] {
   gap: 8px;
 }
 
-/* Card with a fake checkbox on the left */
+/* Each scoring mode row is a pill with a real checkbox + text */
 .setup-option-card {
-  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -466,31 +465,32 @@ input[type="number"] {
   transform: translateY(1px);
 }
 
-/* White tick inside the fake checkbox when selected */
-.setup-option-card.is-selected::after {
-  content: "";
-  position: absolute;
-  left: 20px;           /* roughly inside the green square */
-  top: 50%;
-  width: 6px;
-  height: 10px;
-  border-right: 2px solid #ffffff;
-  border-bottom: 2px solid #ffffff;
-  transform: translateY(-60%) rotate(45deg);
-}
-
-/* “Checkbox” square */
-.setup-option-card::before {
-  content: "";
+/* Native checkbox inside the card */
+.setup-option-card input[type="checkbox"] {
   flex: 0 0 18px;
   width: 18px;
   height: 18px;
   margin-top: 2px;
-  border-radius: 4px;
-  border: 2px solid #d1d5db;
-  background: #ffffff;
 }
 
+/* Text block (title + description) */
+.setup-option-text {
+  flex: 1 1 auto;
+}
+
+.setup-option-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.setup-option-body {
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+/* Selected state – dark card + green border, text flips to light */
 .setup-option-card.is-selected {
   background: #111827;
   border-color: #22c55e;
@@ -498,10 +498,8 @@ input[type="number"] {
   color: #f9fafb;
 }
 
-.setup-option-card.is-selected::before {
-  background: #22c55e;
-  border-color: #15803d;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+.setup-option-card.is-selected .setup-option-body {
+  opacity: 0.95;
 }
 
 /* Draw a white tick inside the green box */
