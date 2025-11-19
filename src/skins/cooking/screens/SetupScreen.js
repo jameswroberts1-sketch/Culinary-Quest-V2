@@ -217,10 +217,6 @@ export function render(root, model = {}, actions = {}) {
   const catListEl    = root.querySelector("#catList");
   const catCountEl   = root.querySelector("#catCount");
   const customInput  = root.querySelector("#customCat");
-  const themeToggle  = root.querySelector("#themeToggle");
-
-  const simpleCard   = root.querySelector('.setup-option-card[data-mode="simple"]');
-  const catCard      = root.querySelector('.setup-option-card[data-mode="category"]');
 
   function ensureInvariants() {
     if (!setup.categories.includes("Food")) {
@@ -262,7 +258,6 @@ export function render(root, model = {}, actions = {}) {
     if (!catListEl) return;
 
     ensureInvariants();
-
     const enabledSet = new Set(setup.categories);
 
     const lines = [];
@@ -344,7 +339,7 @@ export function render(root, model = {}, actions = {}) {
   renderCategories();
   updateModeUI();
 
-  // --- explicit mode handlers (fixes tap issues) ---
+  // --- scoring mode clicks (simple vs category) ---
 
   function setMode(mode) {
     if (mode !== "simple" && mode !== "category") return;
@@ -353,13 +348,17 @@ export function render(root, model = {}, actions = {}) {
     persistSetup(setup, actions);
   }
 
-  const onSimpleClick = () => setMode("simple");
-  const onCategoryClick = () => setMode("category");
+  const handleModesClick = (ev) => {
+    const card = ev.target.closest(".setup-option-card");
+    if (!card || !card.dataset.mode) return;
+    setMode(card.dataset.mode);
+  };
 
-  if (simpleCard) simpleCard.addEventListener("click", onSimpleClick);
-  if (catCard)     catCard.addEventListener("click", onCategoryClick);
+  if (modesEl) {
+    modesEl.addEventListener("click", handleModesClick);
+  }
 
-  // --- delegated click/change for everything else ---
+  // --- other click handlers ---
 
   const handleClick = (ev) => {
     const t = ev.target;
@@ -440,4 +439,46 @@ export function render(root, model = {}, actions = {}) {
       return;
     }
 
-    //
+    // Category checkbox toggles
+    if (t.classList && t.classList.contains("setup-category-checkbox")) {
+      const name = t.dataset.name;
+      if (!name || name === "Food") {
+        // Food is always on (and usually disabled), so ignore.
+        return;
+      }
+
+      const checked = !!t.checked;
+
+      if (checked) {
+        // Enforce max of 3 extras (Food is implicit)
+        const extras = setup.categories.filter((c) => c !== "Food");
+        if (extras.length >= 3 && !setup.categories.includes(name)) {
+          // Too many – revert the checkbox and bail
+          t.checked = false;
+          return;
+        }
+        if (!setup.categories.includes(name)) {
+          setup.categories = [...setup.categories, name];
+        }
+      } else {
+        setup.categories = setup.categories.filter((c) => c !== name);
+      }
+
+      ensureInvariants();
+      updateCategoryCount();
+      persistSetup(setup, actions);
+    }
+  };
+
+  root.addEventListener("click", handleClick);
+  root.addEventListener("change", handleChange);
+
+  // Cleanup when router switches screens
+  return () => {
+    if (modesEl) {
+      modesEl.removeEventListener("click", handleModesClick);
+    }
+    root.removeEventListener("click", handleClick);
+    root.removeEventListener("change", handleChange);
+  };
+}
