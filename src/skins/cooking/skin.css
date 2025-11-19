@@ -751,6 +751,72 @@ input[type="radio"],
 }
 
 /* -----------------------------------------
+   HOSTS SCREEN – host list layout
+   ----------------------------------------- */
+
+.hosts-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.host-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.host-row-label {
+  font-size: 14px;
+  color: #6b7280;
+  min-width: 70px;
+}
+
+.host-row-main {
+  flex: 1 1 auto;
+}
+
+.host-row-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.host-row-meta {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.host-name-input {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  font-size: 15px;
+}
+
+.host-remove-btn {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hosts-add-btn {
+  margin-top: 8px;
+}
+
+.hosts-summary {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
 
