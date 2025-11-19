@@ -166,15 +166,6 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-// Scroll to top when Hosts screen loads
-  try {
-    const scroller =
-      document.scrollingElement ||
-      document.documentElement ||
-      document.body;
-    scroller.scrollTop = 0;
-  } catch (_) {}
-  
   const listEl = root.querySelector("#hostsList");
   const addBtn = root.querySelector("#hostsAdd");
   const backBtn = root.querySelector("#hostsBack");
