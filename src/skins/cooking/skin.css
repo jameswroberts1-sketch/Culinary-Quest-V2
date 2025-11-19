@@ -396,16 +396,14 @@ input[type="number"] {
 /* -----------------------------------------
    iOS FORM COMFORT & TAP BEHAVIOUR
    ----------------------------------------- */
-
-.skin-cooking input,
-.skin-cooking select,
-.skin-cooking textarea,
-input,
-select,
-textarea {
-  font-size: 17px; /* iOS: ≥16px stops Safari zoom */
-  -webkit-appearance: none;
-  appearance: none;
+/* Restore native look for checkboxes / radios so they’re clearly visible */
+.skin-cooking input[type="checkbox"],
+.skin-cooking input[type="radio"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  accent-color: #f59e0b; /* gold tick where supported */
 }
 
 /* -----------------------------------------
