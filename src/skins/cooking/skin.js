@@ -70,31 +70,26 @@ export function loadSkin() {
 
 /* ------------ route table (all as loaders) ------------ */
 
+// path: src/skins/cooking/skin.js
+// ...
 export const routes = {
-  // Intro – organiser name screen
   intro: () => safeLoad("./screens/IntroScreen.js", "Intro"),
-  lobby: () => safeLoad("./screens/IntroScreen.js", "Intro"), // alias for safety
+  lobby: () => safeLoad("./screens/IntroScreen.js", "Intro"),
 
-  // Setup – scoring & themes
   setup: () => safeLoad("./screens/SetupScreen.js", "Setup"),
+  rsvp:  () => safeLoad("./screens/SetupScreen.js", "Setup"),
 
-  // Hosts – organiser + up to 5 additional hosts
   hosts: () => safeLoad("./screens/HostsScreen.js", "Hosts"),
-
-  // Invite links – per-host links screen
   links: () => safeLoad("./screens/LinksScreen.js", "Links"),
 
-  // NEW: Invite screen – what each host sees from their link (stub for now)
   invite: () => safeLoad("./screens/InviteScreen.js", "Invite"),
 
-  // Legacy alias: rsvp was our old setup/RSVP step
-  rsvp: () => safeLoad("./screens/SetupScreen.js", "Setup"),
+  // ⬇️ NEW: real tracker screen instead of stub
+  rsvpTracker: () => safeLoad("./screens/RsvpTrackerScreen.js", "RSVP tracker"),
 
-  // In-game + results (still stubs for now or your real components later)
   started:  () => Promise.resolve(stubRenderer("Game")),
   finished: () => Promise.resolve(stubRenderer("Results")),
 
-  // Soft reset → bounce back to intro
   reset: () =>
     Promise.resolve((root, model, actions) => {
       const target = root || document.getElementById("app") || document.body;
