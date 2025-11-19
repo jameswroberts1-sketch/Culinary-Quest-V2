@@ -92,6 +92,19 @@ export function render(root, model = {}, actions = {}) {
     root = document.getElementById("app") || document.body;
   }
 
+  // Always start this screen scrolled to the very top
+  try {
+    window.scrollTo(0, 0);
+  } catch (_) {}
+
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    scroller.scrollTop = 0;
+  } catch (_) {}
+
   let setup = hydrateSetup(model);
 
   root.innerHTML = `
@@ -220,15 +233,6 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-// 2) NOW run JS – scroll to top
-  try {
-    const scroller =
-      document.scrollingElement ||
-      document.documentElement ||
-      document.body;
-    scroller.scrollTop = 0;
-  } catch (_) {}
-  
   const categoryBlk  = root.querySelector("#categoryBlock");
   const catListEl    = root.querySelector("#catList");
   const catCountEl   = root.querySelector("#catCount");
@@ -271,12 +275,11 @@ export function render(root, model = {}, actions = {}) {
   }
 
   function updateCategoryCount() {
-    const totalEnabled = setup.categories.length; // includes Food
-    if (catCountEl) {
-      catCountEl.textContent = `${totalEnabled} / 4`;
-    }
+  const totalEnabled = setup.categories.length; // includes Food
+  if (catCountEl) {
+    catCountEl.textContent = String(totalEnabled);
   }
-
+}
   function renderCategories() {
     if (!catListEl) return;
 
