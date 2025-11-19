@@ -126,27 +126,35 @@ export function render(root, model = {}, actions = {}) {
         </p>
 
         <div class="setup-option-group" id="setupModes">
-          <button
-            type="button"
-            class="setup-option-card ${setup.mode === "simple" ? "is-selected" : ""}"
-            data-mode="simple"
-          >
-            <div class="setup-option-title">Simple scoring</div>
-            <div class="setup-option-body">
-              One overall score (0–10) per dinner.
+          <label class="setup-option-card ${setup.mode === "simple" ? "is-selected" : ""}">
+            <input
+              type="checkbox"
+              class="setup-mode-checkbox"
+              value="simple"
+              ${setup.mode === "simple" ? "checked" : ""}
+            />
+            <div class="setup-option-text">
+              <div class="setup-option-title">Simple scoring</div>
+              <div class="setup-option-body">
+                One overall score (0–10) per dinner.
+              </div>
             </div>
-          </button>
+          </label>
 
-          <button
-            type="button"
-            class="setup-option-card ${setup.mode === "category" ? "is-selected" : ""}"
-            data-mode="category"
-          >
-            <div class="setup-option-title">Category scoring</div>
-            <div class="setup-option-body">
-              Food plus up to 3 extra categories.
+          <label class="setup-option-card ${setup.mode === "category" ? "is-selected" : ""}">
+            <input
+              type="checkbox"
+              class="setup-mode-checkbox"
+              value="category"
+              ${setup.mode === "category" ? "checked" : ""}
+            />
+            <div class="setup-option-text">
+              <div class="setup-option-title">Category scoring</div>
+              <div class="setup-option-body">
+                Food plus up to 3 extra categories.
+              </div>
             </div>
-          </button>
+          </label>
         </div>
 
         <!-- Category selection (only visible for category mode) -->
@@ -212,11 +220,11 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-  const modesEl      = root.querySelector("#setupModes");
   const categoryBlk  = root.querySelector("#categoryBlock");
   const catListEl    = root.querySelector("#catList");
   const catCountEl   = root.querySelector("#catCount");
   const customInput  = root.querySelector("#customCat");
+  const themeToggle  = root.querySelector("#themeToggle");
 
   function ensureInvariants() {
     if (!setup.categories.includes("Food")) {
@@ -232,13 +240,19 @@ export function render(root, model = {}, actions = {}) {
   }
 
   function updateModeUI() {
+    const modesEl = root.querySelector("#setupModes");
     if (!modesEl) return;
+
     const cards = modesEl.querySelectorAll(".setup-option-card");
     cards.forEach((card) => {
-      if (card.dataset.mode === setup.mode) {
+      const input = card.querySelector(".setup-mode-checkbox");
+      const val = input && input.value === "category" ? "category" : "simple";
+      if (val === setup.mode) {
         card.classList.add("is-selected");
+        if (input) input.checked = true;
       } else {
         card.classList.remove("is-selected");
+        if (input) input.checked = false;
       }
     });
 
@@ -258,6 +272,7 @@ export function render(root, model = {}, actions = {}) {
     if (!catListEl) return;
 
     ensureInvariants();
+
     const enabledSet = new Set(setup.categories);
 
     const lines = [];
@@ -339,8 +354,6 @@ export function render(root, model = {}, actions = {}) {
   renderCategories();
   updateModeUI();
 
-  // --- scoring mode clicks (simple vs category) ---
-
   function setMode(mode) {
     if (mode !== "simple" && mode !== "category") return;
     setup.mode = mode;
@@ -348,17 +361,7 @@ export function render(root, model = {}, actions = {}) {
     persistSetup(setup, actions);
   }
 
-  const handleModesClick = (ev) => {
-    const card = ev.target.closest(".setup-option-card");
-    if (!card || !card.dataset.mode) return;
-    setMode(card.dataset.mode);
-  };
-
-  if (modesEl) {
-    modesEl.addEventListener("click", handleModesClick);
-  }
-
-  // --- other click handlers ---
+  // --- delegated click/change handlers ---
 
   const handleClick = (ev) => {
     const t = ev.target;
@@ -432,6 +435,20 @@ export function render(root, model = {}, actions = {}) {
     const t = ev.target;
     if (!t) return;
 
+    // Scoring mode checkboxes (behave like radios)
+    if (t.classList && t.classList.contains("setup-mode-checkbox")) {
+      const mode = t.value === "category" ? "category" : "simple";
+
+      // ensure only this one is checked
+      const all = root.querySelectorAll(".setup-mode-checkbox");
+      all.forEach((box) => {
+        box.checked = box === t;
+      });
+
+      setMode(mode);
+      return;
+    }
+
     // Theme toggle
     if (t.id === "themeToggle") {
       setup.allowThemes = !!t.checked;
@@ -440,32 +457,31 @@ export function render(root, model = {}, actions = {}) {
     }
 
     // Category checkbox toggles
-    if (t.classList && t.classList.contains("setup-category-checkbox")) {
+    if (t.classList && t.classList.contains("setup-category-checkbox") && t.dataset.name) {
       const name = t.dataset.name;
-      if (!name || name === "Food") {
-        // Food is always on (and usually disabled), so ignore.
+      if (name === "Food") {
+        // Food is compulsory; checkbox is disabled anyway
         return;
       }
 
       const checked = !!t.checked;
+      let extras = setup.categories.filter((c) => c !== "Food");
 
       if (checked) {
-        // Enforce max of 3 extras (Food is implicit)
-        const extras = setup.categories.filter((c) => c !== "Food");
-        if (extras.length >= 3 && !setup.categories.includes(name)) {
-          // Too many – revert the checkbox and bail
-          t.checked = false;
-          return;
-        }
-        if (!setup.categories.includes(name)) {
-          setup.categories = [...setup.categories, name];
+        if (!extras.includes(name)) {
+          if (extras.length >= 3) {
+            // hit limit → revert checkbox
+            t.checked = false;
+            return;
+          }
+          extras.push(name);
         }
       } else {
-        setup.categories = setup.categories.filter((c) => c !== name);
+        extras = extras.filter((c) => c !== name);
       }
 
-      ensureInvariants();
-      updateCategoryCount();
+      setup.categories = ["Food", ...extras];
+      renderCategories();
       persistSetup(setup, actions);
     }
   };
@@ -473,11 +489,8 @@ export function render(root, model = {}, actions = {}) {
   root.addEventListener("click", handleClick);
   root.addEventListener("change", handleChange);
 
-  // Cleanup when router switches screens
+  // Cleanup when router swaps screens
   return () => {
-    if (modesEl) {
-      modesEl.removeEventListener("click", handleModesClick);
-    }
     root.removeEventListener("click", handleClick);
     root.removeEventListener("change", handleChange);
   };
