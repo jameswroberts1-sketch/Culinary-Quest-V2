@@ -434,246 +434,146 @@ textarea {
 }
 
 /* -----------------------------------------
-   SETUP SCREEN – CHOICE CARDS & CATEGORIES
+   SETUP SCREEN – OPTION CARDS & CATEGORIES
    ----------------------------------------- */
 
-/* Text + radio / checkbox rows */
-/* SETUP SCREEN – CHOICE ROWS (SCORING + CATEGORIES) */
-.menu-choice-group {
-  margin: 8px 10px 4px;
+.setup-option-group {
+  margin: 10px 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setup-option-card {
+  width: 100%;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  padding: 10px 14px;
+  cursor: pointer;
+  outline: none;
+  display: block;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
+    transform 0.08s ease;
+}
+
+.setup-option-card:active {
+  transform: translateY(1px);
+}
+
+.setup-option-card.is-selected {
+  background: #111827;
+  border-color: #fbbf24;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  color: #f9fafb;
+}
+
+.setup-option-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.setup-option-body {
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+/* Categories block */
+
+.setup-categories-block {
+  margin-top: 10px;
   text-align: left;
 }
 
-/* Base row style */
-.menu-choice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 4px 0;
-  padding: 8px 10px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #596276;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;               /* feels tappable */
+.setup-category-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
 }
 
-/* Native controls */
-.menu-choice input[type="radio"],
-.menu-choice input[type="checkbox"] {
-  margin-top: 3px;
-  flex: 0 0 auto;
-  accent-color: #f59e0b;         /* make the dot/checkbox gold where supported */
+.setup-category-row {
+  margin-bottom: 6px;
 }
 
-/* Text block */
-.menu-choice span {
-  display: block;
-}
-
-/* Emphasis for the main label line */
-.menu-choice span strong {
-  font-weight: 600;
-}
-
-/* Selected state – works via class OR :checked */
-.menu-choice--active,
-.menu-choice input:checked + span {
-  background: #fff8e6;           /* soft gold wash */
-  border-color: #f59e0b;
-  color: #374151;
-}
-
-/* Optional “locked” variant – e.g. for Food */
-.menu-choice--locked {
-  opacity: 0.8;
-  cursor: default;
-}
-
-/* Horizontal layout helper if you ever need it */
-.menu-choice--inline {
-  justify-content: flex-start;
-}
-
-/* Light “ghost” button (used for custom category remove) */
-.btn-ghost {
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #374151;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* Category chips grid */
-.cat-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-@media (min-width: 560px) {
-  .cat-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.cat-chip {
+.setup-category-row label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  padding: 8px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  gap: 10px;
   border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 7px 12px;
   background: #ffffff;
-  white-space: normal;
 }
 
-.cat-chip span {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  line-height: 1.2;
+.setup-category-row--locked label {
+  background: #f9fafb;
 }
 
-.cat-chip input[type="checkbox"] {
+.setup-category-row input[type="checkbox"] {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
-  margin-left: 2px;
-  margin-right: 4px;
 }
 
-.lock {
-  font-size: 0.75rem;
-  color: #9ca3af;
-  margin-left: 4px;
+.setup-category-name {
+  font-size: 14px;
+  color: #111827;
 }
 
-.menu-setup-hint {
-  font-size: 13px;
+.setup-category-note {
+  font-size: 12px;
   color: #6b7280;
-  margin: 6px 12px 0;
-}
-
-/* -----------------------------------------
-   SETUP SCREEN – SCORING MODE & CATEGORIES
-   ----------------------------------------- */
-
-.setup-modes {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 10px 0 4px;
-}
-
-.setup-mode {
-  /* reuse .btn styles but make them card-like */
-  width: 100%;
-  justify-content: flex-start;
-  align-items: flex-start;
-  flex-direction: column;
-  text-align: left;
-  border-radius: 12px;
-  padding: 10px 12px;
-}
-
-/* clearly highlight the active mode */
-.setup-mode--selected {
-  background: #111827;            /* dark navy */
-  color: #ffffff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-}
-
-.setup-mode--selected .muted {
-  color: #e5e7eb;
-}
-
-.setup-cats-block {
-  margin-top: 10px;
-}
-
-/* grid of chips */
-.cat-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-@media (min-width: 480px) {
-  .cat-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* each category "pill" */
-.cat-chip {
-  display: flex;
-  align-items: center;
-  padding: 8px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 999px;
-  background: #ffffff;
-}
-
-/* checkbox itself */
-.cat-chip input {
-  width: 18px;
-  height: 18px;
-  margin-right: 8px;
-}
-
-/* make selected categories visually bolder */
-.cat-chip input:checked + span {
-  font-weight: 600;
-}
-
-/* small note for compulsory label */
-.lock {
-  font-size: 0.75rem;
-  color: #9ca3af;
   margin-left: 4px;
 }
 
-/* row for "Add custom category" */
+/* Custom category add row */
+
 .setup-custom-row {
   display: flex;
-  gap: 8px;
   align-items: center;
-  margin-top: 10px;
-}
-
-.setup-custom-row .menu-input {
-  margin: 0;   /* override default top margin */
-}
-
-/* theme toggle */
-
-.theme-toggle-row {
+  gap: 8px;
   margin-top: 8px;
 }
 
-.theme-toggle-label {
+.setup-custom-input {
+  flex: 1 1 auto;
+  background: #ffffff;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.setup-custom-add {
+  padding-inline: 14px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+/* Theme toggle */
+
+.setup-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: center;
+  gap: 10px;
+  margin: 10px 8px 0;
+  text-align: left;
 }
 
-.theme-toggle-label input {
+.setup-toggle input[type="checkbox"] {
   width: 18px;
   height: 18px;
+  flex: 0 0 18px;
 }
 
+.setup-toggle span {
+  font-size: 14px;
+  color: #111827;
+  line-height: 1.5;
+}
 /* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
