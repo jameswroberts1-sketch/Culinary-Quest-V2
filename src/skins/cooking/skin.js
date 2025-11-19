@@ -80,8 +80,8 @@ export const routes = {
   // NEW: Hosts – organiser + up to 5 additional hosts
   hosts: () => safeLoad("./screens/HostsScreen.js", "Hosts"),
 
-  // NEW: placeholder for per-host invite links (we’ll wire this properly later)
-  links: () => Promise.resolve(stubRenderer("Invite links")),
+  // Per-host invite links screen
+  links: () => safeLoad("./screens/LinksScreen.js", "Links"),
 
   // Future states can point to stubs for now
   started:  () => Promise.resolve(stubRenderer("Game")),
