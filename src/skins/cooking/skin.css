@@ -479,54 +479,6 @@ input[type="number"] {
   opacity: 0.9;
 }
 
-/* Categories block */
-
-.setup-categories-block {
-  margin-top: 10px;
-  text-align: left;
-}
-
-.setup-category-list {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-}
-
-.setup-category-row {
-  margin-bottom: 6px;
-}
-
-.setup-category-row label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  padding: 7px 12px;
-  background: #ffffff;
-}
-
-.setup-category-row--locked label {
-  background: #f9fafb;
-}
-
-.setup-category-row input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-}
-
-.setup-category-name {
-  font-size: 14px;
-  color: #111827;
-}
-
-.setup-category-note {
-  font-size: 12px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
 /* Custom category add row */
 
 .setup-custom-row {
