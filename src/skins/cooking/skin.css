@@ -560,6 +560,7 @@ input[type="radio"],
   appearance: auto;
   width: 18px;
   height: 18px;
+  accent-color: #22c55e; /* nice green tick */
 }
 
 /* -----------------------------------------
