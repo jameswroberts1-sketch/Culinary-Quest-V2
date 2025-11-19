@@ -572,6 +572,18 @@ input[type="number"] {
   color: #111827;
   line-height: 1.5;
 }
+
+/* --- FIX: let checkboxes & radios use native look again --- */
+input[type="checkbox"],
+input[type="radio"],
+.skin-cooking input[type="checkbox"],
+.skin-cooking input[type="radio"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+}
+
 /* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
