@@ -677,6 +677,11 @@ input[type="radio"],
   text-align: left;
 }
 
+/* Kill legacy fake checkbox on scoring cards – we now use real inputs */
+.setup-option-card::before {
+  content: none !important;
+}
+
 /* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
