@@ -232,7 +232,7 @@ export function render(root, model = {}, actions = {}) {
       <!-- ENTREE -->
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">${isOrganiser ? "YOUR NIGHT" : "YOUR INVITE"}</h2>
+        <h2 class="menu-h2">${entreeTitle}</h2>
         <p class="menu-copy">
           ${entreeBodyHTML}
         </p>
