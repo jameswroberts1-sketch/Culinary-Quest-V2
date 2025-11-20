@@ -99,19 +99,20 @@ export function render(root, model = {}, actions = {}) {
 
   // Work out whether this visit came from a copied invite link
   const params = new URLSearchParams(window.location.search);
-  const hasInviteToken = !!params.get("invite");
+  const hasInviteToken   = !!params.get("invite");
+  const qpHostName       = params.get("h");
+  const qpOrganiserName  = params.get("o");
 
-  // Inside the organiser flow (no ?invite= in URL), host #1 is the organiser.
-  // Any visit that arrives via an invite link is treated as a normal host,
-  // even if that link belongs to Host 1.
-  const isOrganiser = !hasInviteToken && hostIndex === 0;
-
+  // Display names – prefer URL params (for external browsers),
+  // then fall back to the organiser model / saved hosts.
   const organiserNameRaw =
+    (qpOrganiserName && qpOrganiserName.trim()) ||
     (model.organiserName && String(model.organiserName)) ||
     (hosts[0] && hosts[0].name) ||
     "the organiser";
 
   const hostNameRaw =
+    (qpHostName && qpHostName.trim()) ||
     (hosts[hostIndex] && hosts[hostIndex].name) ||
     `Host ${hostIndex + 1}`;
 
@@ -121,6 +122,11 @@ export function render(root, model = {}, actions = {}) {
   const safeOrganiser = esc(organiserName);
   const safeHost      = esc(hostName);
 
+  // Inside the organiser flow (no ?invite= in URL), host #1 is the organiser.
+  // Any visit that arrives via an invite link is treated as a normal host,
+  // even if that link belongs to Host 1.
+  const isOrganiser = !hasInviteToken && hostIndex === 0;
+  
   // Nights data (for date uniqueness + prefill)
   const nights   = loadNights();
   const myNight  = nights[hostIndex] || {};
