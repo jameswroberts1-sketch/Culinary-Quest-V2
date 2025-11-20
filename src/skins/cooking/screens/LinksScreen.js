@@ -161,12 +161,12 @@ function persistTokens(tokens, actions) {
 
 // Build the invite URL for a given token
 function buildInviteUrl(token) {
-  const loc  = window.location;
-  const base = `${loc.origin}${loc.pathname}`; // ignore any current ?...
+  const loc = window.location;
+  const base = `${loc.origin}${loc.pathname}`; // ignore any existing ?...
 
   const params = new URLSearchParams();
-  params.set("state", "invite");      // ← tells the app to start on InviteScreen
-  params.set("invite", token);        // ← opaque per-host token
+  params.set("state", "invite");  // <- tell the app which screen to open
+  params.set("invite", token);    // <- the opaque token for that host
 
   return `${base}?${params.toString()}`;
 }
