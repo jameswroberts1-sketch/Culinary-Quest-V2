@@ -265,6 +265,30 @@ export function render(root, model = {}, actions = {}) {
     return clash || null;
   }
 
+if (dateInput) {
+    dateInput.addEventListener("change", () => {
+      const val = dateInput.value ? dateInput.value.trim() : "";
+      if (!val) return;
+
+      const clash = enforceDateUnique(val);
+      if (clash) {
+        const [clashIdx, clashNight] = clash;
+        const clashHost =
+          hosts[Number(clashIdx)] && hosts[Number(clashIdx)].name
+            ? hosts[Number(clashIdx)].name
+            : "another host";
+
+        window.alert(
+          `${clashNight.date} is already booked by ${clashHost}. ` +
+          "Please choose a different date so each dinner has its own night."
+        );
+
+        // Clear the invalid choice so they can't accidentally submit it
+        dateInput.value = "";
+      }
+    });
+  }
+  
   function renderDone(status) {
     const statusWord =
       status === "declined" ? "MAYBE NEXT TIME" : "YOU'RE IN!";
