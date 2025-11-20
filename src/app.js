@@ -51,6 +51,32 @@ const model = {
   organiserName: null
 };
 
+// Match ?invite=TOKEN in the URL to a host index
+const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
+
+(function detectInviteFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("invite");
+    if (!token) return;
+
+    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
+    if (!raw) return;
+
+    const tokens = JSON.parse(raw);
+    if (!Array.isArray(tokens)) return;
+
+    const hostIndex = tokens.indexOf(token);
+    if (hostIndex === -1) return;
+
+    // This visitor is coming in via a host invite link
+    model.state = "invite";
+    model.activeHostIndex = hostIndex;
+  } catch (_) {
+    // fail quietly – fall back to normal intro flow
+  }
+})();
+
 const watchers = new Set();
 
 function notifyWatchers() {
