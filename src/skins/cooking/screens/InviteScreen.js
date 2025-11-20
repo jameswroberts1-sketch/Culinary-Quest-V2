@@ -219,14 +219,23 @@ export function render(root, model = {}, actions = {}) {
         />
 
         ${
-          takenByOthers.length
-            ? `<p class="menu-copy" style="margin-top:10px;font-size:13px;">
-                 <strong>Heads up:</strong> ${takenByOthers.length} hosting night${
-                 takenByOthers.length === 1 ? " has" : "s have"
-               } already been booked. You’ll be asked to choose a different date if there’s a clash.
-               </p>`
-            : ""
-        }
+  takenByOthers.length
+    ? `<p class="menu-copy" style="margin-top:10px;font-size:13px;">
+         <strong>Already booked:</strong><br />
+         ${takenByOthers
+           .map(([idx, night]) => {
+             const otherIdx = Number(idx);
+             const otherName =
+               hosts[otherIdx] && hosts[otherIdx].name
+                 ? esc(hosts[otherIdx].name)
+                 : "Another host";
+             const niceDate = night.date;
+             return `• ${niceDate} — ${otherName}`;
+           })
+           .join("<br />")}
+       </p>`
+    : ""
+}
 
         ${buttonsHTML}
       </section>
