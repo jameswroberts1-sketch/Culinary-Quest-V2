@@ -1,8 +1,5 @@
 // path: src/skins/cooking/screens/RsvpTrackerScreen.js
-// RSVP Tracker – organiser-only view of all hosts' responses.
-//
-// Shown after the organiser completes their own invite step
-// (InviteScreen calls actions.setState("rsvpTracker")).
+// RSVP tracker – shows each host and their accept / decline + date/time/theme
 
 const RSVP_STORAGE_KEY = "cq_rsvps_v1";
 
@@ -15,7 +12,6 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-// Pull RSVP map from model or localStorage as a fallback
 function hydrateRsvps(model = {}) {
   let rsvps = {};
 
@@ -42,122 +38,14 @@ export function render(root, model = {}, actions = {}) {
   }
 
   const hosts = Array.isArray(model.hosts) ? model.hosts : [];
-
-  if (!hosts.length) {
-    root.innerHTML = `
-      <section class="menu-card">
-        <div class="menu-hero">
-          <img
-            class="menu-logo"
-            src="./src/skins/cooking/assets/cq-logo.png"
-            alt="Culinary Quest"
-          />
-        </div>
-
-        <div class="menu-ornament" aria-hidden="true"></div>
-
-        <section class="menu-section">
-          <div class="menu-course">ENTRÉE</div>
-          <h2 class="menu-h2">Nothing to track yet</h2>
-          <p class="menu-copy">
-            There are no hosts defined for this game yet. Go back and add your host line-up first.
-          </p>
-        </section>
-
-        <div class="menu-actions">
-          <button class="btn btn-secondary" id="trackerBackEmpty">Back to hosts</button>
-        </div>
-      </section>
-    `;
-
-    // Scroll top
-    try {
-      const scroller =
-        document.scrollingElement ||
-        document.documentElement ||
-        document.body;
-      requestAnimationFrame(() => {
-        scroller.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      });
-    } catch (_) {}
-
-    const backEmpty = root.querySelector("#trackerBackEmpty");
-    if (backEmpty) {
-      backEmpty.addEventListener("click", () => {
-        try {
-          actions.setState && actions.setState("hosts");
-        } catch (_) {}
-      });
-    }
-
-    return () => {};
-  }
-
-  const organiserName =
-    (hosts[0] && typeof hosts[0].name === "string" && hosts[0].name.trim()) ||
-    model.organiserName ||
-    model.hostName ||
-    "the organiser";
-
   const rsvps = hydrateRsvps(model);
 
-  // Compute summary stats
-  const totalHosts = hosts.length;
-  let accepted = 0;
-  let declined = 0;
-  let pending = 0;
-
-  const rows = hosts.map((host, index) => {
-    const hName =
-      (host && typeof host.name === "string" && host.name.trim()) ||
-      `Host ${index + 1}`;
-
-    const r = rsvps[index] || {};
-    const status = r.status || "pending";
-
-    if (status === "accepted") accepted++;
-    else if (status === "declined") declined++;
-    else pending++;
-
-    const date = r.date || "";
-    const time = r.time || "";
-    const theme = r.theme || "";
-
-    let statusLabel = "Pending";
-    let statusEmoji = "⏳";
-    if (status === "accepted") {
-      statusLabel = "Accepted";
-      statusEmoji = "✅";
-    } else if (status === "declined") {
-      statusLabel = "Declined";
-      statusEmoji = "❌";
-    }
-
-    const bits = [];
-    if (date) bits.push(date);
-    if (time) bits.push(time);
-    if (theme) bits.push(`Theme: ${theme}`);
-
-    const details = bits.join(" · ");
-
-    return {
-      index,
-      name: hName,
-      status,
-      statusEmoji,
-      statusLabel,
-      details
-    };
-  });
-
-  const allResponded = pending === 0;
-  const canStart = allResponded && accepted >= 2;
-
-  const summaryLine = `
-    Accepted: ${accepted} &nbsp;·&nbsp;
-    Declined: ${declined} &nbsp;·&nbsp;
-    Pending: ${pending}
-  `;
+  const organiserName =
+    (hosts[0] &&
+      typeof hosts[0].name === "string" &&
+      hosts[0].name.trim()) ||
+    model.organiserName ||
+    "the organiser";
 
   root.innerHTML = `
     <section class="menu-card">
@@ -176,80 +64,100 @@ export function render(root, model = {}, actions = {}) {
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">RSVP TRACKER</h2>
         <p class="menu-copy">
-          Here's how your host line-up is looking so far. Once everyone has replied
-          and at least two hosts have accepted, you can launch your Quest.
+          Here's where you can keep an eye on who has accepted, declined, or not yet responded.
         </p>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
-      <!-- MAIN: list of hosts & statuses -->
+      <!-- MAIN -->
       <section class="menu-section" style="text-align:left;">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">HOST RESPONSES</h2>
+        <h2 class="menu-h2">HOST LINE-UP</h2>
+        <p class="menu-copy">
+          ${
+            hosts.length <= 1
+              ? `So far only <strong>${esc(
+                  organiserName
+                )}</strong> is listed as a host.
+                 Go back and add at least one more host to get the full RSVP picture.`
+              : `Each host gets their own invite link. As they accept or decline, their status will update here.`
+          }
+        </p>
 
-        <ul class="list" id="rsvpList">
-          ${rows
-            .map((row, i) => {
-              const label =
-                i === 0
-                  ? `Host 1 – ${esc(row.name)} (organiser)`
-                  : `Host ${i + 1} – ${esc(row.name)}`;
+        <ul class="rsvp-list">
+          ${hosts
+            .map((host, index) => {
+              const name =
+                (host && typeof host.name === "string" && host.name.trim()) ||
+                `Host ${index + 1}`;
+
+              const r = rsvps[index] || {};
+              const status = r.status || "pending";
+              const statusLabel =
+                status === "accepted"
+                  ? "Accepted"
+                  : status === "declined"
+                  ? "Declined"
+                  : "Awaiting reply";
+
+              const statusClass =
+                status === "accepted"
+                  ? "rsvp-pill rsvp-pill--ok"
+                  : status === "declined"
+                  ? "rsvp-pill rsvp-pill--no"
+                  : "rsvp-pill rsvp-pill--pending";
+
+              const dateBits = [];
+              if (r.date) dateBits.push(r.date);
+              if (r.time) dateBits.push(r.time);
+              const dt = dateBits.join(" · ");
+
+              const themeTxt =
+                r.theme && r.theme.trim()
+                  ? `Theme: ${esc(r.theme.trim())}`
+                  : "";
+
+              const metaLines = [];
+              if (dt) metaLines.push(dt);
+              if (themeTxt) metaLines.push(themeTxt);
+
+              const meta = metaLines.join(" • ");
 
               return `
-                <li>
-                  <div><strong>${label}</strong></div>
-                  <div class="muted">
-                    ${row.statusEmoji} ${row.statusLabel}${
-                      row.details
-                        ? ` &nbsp;·&nbsp; ${esc(row.details)}`
-                        : ""
-                    }
+                <li class="rsvp-row">
+                  <div class="rsvp-row-main">
+                    <div class="rsvp-row-name">
+                      ${index === 0 ? `${esc(name)} <span class="rsvp-organiser-tag">(Organiser)</span>` : esc(name)}
+                    </div>
+                    <div class="rsvp-row-meta">
+                      ${meta || "&nbsp;"}
+                    </div>
+                  </div>
+                  <div class="${statusClass}">
+                    ${statusLabel}
                   </div>
                 </li>
               `;
             })
             .join("")}
         </ul>
-
-        <p class="menu-copy" style="margin-top:10px;">
-          <span class="muted">${summaryLine}</span>
-        </p>
-
-        <p class="menu-copy" style="font-size:13px;margin-top:4px;">
-          ${
-            canStart
-              ? "You're ready to begin – hit <strong>Let the Games Begin</strong> when you're happy with the schedule."
-              : "You’ll be able to start once everyone has replied and at least two hosts have accepted."
-          }
-        </p>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <div class="menu-actions" style="flex-wrap:wrap;gap:8px 10px;">
-        <button class="btn btn-secondary" id="trackerBack">
-          Review links
-        </button>
-        <button class="btn btn-secondary" id="trackerCancel">
-          Cancel game
-        </button>
-        <button
-          class="btn btn-primary"
-          id="trackerStart"
-          ${canStart ? "" : 'disabled style="opacity:0.6;"'}
-        >
-          Let the Games Begin
-        </button>
+      <div class="menu-actions">
+        <button class="btn btn-secondary" id="rsvpBack">Back</button>
+        <button class="btn btn-primary" id="rsvpStart">Begin planning</button>
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        RSVP Tracker – ${esc(organiserName)} · ${accepted} accepted / ${totalHosts} total
+        RsvpTrackerScreen – overview of all hosts &amp; their replies
       </p>
     </section>
   `;
 
-  // Scroll to top (and unzoom) on entry
+  // Scroll to top / avoid strange zoom
   try {
     const scroller =
       document.scrollingElement ||
@@ -260,57 +168,23 @@ export function render(root, model = {}, actions = {}) {
     });
   } catch (_) {}
 
-  // --- event wiring --------------------------------------------------
+  const backBtn = root.querySelector("#rsvpBack");
+  const startBtn = root.querySelector("#rsvpStart");
 
-  const startBtn = root.querySelector("#trackerStart");
-  const backBtn = root.querySelector("#trackerBack");
-  const cancelBtn = root.querySelector("#trackerCancel");
-  const backEmptyBtn = root.querySelector("#trackerBackEmpty");
-
-  const handleClick = (ev) => {
-    const t = ev.target;
-    if (!t) return;
-
-    if (t.id === "trackerBack" || t.id === "trackerBackEmpty") {
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
       try {
         actions.setState && actions.setState("links");
       } catch (_) {}
-      return;
-    }
+    });
+  }
 
-    if (t.id === "trackerCancel") {
-      // Simple behaviour for now: mark cancelled (if possible) and return to intro.
-      try {
-        if (actions && typeof actions.patch === "function") {
-          actions.patch({ cancelled: true });
-        }
-      } catch (_) {}
-      try {
-        actions.setState && actions.setState("intro");
-      } catch (_) {}
-      return;
-    }
-
-    if (t.id === "trackerStart") {
-      if (!canStart) {
-        // Belt-and-braces guard; button should be disabled already.
-        return;
-      }
-      try {
-        if (actions && typeof actions.patch === "function") {
-          actions.patch({ startedAt: Date.now() });
-        }
-      } catch (_) {}
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
+      // For now, just jump into the generic "started" state stub
       try {
         actions.setState && actions.setState("started");
       } catch (_) {}
-      return;
-    }
-  };
-
-  root.addEventListener("click", handleClick);
-
-  return () => {
-    root.removeEventListener("click", handleClick);
-  };
+    });
+  }
 }
