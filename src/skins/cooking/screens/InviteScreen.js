@@ -3,6 +3,19 @@
 
 const HOSTS_STORAGE_KEY   = "cq_hosts_v1";
 const NIGHTS_STORAGE_KEY  = "cq_host_nights_v1";
+const SETUP_STORAGE_KEY = "cq_setup_v2";
+
+function loadAllowThemes() {
+  try {
+    const raw = window.localStorage.getItem(SETUP_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.allowThemes === "boolean") {
+      return parsed.allowThemes;
+    }
+  } catch (_) {}
+  return false;
+}
 
 // --- helpers --------------------------------------------------
 
