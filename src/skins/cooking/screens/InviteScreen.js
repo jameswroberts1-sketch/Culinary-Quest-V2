@@ -98,6 +98,7 @@ export function render(root, model = {}, actions = {}) {
   } catch (_) {}
 
   const hosts = hydrateHosts(model);
+  const allowThemes = loadAllowThemes();
 
   // Which host is this invite for?
   //  - Organiser flow: LinksScreen set model.activeHostIndex = 0
