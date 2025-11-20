@@ -902,6 +902,76 @@ input[type="radio"],
   margin-top: 8px;
 }
 
+/* RSVP tracker list */
+
+.rsvp-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  text-align: left;
+}
+
+.rsvp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.rsvp-row-main {
+  flex: 1 1 auto;
+}
+
+.rsvp-row-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.rsvp-organiser-tag {
+  font-weight: 400;
+  font-size: 12px;
+  color: #6b7280;
+  margin-left: 4px;
+}
+
+.rsvp-row-meta {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* Status pill */
+
+.rsvp-pill {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  white-space: nowrap;
+}
+
+.rsvp-pill--ok {
+  background: #ecfdf5;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.rsvp-pill--no {
+  background: #fef2f2;
+  border-color: #f97373;
+  color: #b91c1c;
+}
+
+.rsvp-pill--pending {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
 /* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
