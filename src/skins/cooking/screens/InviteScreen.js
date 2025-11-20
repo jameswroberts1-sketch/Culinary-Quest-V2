@@ -121,8 +121,6 @@ export function render(root, model = {}, actions = {}) {
   const safeOrganiser = esc(organiserName);
   const safeHost      = esc(hostName);
 
-  const isOrganiser = hostIndex === 0;
-
   // Nights data (for date uniqueness + prefill)
   const nights   = loadNights();
   const myNight  = nights[hostIndex] || {};
