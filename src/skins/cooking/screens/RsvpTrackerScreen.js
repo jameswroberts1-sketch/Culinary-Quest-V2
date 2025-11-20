@@ -1,10 +1,10 @@
 // path: src/skins/cooking/screens/RsvpTrackerScreen.js
-// Overview of all hosts & their RSVP status
+// Overview of all hosts & their replies
 
-const HOSTS_STORAGE_KEY = "cq_hosts_v1";
-const RSVP_STORAGE_KEY  = "cq_rsvps_v1";
+const HOSTS_STORAGE_KEY  = "cq_hosts_v1";
+const NIGHTS_STORAGE_KEY = "cq_host_nights_v1";
 
-// --- helpers ---------------------------------------------------------
+// --- helpers --------------------------------------------------
 
 function esc(str) {
   if (str == null) return "";
@@ -15,7 +15,61 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-function scrollToTop() {
+// Same host loader as HostsScreen / LinksScreen / InviteScreen
+function hydrateHosts(model = {}) {
+  let hosts = [];
+
+  if (Array.isArray(model.hosts) && model.hosts.length) {
+    hosts = model.hosts.map((h) => ({
+      name: h && typeof h.name === "string" ? h.name : ""
+    }));
+  }
+
+  // Merge from localStorage (non-destructive)
+  try {
+    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved) && saved.length) {
+        saved.forEach((entry, idx) => {
+          if (!hosts[idx]) hosts[idx] = { name: "" };
+          if (entry && typeof entry.name === "string" && entry.name.trim()) {
+            hosts[idx].name = entry.name;
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  if (!hosts[0]) hosts[0] = { name: "" };
+  return hosts;
+}
+
+// hostIndex -> { date, time, status }
+function loadNights(model = {}) {
+  // Prefer any nights already on the model
+  if (model.hostNights && typeof model.hostNights === "object") {
+    return model.hostNights;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(NIGHTS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+// --- main render ----------------------------------------------
+
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
+  // Always start scrolled to the top
   try {
     const scroller =
       document.scrollingElement ||
@@ -28,78 +82,32 @@ function scrollToTop() {
       scroller.scrollLeft = 0;
     }
   } catch (_) {}
-}
 
-function hydrateHosts(model = {}) {
-  let hosts = [];
+  const hosts  = hydrateHosts(model);
+  const nights = loadNights(model);
 
-  if (Array.isArray(model.hosts) && model.hosts.length) {
-    hosts = model.hosts.map((h) => ({
-      name: h && typeof h.name === "string" ? h.name : ""
-    }));
-  }
+  const organiserNameRaw =
+    (model.organiserName && String(model.organiserName)) ||
+    (hosts[0] && hosts[0].name) ||
+    "the organiser";
 
-  // Merge in cached names from localStorage (non-destructive)
-  try {
-    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved)) {
-        saved.forEach((entry, idx) => {
-          if (!hosts[idx]) hosts[idx] = { name: "" };
-          if (entry && typeof entry.name === "string" && entry.name.trim()) {
-            hosts[idx].name = entry.name;
-          }
-        });
-      }
-    }
-  } catch (_) {}
+  const organiserName = organiserNameRaw.trim() || "the organiser";
+  const safeOrganiser = esc(organiserName);
 
-  // Ensure at least organiser entry
-  if (!hosts[0]) {
-    const organiserName =
-      model.organiserName ||
-      model.hostName ||
-      model.name ||
-      model.organiser ||
-      "";
-    hosts[0] = { name: organiserName || "" };
-  }
-
-  return hosts;
-}
-
-function hydrateRsvps(model = {}) {
-  let rsvps = {};
-  if (model.rsvps && typeof model.rsvps === "object") {
-    rsvps = { ...model.rsvps };
-  }
-  try {
-    const raw = window.localStorage.getItem(RSVP_STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (saved && typeof saved === "object") {
-        rsvps = { ...saved, ...rsvps };
-      }
-    }
-  } catch (_) {}
-  return rsvps;
-}
-
-// --- main render -----------------------------------------------------
-
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  scrollToTop();
-
-  const hosts = hydrateHosts(model);
-  const rsvps = hydrateRsvps(model);
-
-  const organiserName = (hosts[0] && hosts[0].name) || "the organiser";
   const totalHosts = hosts.length;
+  const totalAccepted = Object.values(nights).filter(
+    (n) => n && n.status === "accepted"
+  ).length;
+  const totalResponded = Object.values(nights).filter(
+    (n) => n && (n.status === "accepted" || n.status === "declined")
+  ).length;
+
+  const allHaveResponded = totalResponded >= totalHosts;
+  const allAccepted = allHaveResponded &&
+    totalAccepted === totalHosts;
+
+  // If only organiser is known, show the “add more hosts” message
+  const hasAtLeastTwoHosts = totalHosts >= 2;
 
   root.innerHTML = `
     <section class="menu-card">
@@ -128,70 +136,71 @@ export function render(root, model = {}, actions = {}) {
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOST LINE-UP</h2>
-        ${
-          totalHosts < 2
-            ? `
-          <p class="menu-copy">
-            So far only <strong>${esc(
-              organiserName
-            )}</strong> is listed as a host. Go back and add at least one more
-            host to get the full RSVP picture.
-          </p>
-        `
-            : `
-          <p class="menu-copy">
-            Here's the current status for each host. Dates are final once a host has accepted.
-          </p>
+        <p class="menu-copy">
+          Here's the current status for each host. Dates are final once a host has accepted.
+        </p>
 
-          <ul class="hosts-list" id="rsvpList"></ul>
-        `
+        ${
+          hasAtLeastTwoHosts
+            ? `<ul class="hosts-list" id="trackerList"></ul>`
+            : `<p class="menu-copy">
+                 So far only <strong>${safeOrganiser}</strong> is listed as a host.
+                 Go back and add at least one more host to get the full RSVP picture.
+               </p>`
         }
+
+        <p class="menu-copy" style="margin-top:10px;font-size:13px;">
+          Responses: <strong>${totalResponded}</strong> of <strong>${totalHosts}</strong>
+          received${allHaveResponded ? " — everyone has replied." : "."}
+        </p>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <div class="menu-actions">
-        <button class="btn btn-secondary" id="rsvpBack">Back</button>
-        <button class="btn btn-primary" id="rsvpStart">Begin planning</button>
+        <button class="btn btn-secondary" id="trackerCancel">Cancel</button>
+        <button
+          class="btn btn-primary"
+          id="trackerStart"
+          ${allAccepted ? "" : "disabled style='opacity:0.6;cursor:not-allowed;'"}
+        >
+          Let the games begin
+        </button>
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        RsvpTrackerScreen – overview of all hosts & their replies
+        RsvpTrackerScreen – overview of all hosts &amp; their replies
       </p>
     </section>
   `;
 
-  const listEl  = root.querySelector("#rsvpList");
-  const backBtn = root.querySelector("#rsvpBack");
-  const startBtn = root.querySelector("#rsvpStart");
+  const listEl      = root.querySelector("#trackerList");
+  const cancelBtn   = root.querySelector("#trackerCancel");
+  const startBtn    = root.querySelector("#trackerStart");
 
-  if (listEl && totalHosts >= 2) {
+  if (listEl && hasAtLeastTwoHosts) {
     const rows = hosts.map((host, index) => {
-      const info = rsvps[index] || {};
-      let status = "No response yet";
-      let statusClass = "rsvp-status--pending";
-      if (info.status === "accepted") {
-        status = "Accepted";
-        statusClass = "rsvp-status--accepted";
-      } else if (info.status === "declined") {
-        status = "Declined";
-        statusClass = "rsvp-status--declined";
-      }
+      const name = (host && host.name && host.name.trim())
+        ? esc(host.name)
+        : `Host ${index + 1}`;
 
-      const dateText = info.date ? info.date : "TBC";
-      const timeText = info.time ? info.time : "";
-      const themeText = info.theme ? info.theme : "";
+      const night = nights[index] || {};
+      let statusLabel = "No response yet";
+      if (night.status === "accepted") statusLabel = "Accepted";
+      else if (night.status === "declined") statusLabel = "Declined";
+
+      const dateLabel = night.date ? esc(night.date) : "TBC";
+      const timeLabel = night.time ? esc(night.time) : null;
 
       return `
-        <li class="host-row host-row--tracker">
+        <li class="host-row">
           <div class="host-row-label">Host ${index + 1}</div>
           <div class="host-row-main">
-            <div class="host-row-name">${esc(host.name || `Host ${index + 1}`)}</div>
-            <div class="host-row-meta ${statusClass}">${esc(status)}</div>
+            <div class="host-row-name">${name}</div>
             <div class="host-row-meta">
-              Date: <strong>${esc(dateText)}</strong>
-              ${timeText ? ` &middot; Time: <strong>${esc(timeText)}</strong>` : ""}
-              ${themeText ? `<br/>Theme: <em>${esc(themeText)}</em>` : ""}
+              ${statusLabel}<br />
+              Date: <strong>${dateLabel}</strong>
+              ${timeLabel ? `<br />Start: <strong>${timeLabel}</strong>` : ""}
             </div>
           </div>
         </li>
@@ -201,8 +210,11 @@ export function render(root, model = {}, actions = {}) {
     listEl.innerHTML = rows.join("");
   }
 
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
+  // --- navigation buttons --------------------------------------
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      // Back to links for now
       try {
         actions.setState && actions.setState("links");
       } catch (_) {}
@@ -211,7 +223,12 @@ export function render(root, model = {}, actions = {}) {
 
   if (startBtn) {
     startBtn.addEventListener("click", () => {
-      // Later this will go to the actual planning / scheduling screen
+      if (!allAccepted) {
+        window.alert(
+          "You can only start the game once every host has accepted and chosen a date."
+        );
+        return;
+      }
       try {
         actions.setState && actions.setState("started");
       } catch (_) {}
