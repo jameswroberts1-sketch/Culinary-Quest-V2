@@ -208,26 +208,29 @@ export function render(root, model = {}, actions = {}) {
 
   // --- navigation buttons --------------------------------------
 
-  if (cancelBtn) {
-    cancelBtn.addEventListener("click", () => {
-      // Back to links for now
-      try {
-        actions.setState && actions.setState("links");
-      } catch (_) {}
-    });
-  }
+const cancelBtn = root.querySelector("#trackerCancel");
+const startBtn  = root.querySelector("#trackerStart");
 
-  if (startBtn) {
-    startBtn.addEventListener("click", () => {
-      if (!allAccepted) {
-        window.alert(
-          "You can only start the game once every host has accepted and chosen a date."
-        );
-        return;
-      }
-      try {
-        actions.setState && actions.setState("started");
-      } catch (_) {}
-    });
-  }
+// Decide if the game can start – reuse your existing logic
+const canStartGame = allAccepted; // or whatever flag you’re already using
+
+if (startBtn) {
+  startBtn.disabled = !canStartGame;
+  startBtn.style.opacity = canStartGame ? "1" : "0.6";
+
+  startBtn.addEventListener("click", () => {
+    if (!canStartGame) return; // belt-and-braces
+
+    try {
+      actions.setState && actions.setState("organiserHome");
+    } catch (_) {}
+  });
+}
+
+if (cancelBtn) {
+  cancelBtn.addEventListener("click", () => {
+    try {
+      actions.setState && actions.setState("links");
+    } catch (_) {}
+  });
 }
