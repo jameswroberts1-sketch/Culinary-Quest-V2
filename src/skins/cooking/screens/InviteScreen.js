@@ -152,28 +152,49 @@ export function render(root, model = {}, actions = {}) {
       night.date
   );
 
-  // Copy variants ------------------------------------------------
+    // Copy variants ------------------------------------------------
   let entreeTitle, entreeBodyHTML;
 
   if (isOrganiser) {
     entreeTitle = "YOUR NIGHT";
-    entreeBodyHTML = `
-      Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on,
-      set a start time and – if you're using themes – let everyone know what kind of night
-      you're planning.
-    `;
+
+    if (allowThemes) {
+      entreeBodyHTML = `
+        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on,
+        set a start time and let everyone know what kind of themed night you're planning.
+      `;
+    } else {
+      entreeBodyHTML = `
+        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on
+        and set a start time for your dinner.
+      `;
+    }
   } else {
     entreeTitle = "YOUR INVITE";
-    entreeBodyHTML = `
-      Welcome <strong>${safeHost}</strong> – <strong>${safeOrganiser}</strong> has invited you to
-      take part in <em>Culinary Quest</em>, a home-dining competition where each host takes a turn
-      impressing the others with their culinary skills. They’ll judge and score your efforts, and
-      you’ll get to do the same when it’s their turn to host.
-      <br><br>
-      If you’re up for the challenge, choose the date you’d like to host, set a start time and
-      let everyone know if you're setting a theme. If you can’t take part this time, simply tap
-      <strong>Decline</strong> and we’ll let <strong>${safeOrganiser}</strong> know.
-    `;
+
+    if (allowThemes) {
+      entreeBodyHTML = `
+        Welcome <strong>${safeHost}</strong> – <strong>${safeOrganiser}</strong> has invited you to
+        take part in <em>Culinary Quest</em>, a home-dining competition where each host takes a turn
+        impressing the others with their culinary skills. They’ll judge and score your efforts, and
+        you’ll get to do the same when it’s their turn to host.
+        <br><br>
+        If you’re up for the challenge, choose the date you’d like to host, set a start time and
+        let everyone know if you're setting a theme. If you can’t take part this time, simply tap
+        <strong>Decline</strong> and we’ll let <strong>${safeOrganiser}</strong> know.
+      `;
+    } else {
+      entreeBodyHTML = `
+        Welcome <strong>${safeHost}</strong> – <strong>${safeOrganiser}</strong> has invited you to
+        take part in <em>Culinary Quest</em>, a home-dining competition where each host takes a turn
+        impressing the others with their culinary skills. They’ll judge and score your efforts, and
+        you’ll get to do the same when it’s their turn to host.
+        <br><br>
+        If you’re up for the challenge, choose the date you’d like to host and set a start time for
+        your dinner. If you can’t take part this time, simply tap <strong>Decline</strong> and we’ll
+        let <strong>${safeOrganiser}</strong> know.
+      `;
+    }
   }
 
   const buttonsHTML = isOrganiser
