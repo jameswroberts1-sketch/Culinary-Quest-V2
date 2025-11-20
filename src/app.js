@@ -27,8 +27,27 @@ window.addEventListener("error", (e) => {
 
 // You can extend this later with Firebase / multi-device sync.
 // For now we just keep a local state so Intro ↔ Setup works.
+
+function getInitialState() {
+  const params = new URLSearchParams(window.location.search);
+  const stateFromUrl = params.get("state");
+
+  // If URL explicitly asks for a known state, honour it
+  if (stateFromUrl === "invite" || stateFromUrl === "rsvpTracker") {
+    return stateFromUrl;
+  }
+
+  // Backwards-compatible: old links with just ?invite= still go to Invite
+  if (params.get("invite")) {
+    return "invite";
+  }
+
+  // Normal organiser flow
+  return "intro";
+}
+
 const model = {
-  state: "intro",
+  state: getInitialState(),
   organiserName: null
 };
 
