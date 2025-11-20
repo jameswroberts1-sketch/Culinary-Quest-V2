@@ -326,12 +326,14 @@ export function render(root, model = {}, actions = {}) {
   }
 
   if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
-      // Later, when we wire InviteScreen, we’ll treat this as “organiser acting as Host #1”.
-      // For now we just move state forward.
-      try {
-        actions.setState && actions.setState("invite");
-      } catch (_) {}
-    });
-  }
+  nextBtn.addEventListener("click", () => {
+    // Organiser is acting as Host #1 inside the app
+    if (model) {
+      model.activeHostIndex = 0;
+    }
+    try {
+      actions.setState && actions.setState("invite");
+    } catch (_) {}
+  });
+}
 }
