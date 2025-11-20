@@ -159,14 +159,21 @@ function persistTokens(tokens, actions) {
   }
 }
 
-// Build the invite URL for a given token
-function buildInviteUrl(token) {
+// Build the invite URL for a given token + display names
+function buildInviteUrl(token, hostName, organiserName) {
   const loc = window.location;
   const base = `${loc.origin}${loc.pathname}`; // ignore any existing ?...
 
   const params = new URLSearchParams();
-  params.set("state", "invite");  // <- tell the app which screen to open
-  params.set("invite", token);    // <- the opaque token for that host
+  params.set("state", "invite");     // tell the app which screen to open
+  params.set("invite", token);       // opaque token for that host
+
+  if (hostName && hostName.trim()) {
+    params.set("h", hostName.trim());      // host display name
+  }
+  if (organiserName && organiserName.trim()) {
+    params.set("o", organiserName.trim()); // organiser display name
+  }
 
   return `${base}?${params.toString()}`;
 }
@@ -293,7 +300,12 @@ export function render(root, model = {}, actions = {}) {
     const token = tokens[idx];
     if (!token) return;
 
-    const url = buildInviteUrl(token);
+    const hostName =
+  hosts[idx] && hosts[idx].name ? hosts[idx].name : "";
+const organiserName =
+  hosts[0] && hosts[0].name ? hosts[0].name : "";
+
+const url = buildInviteUrl(token, hostName, organiserName);
     const originalText = btn.textContent;
 
     try {
