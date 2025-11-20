@@ -159,13 +159,9 @@ export function render(root, model = {}, actions = {}) {
 
       <div class="menu-actions">
         <button class="btn btn-secondary" id="trackerCancel">Cancel</button>
-        <button
-          class="btn btn-primary"
-          id="trackerStart"
-          ${allAccepted ? "" : "disabled style='opacity:0.6;cursor:not-allowed;'"}
-        >
+        <button class="btn btn-primary" id="trackerStart">
           Let the games begin
-        </button>
+       </button>
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
