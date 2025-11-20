@@ -425,7 +425,7 @@ if (dateInput) {
     if (isOrganiser) {
       // Organiser goes to the RSVP tracker
       try {
-        actions.setState && actions.setState("rsvpTracker");
+        actions.setState && actions.setState("organiserHome");
       } catch (_) {}
     } else {
       renderDone("accepted");
