@@ -1,7 +1,10 @@
 // path: src/skins/cooking/screens/RsvpTrackerScreen.js
-// RSVP tracker – shows each host and their accept / decline + date/time/theme
+// Overview of all hosts & their RSVP status
 
-const RSVP_STORAGE_KEY = "cq_rsvps_v1";
+const HOSTS_STORAGE_KEY = "cq_hosts_v1";
+const RSVP_STORAGE_KEY  = "cq_rsvps_v1";
+
+// --- helpers ---------------------------------------------------------
 
 function esc(str) {
   if (str == null) return "";
@@ -12,40 +15,91 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-function hydrateRsvps(model = {}) {
-  let rsvps = {};
+function scrollToTop() {
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    if (scroller && typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } else {
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    }
+  } catch (_) {}
+}
 
-  if (model.rsvps && typeof model.rsvps === "object") {
-    rsvps = { ...model.rsvps };
-  } else {
-    try {
-      const raw = window.localStorage.getItem(RSVP_STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved && typeof saved === "object") {
-          rsvps = saved;
-        }
-      }
-    } catch (_) {}
+function hydrateHosts(model = {}) {
+  let hosts = [];
+
+  if (Array.isArray(model.hosts) && model.hosts.length) {
+    hosts = model.hosts.map((h) => ({
+      name: h && typeof h.name === "string" ? h.name : ""
+    }));
   }
 
-  return rsvps || {};
+  // Merge in cached names from localStorage (non-destructive)
+  try {
+    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved)) {
+        saved.forEach((entry, idx) => {
+          if (!hosts[idx]) hosts[idx] = { name: "" };
+          if (entry && typeof entry.name === "string" && entry.name.trim()) {
+            hosts[idx].name = entry.name;
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  // Ensure at least organiser entry
+  if (!hosts[0]) {
+    const organiserName =
+      model.organiserName ||
+      model.hostName ||
+      model.name ||
+      model.organiser ||
+      "";
+    hosts[0] = { name: organiserName || "" };
+  }
+
+  return hosts;
 }
+
+function hydrateRsvps(model = {}) {
+  let rsvps = {};
+  if (model.rsvps && typeof model.rsvps === "object") {
+    rsvps = { ...model.rsvps };
+  }
+  try {
+    const raw = window.localStorage.getItem(RSVP_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === "object") {
+        rsvps = { ...saved, ...rsvps };
+      }
+    }
+  } catch (_) {}
+  return rsvps;
+}
+
+// --- main render -----------------------------------------------------
 
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
 
-  const hosts = Array.isArray(model.hosts) ? model.hosts : [];
+  scrollToTop();
+
+  const hosts = hydrateHosts(model);
   const rsvps = hydrateRsvps(model);
 
-  const organiserName =
-    (hosts[0] &&
-      typeof hosts[0].name === "string" &&
-      hosts[0].name.trim()) ||
-    model.organiserName ||
-    "the organiser";
+  const organiserName = (hosts[0] && hosts[0].name) || "the organiser";
+  const totalHosts = hosts.length;
 
   root.innerHTML = `
     <section class="menu-card">
@@ -71,77 +125,27 @@ export function render(root, model = {}, actions = {}) {
       <div class="menu-divider" aria-hidden="true"></div>
 
       <!-- MAIN -->
-      <section class="menu-section" style="text-align:left;">
+      <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOST LINE-UP</h2>
-        <p class="menu-copy">
-          ${
-            hosts.length <= 1
-              ? `So far only <strong>${esc(
-                  organiserName
-                )}</strong> is listed as a host.
-                 Go back and add at least one more host to get the full RSVP picture.`
-              : `Each host gets their own invite link. As they accept or decline, their status will update here.`
-          }
-        </p>
+        ${
+          totalHosts < 2
+            ? `
+          <p class="menu-copy">
+            So far only <strong>${esc(
+              organiserName
+            )}</strong> is listed as a host. Go back and add at least one more
+            host to get the full RSVP picture.
+          </p>
+        `
+            : `
+          <p class="menu-copy">
+            Here's the current status for each host. Dates are final once a host has accepted.
+          </p>
 
-        <ul class="rsvp-list">
-          ${hosts
-            .map((host, index) => {
-              const name =
-                (host && typeof host.name === "string" && host.name.trim()) ||
-                `Host ${index + 1}`;
-
-              const r = rsvps[index] || {};
-              const status = r.status || "pending";
-              const statusLabel =
-                status === "accepted"
-                  ? "Accepted"
-                  : status === "declined"
-                  ? "Declined"
-                  : "Awaiting reply";
-
-              const statusClass =
-                status === "accepted"
-                  ? "rsvp-pill rsvp-pill--ok"
-                  : status === "declined"
-                  ? "rsvp-pill rsvp-pill--no"
-                  : "rsvp-pill rsvp-pill--pending";
-
-              const dateBits = [];
-              if (r.date) dateBits.push(r.date);
-              if (r.time) dateBits.push(r.time);
-              const dt = dateBits.join(" · ");
-
-              const themeTxt =
-                r.theme && r.theme.trim()
-                  ? `Theme: ${esc(r.theme.trim())}`
-                  : "";
-
-              const metaLines = [];
-              if (dt) metaLines.push(dt);
-              if (themeTxt) metaLines.push(themeTxt);
-
-              const meta = metaLines.join(" • ");
-
-              return `
-                <li class="rsvp-row">
-                  <div class="rsvp-row-main">
-                    <div class="rsvp-row-name">
-                      ${index === 0 ? `${esc(name)} <span class="rsvp-organiser-tag">(Organiser)</span>` : esc(name)}
-                    </div>
-                    <div class="rsvp-row-meta">
-                      ${meta || "&nbsp;"}
-                    </div>
-                  </div>
-                  <div class="${statusClass}">
-                    ${statusLabel}
-                  </div>
-                </li>
-              `;
-            })
-            .join("")}
-        </ul>
+          <ul class="hosts-list" id="rsvpList"></ul>
+        `
+        }
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -152,24 +156,50 @@ export function render(root, model = {}, actions = {}) {
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        RsvpTrackerScreen – overview of all hosts &amp; their replies
+        RsvpTrackerScreen – overview of all hosts & their replies
       </p>
     </section>
   `;
 
-  // Scroll to top / avoid strange zoom
-  try {
-    const scroller =
-      document.scrollingElement ||
-      document.documentElement ||
-      document.body;
-    requestAnimationFrame(() => {
-      scroller.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    });
-  } catch (_) {}
-
+  const listEl  = root.querySelector("#rsvpList");
   const backBtn = root.querySelector("#rsvpBack");
   const startBtn = root.querySelector("#rsvpStart");
+
+  if (listEl && totalHosts >= 2) {
+    const rows = hosts.map((host, index) => {
+      const info = rsvps[index] || {};
+      let status = "No response yet";
+      let statusClass = "rsvp-status--pending";
+      if (info.status === "accepted") {
+        status = "Accepted";
+        statusClass = "rsvp-status--accepted";
+      } else if (info.status === "declined") {
+        status = "Declined";
+        statusClass = "rsvp-status--declined";
+      }
+
+      const dateText = info.date ? info.date : "TBC";
+      const timeText = info.time ? info.time : "";
+      const themeText = info.theme ? info.theme : "";
+
+      return `
+        <li class="host-row host-row--tracker">
+          <div class="host-row-label">Host ${index + 1}</div>
+          <div class="host-row-main">
+            <div class="host-row-name">${esc(host.name || `Host ${index + 1}`)}</div>
+            <div class="host-row-meta ${statusClass}">${esc(status)}</div>
+            <div class="host-row-meta">
+              Date: <strong>${esc(dateText)}</strong>
+              ${timeText ? ` &middot; Time: <strong>${esc(timeText)}</strong>` : ""}
+              ${themeText ? `<br/>Theme: <em>${esc(themeText)}</em>` : ""}
+            </div>
+          </div>
+        </li>
+      `;
+    });
+
+    listEl.innerHTML = rows.join("");
+  }
 
   if (backBtn) {
     backBtn.addEventListener("click", () => {
@@ -181,7 +211,7 @@ export function render(root, model = {}, actions = {}) {
 
   if (startBtn) {
     startBtn.addEventListener("click", () => {
-      // For now, just jump into the generic "started" state stub
+      // Later this will go to the actual planning / scheduling screen
       try {
         actions.setState && actions.setState("started");
       } catch (_) {}
