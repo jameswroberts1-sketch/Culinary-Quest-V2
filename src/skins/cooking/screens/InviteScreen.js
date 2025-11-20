@@ -87,13 +87,24 @@ export function render(root, model = {}, actions = {}) {
   const hosts = hydrateHosts(model);
 
   // Which host is this invite for?
+  //  - Organiser flow: LinksScreen set model.activeHostIndex = 0
+  //  - Host links: app.js set model.activeHostIndex based on the invite token
   let hostIndex = 0;
   if (Number.isInteger(model.activeHostIndex)) {
     hostIndex = model.activeHostIndex;
-  } else if (Number.isInteger(model.inviteHostIndex)) {
-    hostIndex = model.inviteHostIndex;
   }
-  if (hostIndex < 0 || hostIndex >= hosts.length) hostIndex = 0;
+  if (hostIndex < 0 || hostIndex >= hosts.length) {
+    hostIndex = 0;
+  }
+
+  // Work out whether this visit came from a copied invite link
+  const params = new URLSearchParams(window.location.search);
+  const hasInviteToken = !!params.get("invite");
+
+  // Inside the organiser flow (no ?invite= in URL), host #1 is the organiser.
+  // Any visit that arrives via an invite link is treated as a normal host,
+  // even if that link belongs to Host 1.
+  const isOrganiser = !hasInviteToken && hostIndex === 0;
 
   const organiserNameRaw =
     (model.organiserName && String(model.organiserName)) ||
