@@ -28,80 +28,27 @@ window.addEventListener("error", (e) => {
 // You can extend this later with Firebase / multi-device sync.
 // For now we just keep a local state so Intro ↔ Setup works.
 
-function getInitialState() {
-  const params = new URLSearchParams(window.location.search);
-  const stateFromUrl = params.get("state");
-
-  // If URL explicitly asks for a known state, honour it
-  if (stateFromUrl === "invite" || stateFromUrl === "rsvpTracker") {
-    return stateFromUrl;
-  }
-
-  // Backwards-compatible: old links with just ?invite= still go to Invite
-  if (params.get("invite")) {
-    return "invite";
-  }
-
-  // Normal organiser flow
-  return "intro";
-}
-
-const model = {
-  state: getInitialState(),
-  organiserName: null
-};
-
-// Match ?invite=TOKEN in the URL to a host index
-const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
-
-(function detectInviteFromUrl() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("invite");
-    if (!token) return;
-
-    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
-    if (!raw) return;
-
-    const tokens = JSON.parse(raw);
-    if (!Array.isArray(tokens)) return;
-
-    const hostIndex = tokens.indexOf(token);
-    if (hostIndex === -1) return;
-
-    // This visitor is coming in via a host invite link
-    model.state = "invite";
-    model.activeHostIndex = hostIndex;
-  } catch (_) {
-    // fail quietly – fall back to normal intro flow
-  }
-})();
-
-const watchers = new Set();
-
-function notifyWatchers() {
-  for (const fn of watchers) {
-    try {
-      fn(model, actions);
-    } catch (err) {
-      console.error("[watcher] render failed", err);
-    }
-  }
-}
-
 const actions = {
   async join(name) {
     model.organiserName = name;
     // Hook for future: persist organiser to backend here.
   },
+
   setState(next) {
     if (typeof next === "string" && next.trim()) {
       model.state = next.trim();
       notifyWatchers();
     }
+  },
+
+  // New: allow screens to stash extra data (setup, hosts, gameId, etc.)
+  // without forcing an immediate re-render.
+  patch(delta) {
+    if (!delta || typeof delta !== "object") return;
+    Object.assign(model, delta);
+    // deliberately *no* notifyWatchers() here
   }
 };
-
 /* ------------ route resolution ------------ */
 
 const qs = new URLSearchParams(location.search);
