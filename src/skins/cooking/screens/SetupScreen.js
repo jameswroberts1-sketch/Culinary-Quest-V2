@@ -8,12 +8,21 @@ const DEFAULT_SETUP = {
   mode: "simple",          // "simple" | "category"
   categories: ["Food"],    // Food is always included
   customCategories: [],    // up to 3 custom
-  allowThemes: false
+  allowThemes: false,
+  gameTitle: ""            // organiser's game name (optional)
 };
 
 // Built-in optional categories (besides "Food")
 const BUILT_INS = ["Menu", "Table Setting", "Drinks", "Entertainment"];
-
+// Basic HTML escaping for safe interpolation
+function esc(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 function hydrateSetup(model) {
   let setup = { ...DEFAULT_SETUP };
 
@@ -27,6 +36,9 @@ function hydrateSetup(model) {
     }
     if (typeof m.allowThemes === "boolean") {
       setup.allowThemes = m.allowThemes;
+    }
+    if (typeof m.gameTitle === "string") {
+      setup.gameTitle = m.gameTitle;
     }
   } else {
     // 2) Fall back to localStorage
@@ -46,6 +58,9 @@ function hydrateSetup(model) {
           }
           if (typeof saved.allowThemes === "boolean") {
             setup.allowThemes = saved.allowThemes;
+          }
+          if (typeof saved.gameTitle === "string") {
+            setup.gameTitle = saved.gameTitle;
           }
         }
       }
@@ -209,7 +224,22 @@ export function render(root, model = {}, actions = {}) {
           Allow each host to set a theme (e.g. “Mexican Fiesta”, “Feathers & Fedoras”)
           as a cue for guests.
         </p>
-
+        <label
+          class="menu-copy"
+          for="setupGameTitle"
+          style="text-align:left;margin-top:8px;"
+        >
+          <strong>Game name</strong>
+          <span class="muted">(optional – helps you tell games apart)</span>
+        </label>
+        <input
+          id="setupGameTitle"
+          class="menu-input"
+          type="text"
+          maxlength="60"
+          placeholder="e.g. Sally’s Uni Friends Quest"
+          value="${esc(setup.gameTitle || "")}"
+        />
         <div class="setup-toggle">
           <input
             id="themeToggle"
@@ -238,6 +268,7 @@ export function render(root, model = {}, actions = {}) {
   const catCountEl   = root.querySelector("#catCount");
   const customInput  = root.querySelector("#customCat");
   const themeToggle  = root.querySelector("#themeToggle");
+  const gameTitleInput = root.querySelector("#setupGameTitle");
 
   function ensureInvariants() {
     if (!setup.categories.includes("Food")) {
@@ -500,6 +531,13 @@ export function render(root, model = {}, actions = {}) {
 
   root.addEventListener("click", handleClick);
   root.addEventListener("change", handleChange);
+    if (gameTitleInput) {
+    gameTitleInput.addEventListener("input", () => {
+      // Trim to 60 chars just in case, to keep it tidy
+      setup.gameTitle = gameTitleInput.value.slice(0, 60);
+      persistSetup(setup, actions);
+    });
+  }
 
   // Cleanup when router swaps screens
   return () => {
