@@ -1,8 +1,11 @@
 // path: src/skins/cooking/screens/LinksScreen.js
-// Links screen – per-host invite links with opaque tokens
+// Links screen – per-host invite links with opaque tokens, and game creation in Firebase RTDB
+
+import { getUid, write, readOnce } from "../../../engine/firebase.js";
 
 const HOSTS_STORAGE_KEY   = "cq_hosts_v1";   // same as HostsScreen
 const TOKENS_STORAGE_KEY  = "cq_host_tokens_v1";
+const GAME_META_KEY       = "cq_current_game_v1";
 const MAX_HOSTS           = 6;
 
 // --- helpers --------------------------------------------------
@@ -15,6 +18,26 @@ function esc(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// Very lightweight slug for game titles
+function slugFromTitle(title) {
+  if (!title) return "";
+  return String(title)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40); // keep it tidy
+}
+
+// Small random id for gameId suffix
+function makeId(len = 6) {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let out = "";
+  for (let i = 0; i < len; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
 }
 
 // Hydrate hosts array the same way as HostsScreen
@@ -159,21 +182,127 @@ function persistTokens(tokens, actions) {
   }
 }
 
-// Build the invite URL for a given token + display names
-function buildInviteUrl(token, hostName, organiserName) {
+// --- gameId + RTDB game creation ------------------------------
+
+async function getOrCreateGameId(model, setup, hosts) {
+  // 1) Check model
+  if (model && typeof model.gameId === "string" && model.gameId.trim()) {
+    return model.gameId.trim();
+  }
+
+  // 2) Check localStorage
+  try {
+    const raw = window.localStorage.getItem(GAME_META_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.gameId === "string" && parsed.gameId.trim()) {
+        const existingId = parsed.gameId.trim();
+        if (model) model.gameId = existingId;
+        return existingId;
+      }
+    }
+  } catch (_) {}
+
+  // 3) Generate a new id
+  const titleSlug = slugFromTitle(
+    setup && typeof setup.gameTitle === "string" ? setup.gameTitle : ""
+  );
+
+  const base =
+    titleSlug ||
+    (hosts && hosts[0] && hosts[0].name
+      ? slugFromTitle(hosts[0].name + "-quest")
+      : "culinary-quest");
+
+  const gameId = `${base}-${makeId(5)}`;
+
+  // Cache it locally and in the model
+  try {
+    window.localStorage.setItem(
+      GAME_META_KEY,
+      JSON.stringify({ gameId })
+    );
+  } catch (_) {}
+
+  if (model) model.gameId = gameId;
+
+  return gameId;
+}
+
+async function ensureGameExists(model, setup, hosts, tokens) {
+  try {
+    const gameId = await getOrCreateGameId(model, setup, hosts);
+    const path   = `games/${gameId}`;
+
+    // If it already exists, don't overwrite
+    const existing = await readOnce(path);
+    if (existing) {
+      return gameId;
+    }
+
+    const organiserName =
+      (model.organiserName && String(model.organiserName).trim()) ||
+      (hosts[0] && hosts[0].name) ||
+      "Organiser";
+
+    const uid = await getUid();
+    const now = Date.now();
+
+    const payload = {
+      meta: {
+        gameId,
+        title:
+          (setup && typeof setup.gameTitle === "string" && setup.gameTitle.trim()) ||
+          `${organiserName}'s Culinary Quest`,
+        organiserName,
+        organiserUid: uid || null,
+        createdAt: now,
+        status: "setup" // we'll bump this as they progress
+      },
+      setup: {
+        mode: setup && setup.mode === "category" ? "category" : "simple",
+        categories: Array.isArray(setup && setup.categories)
+          ? setup.categories
+          : ["Food"],
+        customCategories: Array.isArray(setup && setup.customCategories)
+          ? setup.customCategories
+          : [],
+        allowThemes: !!(setup && setup.allowThemes),
+        comments: {
+          mode:
+            setup && setup.mode === "category"
+              ? "perCategory"
+              : "overall",
+          maxChars: 200
+        }
+      },
+      hosts: hosts.map((h, idx) => ({
+        name: h && h.name ? h.name : `Host ${idx + 1}`,
+        index: idx
+      })),
+      tokens,
+      // these parts will be filled in later
+      rsvps: {},      // hostIndex -> { status, date, time, theme }
+      schedule: {},   // normalised schedule if you need one
+      scores: {}      // scoring data will live here later
+    };
+
+    await write(path, payload);
+    return gameId;
+  } catch (err) {
+    console.error("[LinksScreen] ensureGameExists failed", err);
+    return null;
+  }
+}
+
+// Build the invite URL for a given token
+function buildInviteUrl(token) {
   const loc = window.location;
   const base = `${loc.origin}${loc.pathname}`; // ignore any existing ?...
 
   const params = new URLSearchParams();
-  params.set("state", "invite");     // tell the app which screen to open
-  params.set("invite", token);       // opaque token for that host
-
-  if (hostName && hostName.trim()) {
-    params.set("h", hostName.trim());      // host display name
-  }
-  if (organiserName && organiserName.trim()) {
-    params.set("o", organiserName.trim()); // organiser display name
-  }
+  params.set("state", "invite");  // <- tell the app which screen to open
+  params.set("invite", token);    // <- the opaque token for that host
 
   return `${base}?${params.toString()}`;
 }
@@ -199,11 +328,17 @@ export function render(root, model = {}, actions = {}) {
     }
   } catch (_) {}
 
+  const setup  = model && typeof model.setup === "object" ? model.setup : {};
   const hosts  = hydrateHosts(model);
   const tokens = hydrateTokens(model, hosts.length);
 
   // Push tokens into model / localStorage right away so they’re stable
   persistTokens(tokens, actions);
+
+  // Fire-and-forget: create the game in RTDB if it doesn't exist yet
+  (async () => {
+    await ensureGameExists(model, setup, hosts, tokens);
+  })();
 
   root.innerHTML = `
     <section class="menu-card">
@@ -300,12 +435,7 @@ export function render(root, model = {}, actions = {}) {
     const token = tokens[idx];
     if (!token) return;
 
-    const hostName =
-  hosts[idx] && hosts[idx].name ? hosts[idx].name : "";
-const organiserName =
-  hosts[0] && hosts[0].name ? hosts[0].name : "";
-
-const url = buildInviteUrl(token, hostName, organiserName);
+    const url = buildInviteUrl(token);
     const originalText = btn.textContent;
 
     try {
@@ -338,14 +468,14 @@ const url = buildInviteUrl(token, hostName, organiserName);
   }
 
   if (nextBtn) {
-  nextBtn.addEventListener("click", () => {
-    // Organiser is acting as Host #1 inside the app
-    if (model) {
-      model.activeHostIndex = 0;
-    }
-    try {
-      actions.setState && actions.setState("invite");
-    } catch (_) {}
-  });
-}
+    nextBtn.addEventListener("click", () => {
+      // Organiser is acting as Host #1 inside the app
+      if (model) {
+        model.activeHostIndex = 0;
+      }
+      try {
+        actions.setState && actions.setState("invite");
+      } catch (_) {}
+    });
+  }
 }
