@@ -141,6 +141,22 @@ export function render(root, model = {}, actions = {}) {
         <p class="menu-copy">
           Choose how your guests will score each dinner, and whether hosts can set a dress-up theme.
         </p>
+        <label
+          class="menu-copy"
+          for="setupGameTitle"
+          style="text-align:left;margin-top:8px;"
+        >
+          <strong>Game name</strong>
+          <span class="muted">(optional – helps you tell games apart)</span>
+        </label>
+        <input
+          id="setupGameTitle"
+          class="menu-input"
+          type="text"
+          maxlength="60"
+          placeholder="e.g. Sally’s Uni Friends Quest"
+          value="${esc(setup.gameTitle || "")}"
+        />
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
@@ -224,22 +240,7 @@ export function render(root, model = {}, actions = {}) {
           Allow each host to set a theme (e.g. “Mexican Fiesta”, “Feathers & Fedoras”)
           as a cue for guests.
         </p>
-        <label
-          class="menu-copy"
-          for="setupGameTitle"
-          style="text-align:left;margin-top:8px;"
-        >
-          <strong>Game name</strong>
-          <span class="muted">(optional – helps you tell games apart)</span>
-        </label>
-        <input
-          id="setupGameTitle"
-          class="menu-input"
-          type="text"
-          maxlength="60"
-          placeholder="e.g. Sally’s Uni Friends Quest"
-          value="${esc(setup.gameTitle || "")}"
-        />
+        
         <div class="setup-toggle">
           <input
             id="themeToggle"
