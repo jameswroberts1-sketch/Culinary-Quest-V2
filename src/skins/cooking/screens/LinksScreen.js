@@ -1,6 +1,30 @@
 // path: src/skins/cooking/screens/LinksScreen.js
-// Links screen – per-host invite links with opaque tokens, and game creation in Firebase RTDB
 
+import { createGame, getUid } from "../../../engine/firestore.js";
+
+const CURRENT_GAME_KEY = "cq_current_game_id_v1";
+
+// Simple human-ish game ID: a few initials + random suffix, e.g. "SUF-3F9X"
+function makeGameId(gameTitle, organiserName) {
+  const source =
+    (gameTitle && gameTitle.trim()) ||
+    (organiserName && organiserName.trim()) ||
+    "Culinary Quest";
+
+  const initials = source
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((w) => w[0])
+    .join("");
+
+  const prefix = initials || "CQ";
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `${prefix}-${suffix}`;
+}
 import { getUid, write, readOnce } from "../../../engine/firebase.js";
 
 const HOSTS_STORAGE_KEY   = "cq_hosts_v1";   // same as HostsScreen
@@ -335,10 +359,89 @@ export function render(root, model = {}, actions = {}) {
   // Push tokens into model / localStorage right away so they’re stable
   persistTokens(tokens, actions);
 
-  // Fire-and-forget: create the game in RTDB if it doesn't exist yet
+  // --- Ensure a Firestore game exists for this organiser run ---------
+
   (async () => {
-    await ensureGameExists(model, setup, hosts, tokens);
+    try {
+      const uid = await getUid();
+
+      // Try reuse an existing gameId (from model or localStorage)
+      let gameId = (model && model.gameId) || null;
+      if (!gameId) {
+        try {
+          const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+          if (stored && typeof stored === "string" && stored.trim()) {
+            gameId = stored.trim();
+          }
+        } catch (_) {
+          // ignore localStorage errors
+        }
+      }
+
+      // We’ll need setup info for scoring mode / themes / title
+      const setup = (model && model.setup) || {};
+      const gameTitle =
+        (setup &&
+          typeof setup.gameTitle === "string" &&
+          setup.gameTitle.trim()) ||
+        "Culinary Quest with friends";
+
+      const organiserName =
+        (model.organiserName && String(model.organiserName).trim()) ||
+        (hosts[0] && hosts[0].name) ||
+        "the organiser";
+
+      if (!gameId) {
+        gameId = makeGameId(gameTitle, organiserName);
+      }
+
+      // Build the hosts array including tokens
+      const hostDocs = hosts.map((h, index) => ({
+        index,
+        name: h && h.name ? h.name : `Host ${index + 1}`,
+        role: index === 0 ? "organiser" : "host",
+        token: tokens[index] || null
+      }));
+
+      const nowIso = new Date().toISOString();
+
+      await createGame(gameId, {
+        gameId,
+        organiserUid: uid || null,
+        organiserName,
+        gameTitle,
+        createdAt: nowIso,
+        status: "links", // organiser is on the invite-links step
+        setup: {
+          scoringMode:
+            setup && (setup.mode === "category" ? "category" : "simple"),
+          allowThemes: !!(setup && setup.allowThemes),
+          categories: Array.isArray(setup && setup.categories)
+            ? setup.categories
+            : ["Food"],
+          customCategories: Array.isArray(setup && setup.customCategories)
+            ? setup.customCategories
+            : []
+        },
+        hosts: hostDocs
+      });
+
+      // Stash gameId locally for later screens
+      try {
+        window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
+      } catch (_) {}
+
+      if (actions && typeof actions.patch === "function") {
+        actions.patch({ gameId });
+      } else if (model) {
+        model.gameId = gameId;
+      }
+    } catch (err) {
+      console.error("[LinksScreen] failed to create/update Firestore game", err);
+    }
   })();
+
+  // -------------------------------------------------------------------
 
   root.innerHTML = `
     <section class="menu-card">
