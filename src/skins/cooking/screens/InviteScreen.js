@@ -612,16 +612,16 @@ export function render(root, model = {}, actions = {}) {
       }
 
       renderInviteUI(root, {
-        isOrganiser: false,
-        hostIndex,
-        hostName,
-        organiserName,
-        allowThemes,
-        nights,
-        hosts,
-        gameId: game.gameId || urlGameId,
-        actions: {} // external hosts don’t need app actions
-      });
+  isOrganiser: hostIndex === 0,   // organiser = host 0
+  hostIndex,
+  hostName,
+  organiserName,
+  allowThemes,
+  nights,
+  hosts,
+  gameId: game.gameId || urlGameId,
+  actions: {} // external hosts don’t need app actions
+});
     } catch (err) {
       console.error("[InviteScreen] Failed to load game", err);
       renderError(root);
