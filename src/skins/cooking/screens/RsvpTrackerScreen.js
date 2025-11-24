@@ -1,10 +1,12 @@
 // path: src/skins/cooking/screens/RsvpTrackerScreen.js
-// Overview of all hosts & their replies
+// Organiser view – see who has RSVPed + their chosen dates/themes.
 
-const HOSTS_STORAGE_KEY  = "cq_hosts_v1";
+import { readGame } from "../../../engine/firestore.js";
+
+const CURRENT_GAME_KEY = "cq_current_game_id_v1";
 const NIGHTS_STORAGE_KEY = "cq_host_nights_v1";
 
-// --- helpers --------------------------------------------------
+/* ---------------- helpers ---------------- */
 
 function esc(str) {
   if (str == null) return "";
@@ -15,61 +17,7 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-// Same host loader as HostsScreen / LinksScreen / InviteScreen
-function hydrateHosts(model = {}) {
-  let hosts = [];
-
-  if (Array.isArray(model.hosts) && model.hosts.length) {
-    hosts = model.hosts.map((h) => ({
-      name: h && typeof h.name === "string" ? h.name : ""
-    }));
-  }
-
-  // Merge from localStorage (non-destructive)
-  try {
-    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved) && saved.length) {
-        saved.forEach((entry, idx) => {
-          if (!hosts[idx]) hosts[idx] = { name: "" };
-          if (entry && typeof entry.name === "string" && entry.name.trim()) {
-            hosts[idx].name = entry.name;
-          }
-        });
-      }
-    }
-  } catch (_) {}
-
-  if (!hosts[0]) hosts[0] = { name: "" };
-  return hosts;
-}
-
-// hostIndex -> { date, time, status }
-function loadNights(model = {}) {
-  // Prefer any nights already on the model
-  if (model.hostNights && typeof model.hostNights === "object") {
-    return model.hostNights;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(NIGHTS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch (_) {
-    return {};
-  }
-}
-
-// --- main render ----------------------------------------------
-
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  // Always start scrolled to the top
+function scrollToTop() {
   try {
     const scroller =
       document.scrollingElement ||
@@ -82,33 +30,20 @@ export function render(root, model = {}, actions = {}) {
       scroller.scrollLeft = 0;
     }
   } catch (_) {}
+}
 
-  const hosts  = hydrateHosts(model);
-  const nights = loadNights(model);
+function loadLocalNights() {
+  try {
+    const raw = window.localStorage.getItem(NIGHTS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
 
-  const organiserNameRaw =
-    (model.organiserName && String(model.organiserName)) ||
-    (hosts[0] && hosts[0].name) ||
-    "the organiser";
-
-  const organiserName = organiserNameRaw.trim() || "the organiser";
-  const safeOrganiser = esc(organiserName);
-
-  const totalHosts = hosts.length;
-  const totalAccepted = Object.values(nights).filter(
-    (n) => n && n.status === "accepted"
-  ).length;
-  const totalResponded = Object.values(nights).filter(
-    (n) => n && (n.status === "accepted" || n.status === "declined")
-  ).length;
-
-  const allHaveResponded = totalResponded >= totalHosts;
-  const allAccepted = allHaveResponded &&
-    totalAccepted === totalHosts;
-
-  // If only organiser is known, show the “add more hosts” message
-  const hasAtLeastTwoHosts = totalHosts >= 2;
-
+function renderError(root, message) {
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -121,116 +56,239 @@ export function render(root, model = {}, actions = {}) {
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- ENTREE -->
+      <section class="menu-section">
+        <div class="menu-course">ENTRÉE</div>
+        <h2 class="menu-h2">Something went wrong</h2>
+        <p class="menu-copy">
+          ${esc(message || "We couldn't load your RSVPs right now.")}
+        </p>
+      </section>
+    </section>
+  `;
+}
+
+/* ---------------- main render ---------------- */
+
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
+  scrollToTop();
+
+  // Work out which game to show
+  let gameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
+
+  if (!gameId) {
+    // URL ?game param (e.g. if you ever deep-link the organiser)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlGame = params.get("game");
+      if (urlGame && urlGame.trim()) {
+        gameId = urlGame.trim();
+      }
+    } catch (_) {}
+  }
+
+  if (!gameId) {
+    // Last game used on this device
+    try {
+      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+      if (stored && stored.trim()) {
+        gameId = stored.trim();
+      }
+    } catch (_) {}
+  }
+
+  if (!gameId) {
+    renderError(root, "We couldn't find a game to track. Please create a new game and share links first.");
+    return;
+  }
+
+  // Remember it in the in-memory model for other screens
+  if (model) {
+    model.gameId = gameId;
+    try {
+      if (actions && typeof actions.patch === "function") {
+        actions.patch({ gameId });
+      }
+    } catch (_) {}
+  }
+
+  // Initial loading shell
+  root.innerHTML = `
+    <section class="menu-card">
+      <div class="menu-hero">
+        <img
+          class="menu-logo"
+          src="./src/skins/cooking/assets/cq-logo.png"
+          alt="Culinary Quest"
+        />
+      </div>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">RSVP TRACKER</h2>
         <p class="menu-copy">
-          Here's where you can keep an eye on who has accepted, declined, or not yet responded.
+          One moment while we fetch the latest RSVPs for your game.
         </p>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
-      <!-- MAIN -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">HOST LINE-UP</h2>
         <p class="menu-copy">
-          Here's the current status for each host. Dates are final once a host has accepted.
+          Loading hosts and their chosen dates…
         </p>
-
-        ${
-          hasAtLeastTwoHosts
-            ? `<ul class="hosts-list" id="trackerList"></ul>`
-            : `<p class="menu-copy">
-                 So far only <strong>${safeOrganiser}</strong> is listed as a host.
-                 Go back and add at least one more host to get the full RSVP picture.
-               </p>`
-        }
-
-        <p class="menu-copy" style="margin-top:10px;font-size:13px;">
-          Responses: <strong>${totalResponded}</strong> of <strong>${totalHosts}</strong>
-          received${allHaveResponded ? " — everyone has replied." : "."}
-        </p>
+        <ul class="hosts-list" id="rsvpList"></ul>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <div class="menu-actions">
-        <button class="btn btn-secondary" id="trackerCancel">Cancel</button>
-        <button class="btn btn-primary" id="trackerStart">
-          Let the games begin
-       </button>
+        <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
+        <button class="btn btn-primary" id="rsvpRefresh">Refresh RSVPs</button>
       </div>
 
+      <p class="muted"
+         id="rsvpStatus"
+         style="text-align:center;margin-top:6px;font-size:10px;">
+        Loading game <strong>${esc(gameId)}</strong>…
+      </p>
+
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        RsvpTrackerScreen – overview of all hosts &amp; their replies
+        RsvpTrackerScreen – organiser view of RSVPs
       </p>
     </section>
   `;
 
-  const listEl      = root.querySelector("#trackerList");
-  const cancelBtn   = root.querySelector("#trackerCancel");
-  const startBtn    = root.querySelector("#trackerStart");
+  const listEl     = root.querySelector("#rsvpList");
+  const statusEl   = root.querySelector("#rsvpStatus");
+  const backBtn    = root.querySelector("#rsvpBack");
+  const refreshBtn = root.querySelector("#rsvpRefresh");
 
-  if (listEl && hasAtLeastTwoHosts) {
-    const rows = hosts.map((host, index) => {
-      const name = (host && host.name && host.name.trim())
-        ? esc(host.name)
-        : `Host ${index + 1}`;
+  if (!listEl) return;
 
-      const night = nights[index] || {};
-      let statusLabel = "No response yet";
-      if (night.status === "accepted") statusLabel = "Accepted";
-      else if (night.status === "declined") statusLabel = "Declined";
+  const localNights = loadLocalNights();
 
-      const dateLabel = night.date ? esc(night.date) : "TBC";
-      const timeLabel = night.time ? esc(night.time) : null;
+  async function loadAndRenderFromFirestore(isManualRefresh = false) {
+    if (statusEl) {
+      statusEl.textContent = isManualRefresh
+        ? `Refreshing RSVPs for ${gameId}…`
+        : `Loading RSVPs for ${gameId}…`;
+    }
 
-      return `
-        <li class="host-row">
-          <div class="host-row-label">Host ${index + 1}</div>
-          <div class="host-row-main">
-            <div class="host-row-name">${name}</div>
-            <div class="host-row-meta">
-              ${statusLabel}<br />
-              Date: <strong>${dateLabel}</strong>
-              ${timeLabel ? `<br />Start: <strong>${timeLabel}</strong>` : ""}
+    try {
+      const game = await readGame(gameId);
+      if (!game) {
+        renderError(root, "We couldn't find that game in the cloud. It may have been deleted.");
+        return;
+      }
+
+      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+      const rsvps = game.rsvps && typeof game.rsvps === "object" ? game.rsvps : {};
+      const allowThemes =
+        game &&
+        game.setup &&
+        typeof game.setup.allowThemes === "boolean"
+          ? game.setup.allowThemes
+          : false;
+
+      let acceptedCount = 0;
+      let declinedCount = 0;
+      let pendingCount  = 0;
+
+      const rows = hosts.map((hostDoc, index) => {
+        const name = hostDoc && hostDoc.name ? hostDoc.name : `Host ${index + 1}`;
+        const role = hostDoc && hostDoc.role === "organiser" ? "Organiser" : "Host";
+
+        // Firestore RSVP for this host (if any)
+        const rsvp = rsvps[index] || {};
+
+        // Merge in any local cache for THIS browser (useful if organiser just changed date)
+        const local = localNights[index] || {};
+        const merged = {
+          status: local.status || rsvp.status || null,
+          date:   local.date   || rsvp.date   || null,
+          time:   local.time   || rsvp.time   || null,
+          theme:  local.theme  || rsvp.theme  || null
+        };
+
+        let statusLabel = "Awaiting reply";
+        let statusClass = "pending";
+        if (merged.status === "accepted") {
+          statusLabel = "Accepted";
+          statusClass = "accepted";
+          acceptedCount++;
+        } else if (merged.status === "declined") {
+          statusLabel = "Declined";
+          statusClass = "declined";
+          declinedCount++;
+        } else {
+          pendingCount++;
+        }
+
+        const datePart = merged.date || "No date chosen";
+        const timePart = merged.time ? ` at ${merged.time}` : "";
+        const when = `${datePart}${timePart}`;
+
+        const themePart =
+          allowThemes && merged.theme
+            ? `<div class="host-row-theme">Theme: ${esc(merged.theme)}</div>`
+            : "";
+
+        return `
+          <li class="host-row host-row--rsvp">
+            <div class="host-row-label">Host ${index + 1}</div>
+            <div class="host-row-main">
+              <div class="host-row-name">${esc(name)}</div>
+              <div class="host-row-meta">${esc(role)}</div>
+              <div class="host-row-when">${esc(when)}</div>
+              ${themePart}
             </div>
-          </div>
-        </li>
-      `;
-    });
+            <div class="host-row-status host-row-status--${statusClass}">
+              ${esc(statusLabel)}
+            </div>
+          </li>
+        `;
+      });
 
-    listEl.innerHTML = rows.join("");
+      listEl.innerHTML = rows.length
+        ? rows.join("")
+        : `<p class="menu-copy">No hosts found for this game.</p>`;
+
+      if (statusEl) {
+        statusEl.textContent = `RSVPs loaded for ${gameId} · ${acceptedCount} accepted · ${declinedCount} declined · ${pendingCount} pending`;
+      }
+    } catch (err) {
+      console.error("[RsvpTrackerScreen] Failed to load game", err);
+      renderError(root, "We hit a problem loading RSVPs. Please try again in a moment.");
+    }
   }
 
-  // --- navigation buttons --------------------------------------
+  // Initial load
+  loadAndRenderFromFirestore(false);
 
-const cancelBtn = root.querySelector("#trackerCancel");
-const startBtn  = root.querySelector("#trackerStart");
+  // Buttons
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      try {
+        actions && actions.setState && actions.setState("links");
+      } catch (_) {}
+    });
+  }
 
-// Decide if the game can start – reuse your existing logic
-const canStartGame = allAccepted; // or whatever flag you’re already using
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      loadAndRenderFromFirestore(true);
+    });
+  }
 
-if (startBtn) {
-  startBtn.disabled = !canStartGame;
-  startBtn.style.opacity = canStartGame ? "1" : "0.6";
-
-  startBtn.addEventListener("click", () => {
-    if (!canStartGame) return; // belt-and-braces
-
-    try {
-      actions.setState && actions.setState("organiserHome");
-    } catch (_) {}
-  });
-}
-
-if (cancelBtn) {
-  cancelBtn.addEventListener("click", () => {
-    try {
-      actions.setState && actions.setState("links");
-    } catch (_) {}
-  });
+  // No special cleanup needed
+  return () => {};
 }
