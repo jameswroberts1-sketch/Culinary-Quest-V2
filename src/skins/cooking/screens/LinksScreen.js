@@ -1,16 +1,25 @@
 // path: src/skins/cooking/screens/LinksScreen.js
+// Links screen – per-host invite links with opaque tokens, backed by Firestore
 
 import { createGame, getUid } from "../../../engine/firestore.js";
 
-const CURRENT_GAME_KEY = "cq_current_game_id_v1";
-
-const HOSTS_STORAGE_KEY  = "cq_hosts_v1";   // same as HostsScreen
+const HOSTS_STORAGE_KEY  = "cq_hosts_v1";           // same as HostsScreen
 const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
+const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
 const MAX_HOSTS          = 6;
 
-// --- helpers --------------------------------------------------
+/* ---------------- basic helpers ---------------- */
 
-// Simple human-ish game ID: a few initials + random suffix, e.g. "SUF-3F9X"
+function esc(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Human-ish game id: a few initials + random suffix, e.g. "SUF-3F9X"
 function makeGameId(gameTitle, organiserName) {
   const source =
     (gameTitle && gameTitle.trim()) ||
@@ -32,17 +41,8 @@ function makeGameId(gameTitle, organiserName) {
   return `${prefix}-${suffix}`;
 }
 
-// Basic HTML escaping
-function esc(str) {
-  if (str == null) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+/* ---------------- hosts + tokens ---------------- */
 
-// Hydrate hosts array the same way as HostsScreen
 function hydrateHosts(model = {}) {
   let hosts = [];
 
@@ -71,7 +71,7 @@ function hydrateHosts(model = {}) {
     hosts = hosts.slice(0, MAX_HOSTS);
   }
 
-  // Merge in any cached host names from localStorage (non-destructive)
+  // Merge cached host names from localStorage
   try {
     const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
     if (raw) {
@@ -92,12 +92,11 @@ function hydrateHosts(model = {}) {
 }
 
 // Random opaque token – prefer crypto, fall back to Math.random
-function makeToken(length = 16) {
+function makeToken(length = 18) {
   const alphabet =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const n = alphabet.length;
 
-  // crypto if available
   if (typeof crypto !== "undefined" && crypto.getRandomValues) {
     const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
@@ -108,7 +107,6 @@ function makeToken(length = 16) {
     return out;
   }
 
-  // fallback
   let out = "";
   for (let i = 0; i < length; i++) {
     out += alphabet[Math.floor(Math.random() * n)];
@@ -116,7 +114,6 @@ function makeToken(length = 16) {
   return out;
 }
 
-// Build token array: from model, then localStorage, then fill gaps
 function hydrateTokens(model = {}, hostCount) {
   let tokens = [];
 
@@ -124,7 +121,6 @@ function hydrateTokens(model = {}, hostCount) {
   if (Array.isArray(model.hostTokens)) {
     tokens = model.hostTokens.slice();
   } else if (model.hostTokens && typeof model.hostTokens === "object") {
-    // support object keyed by index as well
     tokens = [];
     Object.keys(model.hostTokens).forEach((k) => {
       const idx = Number(k);
@@ -134,7 +130,7 @@ function hydrateTokens(model = {}, hostCount) {
     });
   }
 
-  // 2) Merge in localStorage tokens (non-destructive)
+  // 2) Merge localStorage tokens (non-destructive)
   try {
     const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
     if (raw) {
@@ -149,14 +145,14 @@ function hydrateTokens(model = {}, hostCount) {
     }
   } catch (_) {}
 
-  // 3) Ensure we have one opaque token per host
+  // 3) Ensure one opaque token per host
   const used = new Set(tokens.filter((t) => typeof t === "string" && t));
 
   for (let i = 0; i < hostCount; i++) {
     if (typeof tokens[i] === "string" && tokens[i].length > 0) continue;
     let t;
     do {
-      t = makeToken(18); // a bit longer for safety
+      t = makeToken(18);
     } while (used.has(t));
     tokens[i] = t;
     used.add(t);
@@ -165,7 +161,6 @@ function hydrateTokens(model = {}, hostCount) {
   return tokens;
 }
 
-// Persist tokens locally + into the shared model
 function persistTokens(tokens, actions) {
   try {
     window.localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
@@ -179,31 +174,112 @@ function persistTokens(tokens, actions) {
     } else if (actions && typeof actions.patch === "function") {
       actions.patch({ hostTokens: tokens });
     }
-  } catch (_) {
-    // non-fatal
+  } catch (_) {}
+}
+
+/* ---------------- Firestore game creation ---------------- */
+
+async function ensureFirestoreGame(model, setup, hosts, tokens) {
+  try {
+    const uid = await getUid();
+
+    // Try reuse existing gameId
+    let gameId =
+      (model && model.gameId) ||
+      (() => {
+        try {
+          const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+          return stored && stored.trim() ? stored.trim() : null;
+        } catch (_) {
+          return null;
+        }
+      })();
+
+    const organiserName =
+      (model.organiserName && String(model.organiserName).trim()) ||
+      (hosts[0] && hosts[0].name) ||
+      "the organiser";
+
+    const gameTitle =
+      (setup &&
+        typeof setup.gameTitle === "string" &&
+        setup.gameTitle.trim()) ||
+      `${organiserName}'s Culinary Quest`;
+
+    if (!gameId) {
+      gameId = makeGameId(gameTitle, organiserName);
+    }
+
+    const hostDocs = hosts.map((h, index) => ({
+      index,
+      name: h && h.name ? h.name : `Host ${index + 1}`,
+      role: index === 0 ? "organiser" : "host",
+      token: tokens[index] || null
+    }));
+
+    const nowIso = new Date().toISOString();
+
+    await createGame(gameId, {
+      gameId,
+      organiserUid: uid || null,
+      organiserName,
+      gameTitle,
+      createdAt: nowIso,
+      status: "links", // organiser is on the invite-links step
+      setup: {
+        scoringMode:
+          setup && (setup.mode === "category" ? "category" : "simple"),
+        allowThemes: !!(setup && setup.allowThemes),
+        categories: Array.isArray(setup && setup.categories)
+          ? setup.categories
+          : ["Food"],
+        customCategories: Array.isArray(setup && setup.customCategories)
+          ? setup.customCategories
+          : [],
+        comments: {
+          mode:
+            setup && setup.mode === "category"
+              ? "perCategory"
+              : "overall",
+          maxChars: 200
+        }
+      },
+      hosts: hostDocs
+    });
+
+    try {
+      window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
+    } catch (_) {}
+
+    if (model) model.gameId = gameId;
+    return gameId;
+  } catch (err) {
+    console.error("[LinksScreen] ensureFirestoreGame failed", err);
+    return null;
   }
 }
 
-// Build the invite URL for a given token
+/* ---------------- URL helper ---------------- */
+
 function buildInviteUrl(token) {
   const loc = window.location;
-  const base = `${loc.origin}${loc.pathname}`; // ignore any existing ?...
+  const base = `${loc.origin}${loc.pathname}`;
 
   const params = new URLSearchParams();
-  params.set("state", "invite");  // tell the app which screen to open
-  params.set("invite", token);    // the opaque token for that host
+  params.set("state", "invite");
+  params.set("invite", token);
 
   return `${base}?${params.toString()}`;
 }
 
-// --- main render --------------------------------------------------
+/* ---------------- main render ---------------- */
 
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
 
-  // Always start at the top of the page (avoid “zoomed in” look on iOS)
+  // Always start at the top
   try {
     const scroller =
       document.scrollingElement ||
@@ -221,88 +297,17 @@ export function render(root, model = {}, actions = {}) {
   const hosts  = hydrateHosts(model);
   const tokens = hydrateTokens(model, hosts.length);
 
-  // Push tokens into model / localStorage right away so they’re stable
+  // Keep tokens stable locally + in model
   persistTokens(tokens, actions);
 
-  // --- Ensure a Firestore game exists for this organiser run ---------
-  (async () => {
-    try {
-      const uid = await getUid();
-
-      // Try reuse an existing gameId (from model or localStorage)
-      let gameId = (model && model.gameId) || null;
-      if (!gameId) {
-        try {
-          const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-          if (stored && typeof stored === "string" && stored.trim()) {
-            gameId = stored.trim();
-          }
-        } catch (_) {
-          // ignore localStorage errors
-        }
-      }
-
-      const gameTitle =
-        (setup &&
-          typeof setup.gameTitle === "string" &&
-          setup.gameTitle.trim()) ||
-        "Culinary Quest with friends";
-
-      const organiserName =
-        (model.organiserName && String(model.organiserName).trim()) ||
-        (hosts[0] && hosts[0].name) ||
-        "the organiser";
-
-      if (!gameId) {
-        gameId = makeGameId(gameTitle, organiserName);
-      }
-
-      // Build the hosts array including tokens
-      const hostDocs = hosts.map((h, index) => ({
-        index,
-        name: h && h.name ? h.name : `Host ${index + 1}`,
-        role: index === 0 ? "organiser" : "host",
-        token: tokens[index] || null
-      }));
-
-      const nowIso = new Date().toISOString();
-
-      await createGame(gameId, {
-        gameId,
-        organiserUid: uid || null,
-        organiserName,
-        gameTitle,
-        createdAt: nowIso,
-        status: "links", // organiser is on the invite-links step
-        setup: {
-          scoringMode:
-            setup && (setup.mode === "category" ? "category" : "simple"),
-          allowThemes: !!(setup && setup.allowThemes),
-          categories: Array.isArray(setup && setup.categories)
-            ? setup.categories
-            : ["Food"],
-          customCategories: Array.isArray(setup && setup.customCategories)
-            ? setup.customCategories
-            : []
-        },
-        hosts: hostDocs
-      });
-
-      // Stash gameId locally for later screens
-      try {
-        window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
-      } catch (_) {}
-
-      if (actions && typeof actions.patch === "function") {
-        actions.patch({ gameId });
-      } else if (model) {
-        model.gameId = gameId;
-      }
-    } catch (err) {
-      console.error("[LinksScreen] failed to create/update Firestore game", err);
+  // Fire-and-forget game creation in Firestore
+  ensureFirestoreGame(model, setup, hosts, tokens).then((gameId) => {
+    if (gameId && actions && typeof actions.patch === "function") {
+      actions.patch({ gameId });
     }
-  })();
-  // -------------------------------------------------------------------
+  });
+
+  // ---- HTML skeleton ------------------------------------------------
 
   root.innerHTML = `
     <section class="menu-card">
@@ -356,17 +361,17 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-  const listEl   = root.querySelector("#linksList");
-  const backBtn  = root.querySelector("#linksBack");
-  const nextBtn  = root.querySelector("#linksNext");
+  const listEl  = root.querySelector("#linksList");
+  const backBtn = root.querySelector("#linksBack");
+  const nextBtn = root.querySelector("#linksNext");
 
   if (!listEl) return;
 
-  // Render one row per host (organiser + all other hosts)
+  // One row per host
   const rows = hosts.map((host, index) => {
-    const name   = (host && host.name && host.name.trim()) || `Host ${index + 1}`;
-    const label  = index === 0 ? "Organiser link (you)" : "Host link";
-    const safe   = esc(name);
+    const name  = (host && host.name && host.name.trim()) || `Host ${index + 1}`;
+    const label = index === 0 ? "Organiser link (you)" : "Host link";
+    const safe  = esc(name);
 
     return `
       <li class="host-row host-row--links">
@@ -388,7 +393,7 @@ export function render(root, model = {}, actions = {}) {
 
   listEl.innerHTML = rows.join("");
 
-  // Copy handling – one event handler for all buttons
+  // Copy buttons
   listEl.addEventListener("click", async (ev) => {
     const btn = ev.target.closest(".host-link-copy");
     if (!btn) return;
@@ -406,7 +411,6 @@ export function render(root, model = {}, actions = {}) {
       if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
         await navigator.clipboard.writeText(url);
       } else {
-        // Fallback – prompt with the link so it can be copied manually
         window.prompt("Copy this invite link", url);
       }
 
@@ -417,12 +421,11 @@ export function render(root, model = {}, actions = {}) {
         btn.disabled = false;
       }, 1500);
     } catch (err) {
-      // As a last resort, show the link in a prompt
       window.prompt("Copy this invite link", url);
     }
   });
 
-  // Navigation – same pattern as other screens
+  // Navigation
   if (backBtn) {
     backBtn.addEventListener("click", () => {
       try {
@@ -433,9 +436,8 @@ export function render(root, model = {}, actions = {}) {
 
   if (nextBtn) {
     nextBtn.addEventListener("click", () => {
-      // Organiser is acting as Host #1 inside the app
       if (model) {
-        model.activeHostIndex = 0;
+        model.activeHostIndex = 0; // organiser inside the app
       }
       try {
         actions.setState && actions.setState("invite");
