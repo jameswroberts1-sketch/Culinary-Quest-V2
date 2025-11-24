@@ -4,6 +4,12 @@ import { createGame, getUid } from "../../../engine/firestore.js";
 
 const CURRENT_GAME_KEY = "cq_current_game_id_v1";
 
+const HOSTS_STORAGE_KEY  = "cq_hosts_v1";   // same as HostsScreen
+const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
+const MAX_HOSTS          = 6;
+
+// --- helpers --------------------------------------------------
+
 // Simple human-ish game ID: a few initials + random suffix, e.g. "SUF-3F9X"
 function makeGameId(gameTitle, organiserName) {
   const source =
@@ -25,14 +31,6 @@ function makeGameId(gameTitle, organiserName) {
   const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `${prefix}-${suffix}`;
 }
-import { getUid, write, readOnce } from "../../../engine/firebase.js";
-
-const HOSTS_STORAGE_KEY   = "cq_hosts_v1";   // same as HostsScreen
-const TOKENS_STORAGE_KEY  = "cq_host_tokens_v1";
-const GAME_META_KEY       = "cq_current_game_v1";
-const MAX_HOSTS           = 6;
-
-// --- helpers --------------------------------------------------
 
 // Basic HTML escaping
 function esc(str) {
@@ -42,26 +40,6 @@ function esc(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-// Very lightweight slug for game titles
-function slugFromTitle(title) {
-  if (!title) return "";
-  return String(title)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40); // keep it tidy
-}
-
-// Small random id for gameId suffix
-function makeId(len = 6) {
-  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let out = "";
-  for (let i = 0; i < len; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return out;
 }
 
 // Hydrate hosts array the same way as HostsScreen
@@ -206,127 +184,14 @@ function persistTokens(tokens, actions) {
   }
 }
 
-// --- gameId + RTDB game creation ------------------------------
-
-async function getOrCreateGameId(model, setup, hosts) {
-  // 1) Check model
-  if (model && typeof model.gameId === "string" && model.gameId.trim()) {
-    return model.gameId.trim();
-  }
-
-  // 2) Check localStorage
-  try {
-    const raw = window.localStorage.getItem(GAME_META_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.gameId === "string" && parsed.gameId.trim()) {
-        const existingId = parsed.gameId.trim();
-        if (model) model.gameId = existingId;
-        return existingId;
-      }
-    }
-  } catch (_) {}
-
-  // 3) Generate a new id
-  const titleSlug = slugFromTitle(
-    setup && typeof setup.gameTitle === "string" ? setup.gameTitle : ""
-  );
-
-  const base =
-    titleSlug ||
-    (hosts && hosts[0] && hosts[0].name
-      ? slugFromTitle(hosts[0].name + "-quest")
-      : "culinary-quest");
-
-  const gameId = `${base}-${makeId(5)}`;
-
-  // Cache it locally and in the model
-  try {
-    window.localStorage.setItem(
-      GAME_META_KEY,
-      JSON.stringify({ gameId })
-    );
-  } catch (_) {}
-
-  if (model) model.gameId = gameId;
-
-  return gameId;
-}
-
-async function ensureGameExists(model, setup, hosts, tokens) {
-  try {
-    const gameId = await getOrCreateGameId(model, setup, hosts);
-    const path   = `games/${gameId}`;
-
-    // If it already exists, don't overwrite
-    const existing = await readOnce(path);
-    if (existing) {
-      return gameId;
-    }
-
-    const organiserName =
-      (model.organiserName && String(model.organiserName).trim()) ||
-      (hosts[0] && hosts[0].name) ||
-      "Organiser";
-
-    const uid = await getUid();
-    const now = Date.now();
-
-    const payload = {
-      meta: {
-        gameId,
-        title:
-          (setup && typeof setup.gameTitle === "string" && setup.gameTitle.trim()) ||
-          `${organiserName}'s Culinary Quest`,
-        organiserName,
-        organiserUid: uid || null,
-        createdAt: now,
-        status: "setup" // we'll bump this as they progress
-      },
-      setup: {
-        mode: setup && setup.mode === "category" ? "category" : "simple",
-        categories: Array.isArray(setup && setup.categories)
-          ? setup.categories
-          : ["Food"],
-        customCategories: Array.isArray(setup && setup.customCategories)
-          ? setup.customCategories
-          : [],
-        allowThemes: !!(setup && setup.allowThemes),
-        comments: {
-          mode:
-            setup && setup.mode === "category"
-              ? "perCategory"
-              : "overall",
-          maxChars: 200
-        }
-      },
-      hosts: hosts.map((h, idx) => ({
-        name: h && h.name ? h.name : `Host ${idx + 1}`,
-        index: idx
-      })),
-      tokens,
-      // these parts will be filled in later
-      rsvps: {},      // hostIndex -> { status, date, time, theme }
-      schedule: {},   // normalised schedule if you need one
-      scores: {}      // scoring data will live here later
-    };
-
-    await write(path, payload);
-    return gameId;
-  } catch (err) {
-    console.error("[LinksScreen] ensureGameExists failed", err);
-    return null;
-  }
-}
-
 // Build the invite URL for a given token
 function buildInviteUrl(token) {
   const loc = window.location;
   const base = `${loc.origin}${loc.pathname}`; // ignore any existing ?...
 
   const params = new URLSearchParams();
-  params.set("state", "invite");  // <- tell the app which screen to open
-  params.set("invite", token);    // <- the opaque token for that host
+  params.set("state", "invite");  // tell the app which screen to open
+  params.set("invite", token);    // the opaque token for that host
 
   return `${base}?${params.toString()}`;
 }
@@ -360,7 +225,6 @@ export function render(root, model = {}, actions = {}) {
   persistTokens(tokens, actions);
 
   // --- Ensure a Firestore game exists for this organiser run ---------
-
   (async () => {
     try {
       const uid = await getUid();
@@ -378,8 +242,6 @@ export function render(root, model = {}, actions = {}) {
         }
       }
 
-      // We’ll need setup info for scoring mode / themes / title
-      const setup = (model && model.setup) || {};
       const gameTitle =
         (setup &&
           typeof setup.gameTitle === "string" &&
@@ -440,7 +302,6 @@ export function render(root, model = {}, actions = {}) {
       console.error("[LinksScreen] failed to create/update Firestore game", err);
     }
   })();
-
   // -------------------------------------------------------------------
 
   root.innerHTML = `
