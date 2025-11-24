@@ -40,127 +40,98 @@ const firebaseConfig = {
   appId: "…",
 };
 
-// --- app + db singletons ------------------------------------------
+// ---------------------------------------------------------------------------
+// Single, shared Firebase initialisation + anonymous auth
+// ---------------------------------------------------------------------------
 
-let _app;
-let _db;
-let _auth;
-let _authReadyPromise;
+let _initPromise = null;
 
-/**
- * Initialise Firebase and Firestore exactly once.
- */
-function ensureFirebase() {
-  if (!_app) {
-    // Re-use an existing app if something else created one
-    _app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    _db = getFirestore(_app);
-    _auth = getAuth(_app);
+function initFirebaseOnce() {
+  if (_initPromise) return _initPromise;
 
-    // Kick off anonymous auth and expose a promise we can await
-    _authReadyPromise = new Promise((resolve) => {
-      let resolved = false;
+  _initPromise = new Promise((resolve, reject) => {
+    try {
+      // Use the global firebase compat SDK that you already load in index.html
+      if (!firebase.apps || firebase.apps.length === 0) {
+        firebase.initializeApp(firebaseConfig);
+      }
 
-      const finish = (userOrNull) => {
-        if (!resolved) {
-          resolved = true;
-          resolve(userOrNull);
-        }
-      };
+      const auth = firebase.auth();
+      const db   = firebase.firestore();
 
-      onAuthStateChanged(
-        _auth,
-        (user) => {
-          if (user) {
-            finish(user);
-          } else {
-            // No user yet – sign in anonymously
-            signInAnonymously(_auth)
-              .then((cred) => finish(cred.user || null))
-              .catch((err) => {
-                console.warn("[firestore] anonymous sign-in failed", err);
-                finish(null);
-              });
-          }
-        },
-        (err) => {
-          console.warn("[firestore] onAuthStateChanged error", err);
-          finish(null);
-        }
-      );
+      // Keep it simple – no persistence needed for anon users
+      if (auth && auth.setPersistence) {
+        auth.setPersistence(firebase.auth.Auth.Persistence.NONE).catch(() => {});
+      }
 
-      // Safety net: if nothing fires, at least *try* to sign in
-      signInAnonymously(_auth).catch(() => {
-        /* ignore – onAuthStateChanged will handle outcome */
-      });
-    });
-  }
+      // Make sure we always have *some* user (or null if it fails)
+      auth
+        .signInAnonymously()
+        .then((cred) => {
+          const uid = cred && cred.user ? cred.user.uid : null;
+          resolve({ db, auth, uid });
+        })
+        .catch((err) => {
+          console.warn("[firestore] anonymous sign-in failed", err);
+          resolve({ db, auth, uid: null });
+        });
+    } catch (err) {
+      console.error("[firestore] initFirebaseOnce threw", err);
+      reject(err);
+    }
+  });
 
-  return { db: _db, auth: _auth, authReady: _authReadyPromise };
+  return _initPromise;
 }
 
-/**
- * Wait for Firebase + auth to be ready before any DB call.
- */
-async function ensureReady() {
-  const { db, authReady } = ensureFirebase();
-  // Wait for auth, but even if it fails we still return db so reads can work
-  try {
-    await authReady;
-  } catch (err) {
-    console.warn("[firestore] authReady rejected", err);
-  }
-  return db;
-}
+// ---------------------------------------------------------------------------
+// Public helpers used by the app
+// ---------------------------------------------------------------------------
 
-// --- public API ----------------------------------------------------
-
-/**
- * Get the current user’s UID (after anonymous sign-in), or null.
- */
 export async function getUid() {
-  const { auth, authReady } = ensureFirebase();
-  try {
-    const userFromListener = await authReady;
-    if (userFromListener && userFromListener.uid) return userFromListener.uid;
-  } catch (_) {
-    // fall through to auth.currentUser
-  }
-  const u = auth.currentUser;
-  return u && u.uid ? u.uid : null;
+  const { uid } = await initFirebaseOnce();
+  return uid || null;
 }
 
-/**
- * Create / overwrite a game document at games/{gameId}.
- */
+// Create or overwrite a game document
 export async function createGame(gameId, data) {
-  if (!gameId) throw new Error("createGame: missing gameId");
-  const db = await ensureReady();
-  const ref = doc(db, "games", String(gameId));
-  await setDoc(ref, data, { merge: false });
-}
-
-/**
- * Read a game document from games/{gameId}.
- * Returns the plain data object, or null if not found.
- */
-export async function readGame(gameId) {
-  if (!gameId) throw new Error("readGame: missing gameId");
-  const db = await ensureReady();
-  const ref = doc(db, "games", String(gameId));
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    return null;
+  if (!gameId) {
+    throw new Error("createGame: gameId is required");
   }
-  return snap.data();
+  const { db } = await initFirebaseOnce();
+
+  const ref = db.collection("games").doc(gameId);
+  await ref.set(data, { merge: true });
+
+  return gameId;
 }
 
-/**
- * Shallow-merge a patch into games/{gameId}.
- */
+// Read a game document (or null if it doesn't exist)
+export async function readGame(gameId) {
+  if (!gameId) return null;
+  const { db } = await initFirebaseOnce();
+
+  const ref  = db.collection("games").doc(gameId);
+  const snap = await ref.get();
+
+  if (!snap.exists) return null;
+
+  const doc = snap.data() || {};
+  if (!doc.gameId) doc.gameId = gameId;
+  return doc;
+}
+
+// Apply a shallow patch to a game document
 export async function updateGame(gameId, patch) {
-  if (!gameId) throw new Error("updateGame: missing gameId");
-  const db = await ensureReady();
-  const ref = doc(db, "games", String(gameId));
-  await updateDoc(ref, patch || {});
+  if (!gameId) {
+    throw new Error("updateGame: gameId is required");
+  }
+  if (!patch || typeof patch !== "object") {
+    return;
+  }
+
+  const { db } = await initFirebaseOnce();
+  const ref = db.collection("games").doc(gameId);
+
+  await ref.set(patch, { merge: true });
 }
