@@ -1,12 +1,9 @@
 // path: src/skins/cooking/screens/RsvpTrackerScreen.js
-// Organiser view – see who has RSVPed + their chosen dates/themes.
+// RSVP tracker – organiser view of all hosts + their chosen dates (Firestore-backed)
 
-import { readGame } from "../../../engine/firestore.js";
+import { readGame, updateGame } from "../../../engine/firestore.js";
 
 const CURRENT_GAME_KEY = "cq_current_game_id_v1";
-const NIGHTS_STORAGE_KEY = "cq_host_nights_v1";
-
-/* ---------------- helpers ---------------- */
 
 function esc(str) {
   if (str == null) return "";
@@ -17,7 +14,96 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-function scrollToTop() {
+// Format 2025-11-29 -> 29-Nov-25
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return esc(dateStr);
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const months = ["Jan","Feb","Mar","Apr","May","Jun",
+                  "Jul","Aug","Sep","Oct","Nov","Dec"];
+  const mon = months[d.getMonth()] || "???";
+  const year = String(d.getFullYear()).slice(-2);
+
+  return `${day}-${mon}-${year}`;
+}
+
+function normaliseStatus(rawStatus) {
+  const s = (rawStatus || "").toLowerCase();
+  if (s === "accepted") {
+    return { key: "accepted", label: "Accepted", color: "#1c7c33" };
+  }
+  if (s === "declined") {
+    return { key: "declined", label: "Declined", color: "#c0392b" };
+  }
+  return { key: "pending", label: "Outstanding", color: "#e67e22" };
+}
+
+function renderShell(root) {
+  root.innerHTML = `
+    <section class="menu-card">
+      <div class="menu-hero">
+        <img
+          class="menu-logo"
+          src="./src/skins/cooking/assets/cq-logo.png"
+          alt="Culinary Quest"
+        />
+      </div>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+
+      <!-- ENTREE -->
+      <section class="menu-section">
+        <div class="menu-course">ENTRÉE</div>
+        <h2 class="menu-h2">RSVP TRACKER</h2>
+        <p class="menu-copy" id="rsvpIntro">
+          Loading hosts and their chosen dates…
+        </p>
+      </section>
+
+      <div class="menu-divider" aria-hidden="true"></div>
+
+      <!-- MAIN -->
+      <section class="menu-section">
+        <div class="menu-course">MAIN</div>
+        <h2 class="menu-h2">HOST LINE-UP</h2>
+        <div id="rsvpListContainer">
+          <p class="menu-copy">Loading…</p>
+        </div>
+      </section>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+
+      <!-- Row 1 buttons -->
+      <div class="menu-actions">
+        <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
+        <button class="btn btn-primary" id="rsvpRefresh">Refresh RSVPs</button>
+      </div>
+
+      <!-- Row 2 buttons -->
+      <div class="menu-actions" style="margin-top:6px;">
+        <button class="btn btn-secondary" id="rsvpCancel">Cancel event</button>
+        <button class="btn btn-primary" id="rsvpBegin">Let the games begin</button>
+      </div>
+
+      <p class="muted" id="rsvpSummary"
+         style="text-align:center;margin-top:8px;font-size:11px;">
+      </p>
+
+      <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
+        RsvpTrackerScreen – organiser view of hosts &amp; dates
+      </p>
+    </section>
+  `;
+}
+
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
+  // Scroll to top (avoid “zoomed in” look on iOS)
   try {
     const scroller =
       document.scrollingElement ||
@@ -30,69 +116,22 @@ function scrollToTop() {
       scroller.scrollLeft = 0;
     }
   } catch (_) {}
-}
 
-function loadLocalNights() {
-  try {
-    const raw = window.localStorage.getItem(NIGHTS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch (_) {
-    return {};
-  }
-}
+  renderShell(root);
 
-function renderError(root, message) {
-  root.innerHTML = `
-    <section class="menu-card">
-      <div class="menu-hero">
-        <img
-          class="menu-logo"
-          src="./src/skins/cooking/assets/cq-logo.png"
-          alt="Culinary Quest"
-        />
-      </div>
+  const introEl     = root.querySelector("#rsvpIntro");
+  const listWrap    = root.querySelector("#rsvpListContainer");
+  const summaryEl   = root.querySelector("#rsvpSummary");
+  const backBtn     = root.querySelector("#rsvpBack");
+  const refreshBtn  = root.querySelector("#rsvpRefresh");
+  const cancelBtn   = root.querySelector("#rsvpCancel");
+  const beginBtn    = root.querySelector("#rsvpBegin");
 
-      <div class="menu-ornament" aria-hidden="true"></div>
-
-      <section class="menu-section">
-        <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">Something went wrong</h2>
-        <p class="menu-copy">
-          ${esc(message || "We couldn't load your RSVPs right now.")}
-        </p>
-      </section>
-    </section>
-  `;
-}
-
-/* ---------------- main render ---------------- */
-
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  scrollToTop();
-
-  // Work out which game to show
+  // Work out which game to load
   let gameId =
     (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
   if (!gameId) {
-    // URL ?game param (e.g. if you ever deep-link the organiser)
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlGame = params.get("game");
-      if (urlGame && urlGame.trim()) {
-        gameId = urlGame.trim();
-      }
-    } catch (_) {}
-  }
-
-  if (!gameId) {
-    // Last game used on this device
     try {
       const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
       if (stored && stored.trim()) {
@@ -102,193 +141,212 @@ export function render(root, model = {}, actions = {}) {
   }
 
   if (!gameId) {
-    renderError(root, "We couldn't find a game to track. Please create a new game and share links first.");
+    if (introEl) {
+      introEl.textContent = "We couldn’t find your game details.";
+    }
+    if (listWrap) {
+      listWrap.innerHTML = `
+        <p class="menu-copy">
+          Please go back to the host links, create a new set of invites and then return here.
+        </p>
+      `;
+    }
     return;
   }
 
-  // Remember it in the in-memory model for other screens
-  if (model) {
-    model.gameId = gameId;
-    try {
-      if (actions && typeof actions.patch === "function") {
-        actions.patch({ gameId });
-      }
-    } catch (_) {}
-  }
-
-  // Initial loading shell
-  root.innerHTML = `
-    <section class="menu-card">
-      <div class="menu-hero">
-        <img
-          class="menu-logo"
-          src="./src/skins/cooking/assets/cq-logo.png"
-          alt="Culinary Quest"
-        />
-      </div>
-
-      <div class="menu-ornament" aria-hidden="true"></div>
-
-      <section class="menu-section">
-        <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">RSVP TRACKER</h2>
-        <p class="menu-copy">
-          One moment while we fetch the latest RSVPs for your game.
-        </p>
-      </section>
-
-      <div class="menu-divider" aria-hidden="true"></div>
-
-      <section class="menu-section">
-        <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">HOST LINE-UP</h2>
-        <p class="menu-copy">
-          Loading hosts and their chosen dates…
-        </p>
-        <ul class="hosts-list" id="rsvpList"></ul>
-      </section>
-
-      <div class="menu-ornament" aria-hidden="true"></div>
-
-      <div class="menu-actions">
-        <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
-        <button class="btn btn-primary" id="rsvpRefresh">Refresh RSVPs</button>
-      </div>
-
-      <p class="muted"
-         id="rsvpStatus"
-         style="text-align:center;margin-top:6px;font-size:10px;">
-        Loading game <strong>${esc(gameId)}</strong>…
-      </p>
-
-      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        RsvpTrackerScreen – organiser view of RSVPs
-      </p>
-    </section>
-  `;
-
-  const listEl     = root.querySelector("#rsvpList");
-  const statusEl   = root.querySelector("#rsvpStatus");
-  const backBtn    = root.querySelector("#rsvpBack");
-  const refreshBtn = root.querySelector("#rsvpRefresh");
-
-  if (!listEl) return;
-
-  const localNights = loadLocalNights();
-
-  async function loadAndRenderFromFirestore(isManualRefresh = false) {
-    if (statusEl) {
-      statusEl.textContent = isManualRefresh
-        ? `Refreshing RSVPs for ${gameId}…`
-        : `Loading RSVPs for ${gameId}…`;
+  async function loadAndRender() {
+    if (introEl) {
+      introEl.textContent = "Loading hosts and their chosen dates…";
+    }
+    if (listWrap) {
+      listWrap.innerHTML = `<p class="menu-copy">Loading…</p>`;
     }
 
     try {
       const game = await readGame(gameId);
       if (!game) {
-        renderError(root, "We couldn't find that game in the cloud. It may have been deleted.");
+        if (introEl) introEl.textContent = "We couldn’t load this game.";
+        if (listWrap) {
+          listWrap.innerHTML = `
+            <p class="menu-copy">
+              This game no longer exists in the cloud. You may need to start a new one.
+            </p>
+          `;
+        }
         return;
       }
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
       const rsvps = game.rsvps && typeof game.rsvps === "object" ? game.rsvps : {};
-      const allowThemes =
-        game &&
-        game.setup &&
-        typeof game.setup.allowThemes === "boolean"
-          ? game.setup.allowThemes
-          : false;
+
+      if (introEl) {
+        introEl.textContent = "Here’s your current line-up of hosts and dates.";
+      }
+
+      if (!hosts.length) {
+        if (listWrap) {
+          listWrap.innerHTML = `
+            <p class="menu-copy">
+              No hosts found for this game yet. Go back and make sure you’ve added everyone.
+            </p>
+          `;
+        }
+        return;
+      }
 
       let acceptedCount = 0;
       let declinedCount = 0;
       let pendingCount  = 0;
 
-      const rows = hosts.map((hostDoc, index) => {
-        const name = hostDoc && hostDoc.name ? hostDoc.name : `Host ${index + 1}`;
-        const role = hostDoc && hostDoc.role === "organiser" ? "Organiser" : "Host";
+      const rowsHtml = hosts.map((host, index) => {
+        const hostName = host && host.name ? String(host.name) : `Host ${index + 1}`;
+        const rsvp = rsvps.hasOwnProperty(index)
+          ? rsvps[index]
+          : rsvps[String(index)] || {};
 
-        // Firestore RSVP for this host (if any)
-        const rsvp = rsvps[index] || {};
+        const normalised = normaliseStatus(rsvp.status);
+        if (normalised.key === "accepted") acceptedCount++;
+        else if (normalised.key === "declined") declinedCount++;
+        else pendingCount++;
 
-        // Merge in any local cache for THIS browser (useful if organiser just changed date)
-        const local = localNights[index] || {};
-        const merged = {
-          status: local.status || rsvp.status || null,
-          date:   local.date   || rsvp.date   || null,
-          time:   local.time   || rsvp.time   || null,
-          theme:  local.theme  || rsvp.theme  || null
-        };
-
-        let statusLabel = "Awaiting reply";
-        let statusClass = "pending";
-        if (merged.status === "accepted") {
-          statusLabel = "Accepted";
-          statusClass = "accepted";
-          acceptedCount++;
-        } else if (merged.status === "declined") {
-          statusLabel = "Declined";
-          statusClass = "declined";
-          declinedCount++;
+        let dateText;
+        if (rsvp.date) {
+          const niceDate = formatDate(rsvp.date);
+          if (rsvp.time) {
+            dateText = `${niceDate} at ${esc(rsvp.time)}`;
+          } else {
+            dateText = niceDate;
+          }
         } else {
-          pendingCount++;
+          dateText = "No date chosen";
         }
 
-        const datePart = merged.date || "No date chosen";
-        const timePart = merged.time ? ` at ${merged.time}` : "";
-        const when = `${datePart}${timePart}`;
-
-        const themePart =
-          allowThemes && merged.theme
-            ? `<div class="host-row-theme">Theme: ${esc(merged.theme)}</div>`
-            : "";
-
         return `
-          <li class="host-row host-row--rsvp">
-            <div class="host-row-label">Host ${index + 1}</div>
-            <div class="host-row-main">
-              <div class="host-row-name">${esc(name)}</div>
-              <div class="host-row-meta">${esc(role)}</div>
-              <div class="host-row-when">${esc(when)}</div>
-              ${themePart}
+          <div
+            class="rsvp-row"
+            style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:10px 0;"
+          >
+            <div
+              class="rsvp-row-status"
+              style="
+                min-width:110px;
+                font-size:12px;
+                font-weight:600;
+                text-transform:uppercase;
+                color:${normalised.color};
+              "
+            >
+              ${normalised.label}
             </div>
-            <div class="host-row-status host-row-status--${statusClass}">
-              ${esc(statusLabel)}
+            <div class="rsvp-row-main" style="flex:1;">
+              <div
+                class="rsvp-row-name"
+                style="font-weight:600;margin-bottom:2px;"
+              >
+                ${esc(hostName)}
+              </div>
+              <div
+                class="rsvp-row-date"
+                style="font-size:13px;color:#555;"
+              >
+                ${esc(dateText)}
+              </div>
             </div>
-          </li>
+          </div>
         `;
       });
 
-      listEl.innerHTML = rows.length
-        ? rows.join("")
-        : `<p class="menu-copy">No hosts found for this game.</p>`;
+      if (listWrap) {
+        listWrap.innerHTML = `
+          <div class="rsvp-list">
+            ${rowsHtml.join("")}
+          </div>
+        `;
+      }
 
-      if (statusEl) {
-        statusEl.textContent = `RSVPs loaded for ${gameId} · ${acceptedCount} accepted · ${declinedCount} declined · ${pendingCount} pending`;
+      if (summaryEl) {
+        summaryEl.textContent =
+          `RSVPs loaded for ${game.gameId || gameId} · ` +
+          `${acceptedCount} accepted · ` +
+          `${declinedCount} declined · ` +
+          `${pendingCount} outstanding`;
       }
     } catch (err) {
-      console.error("[RsvpTrackerScreen] Failed to load game", err);
-      renderError(root, "We hit a problem loading RSVPs. Please try again in a moment.");
+      console.error("[RsvpTrackerScreen] Failed to load RSVPs", err);
+      if (introEl) {
+        introEl.textContent = "We hit a problem loading your RSVPs.";
+      }
+      if (listWrap) {
+        listWrap.innerHTML = `
+          <p class="menu-copy">
+            Please check your connection and tap <strong>Refresh RSVPs</strong> to try again.
+          </p>
+        `;
+      }
     }
   }
 
-  // Initial load
-  loadAndRenderFromFirestore(false);
+  // ---- button handlers ----
 
-  // Buttons
+  // Initial load (option A – manual refresh button)
+  loadAndRender();
+
   if (backBtn) {
     backBtn.addEventListener("click", () => {
       try {
-        actions && actions.setState && actions.setState("links");
+        actions.setState && actions.setState("links");
       } catch (_) {}
     });
   }
 
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => {
-      loadAndRenderFromFirestore(true);
+      loadAndRender();
     });
   }
 
-  // No special cleanup needed
-  return () => {};
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", async () => {
+      if (!gameId) return;
+      const ok = window.confirm(
+        "Are you sure you want to cancel this Culinary Quest? " +
+        "Guests will no longer be able to use their links."
+      );
+      if (!ok) return;
+
+      try {
+        const nowIso = new Date().toISOString();
+        await updateGame(gameId, { status: "cancelled", cancelledAt: nowIso });
+        window.alert("Event cancelled. You can close this tab or start a new game from the intro screen.");
+        // optional: take them back to intro
+        try {
+          actions.setState && actions.setState("intro");
+        } catch (_) {}
+      } catch (err) {
+        console.warn("[RsvpTrackerScreen] Cancel event failed", err);
+        window.alert("Sorry, we couldn’t cancel the event just now. Please try again.");
+      }
+    });
+  }
+
+  if (beginBtn) {
+    beginBtn.addEventListener("click", async () => {
+      if (!gameId) return;
+      const ok = window.confirm(
+        "Ready to lock in these RSVPs and let the games begin?"
+      );
+      if (!ok) return;
+
+      try {
+        const nowIso = new Date().toISOString();
+        await updateGame(gameId, { status: "inProgress", startedAt: nowIso });
+        window.alert("Your Culinary Quest is now in progress!");
+        // Reload so any future UI tweaks can react to status
+        loadAndRender();
+      } catch (err) {
+        console.warn("[RsvpTrackerScreen] Begin event failed", err);
+        window.alert("Sorry, we couldn’t update the event just now. Please try again.");
+      }
+    });
+  }
 }
