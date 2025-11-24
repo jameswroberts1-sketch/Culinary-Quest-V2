@@ -1,10 +1,47 @@
 // path: src/skins/cooking/screens/IntroScreen.js
 // Intro screen – organiser enters their name, then we move to the Setup screen.
 
+// Basic HTML escaping
+function esc(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function render(root, model = {}, actions = {}) {
   // Safety: if router ever calls us with no root, fall back to #app
   if (!root) {
     root = document.getElementById("app") || document.body;
+  }
+
+  // Always start at the very top (avoid “zoomed in” look on iOS)
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    if (scroller && typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } else {
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    }
+  } catch (_) {}
+
+  // Pre-fill organiser name if we already know it
+  let organiserName =
+    (model.organiserName && String(model.organiserName).trim()) || "";
+
+  if (!organiserName) {
+    try {
+      const stored = window.localStorage.getItem("cq_organiser_name");
+      if (stored && stored.trim()) {
+        organiserName = stored.trim();
+      }
+    } catch (_) {}
   }
 
   root.innerHTML = `
@@ -47,6 +84,7 @@ export function render(root, model = {}, actions = {}) {
           <li>🚀 Once the line-up is complete, review the schedule and hit
               <strong>Start Competition</strong> to launch your Quest.</li>
         </ol>
+      </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
       
@@ -77,6 +115,7 @@ export function render(root, model = {}, actions = {}) {
           autocapitalize="words"
           inputmode="text"
           enterkeyhint="go"
+          value="${esc(organiserName)}"
         />
       </section>
 
@@ -84,6 +123,10 @@ export function render(root, model = {}, actions = {}) {
         <button class="btn btn-primary" id="begin" type="button">Begin Planning</button>
         <button class="btn btn-secondary" id="cancel" type="button">Cancel</button>
       </div>
+
+      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+        IntroScreen – organiser intro &amp; name
+      </p>
     </section>
   `;
 
@@ -91,22 +134,12 @@ export function render(root, model = {}, actions = {}) {
   const beginBtn  = root.querySelector("#begin");
   const cancelBtn = root.querySelector("#cancel");
 
-  // --- Handlers ----------------------------------------------------
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && beginBtn) {
-      e.preventDefault();
-      beginBtn.click();
-    }
-  };
-
   const handleBeginClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!nameInput) return;
 
-    // Close keyboard / blur field first (helps on iOS)
     const name = nameInput.value.trim();
     nameInput.blur();
 
@@ -124,6 +157,8 @@ export function render(root, model = {}, actions = {}) {
     // Let the host engine know who the organiser is (if supported)
     if (actions && typeof actions.join === "function") {
       await actions.join(name);
+    } else if (model) {
+      model.organiserName = name;
     }
 
     // Move into Setup
@@ -137,6 +172,13 @@ export function render(root, model = {}, actions = {}) {
       u.searchParams.delete("route");
       history.replaceState(null, "", u.toString());
     } catch (_) {}
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && beginBtn) {
+      e.preventDefault();
+      beginBtn.click();
+    }
   };
 
   const handleCancelClick = (e) => {
@@ -153,8 +195,7 @@ export function render(root, model = {}, actions = {}) {
     } catch (_) {}
   };
 
-  // --- Wire listeners ----------------------------------------------
-
+  // Wire listeners
   if (nameInput) {
     nameInput.addEventListener("keydown", handleKeyDown);
   }
