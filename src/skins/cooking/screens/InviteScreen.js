@@ -154,29 +154,7 @@ export function render(root, model = {}, actions = {}) {
       night.date
   );
   // Game id for cloud sync (if present in model)
-  const gameId = model && typeof model.gameId === "string" ? model.gameId : null;
-
-  // Fire-and-forget helper to push RSVP to Firestore
-  function syncRsvpToCloud(status, date, time) {
-    if (!gameId) return;               // no cloud game, nothing to do
-
-    try {
-      const patch = {};
-      // rsvps.<hostIndex> = { status, date, time }
-      patch[`rsvps.${hostIndex}`] = {
-        status: status || null,
-        date:   date   || null,
-        time:   time   || null
-      };
-
-      // Don't block the UI – just log if it fails
-      updateGame(gameId, patch).catch((err) => {
-        console.error("[InviteScreen] Firestore RSVP update failed", err);
-      });
-    } catch (err) {
-      console.error("[InviteScreen] syncRsvpToCloud threw", err);
-    }
-  }
+  const gameId = model && typeof model.gameId === "string" ? model.gameId : 
   
     // Copy variants ------------------------------------------------
   let entreeTitle, entreeBodyHTML;
