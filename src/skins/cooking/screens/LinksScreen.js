@@ -3,7 +3,7 @@
 
 import { createGame, getUid } from "../../../engine/firestore.js";
 
-const HOSTS_STORAGE_KEY  = "cq_hosts_v1";           // same as HostsScreen
+const HOSTS_STORAGE_KEY  = "cq_hosts_v1";          // same as HostsScreen
 const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
 const MAX_HOSTS          = 6;
@@ -180,98 +180,100 @@ function persistTokens(tokens, actions) {
 /* ---------------- Firestore game creation ---------------- */
 
 async function ensureFirestoreGame(model, setup, hosts, tokens) {
-  try {
-    // Make sure we're signed-in anonymously
-    const uid = await getUid();
+  // Try reuse existing gameId
+  let gameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+    null;
 
-    // Try reuse existing gameId
-    let gameId =
-      (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-      (() => {
-        try {
-          const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-          return stored && stored.trim() ? stored.trim() : null;
-        } catch (_) {
-          return null;
-        }
-      })();
-
-    const organiserName =
-      (model.organiserName && String(model.organiserName).trim()) ||
-      (hosts[0] && hosts[0].name) ||
-      "the organiser";
-
-    const gameTitle =
-      (setup &&
-        typeof setup.gameTitle === "string" &&
-        setup.gameTitle.trim()) ||
-      `${organiserName}'s Culinary Quest`;
-
-    if (!gameId) {
-      gameId = makeGameId(gameTitle, organiserName);
-    }
-
-    const hostDocs = hosts.map((h, index) => ({
-      index,
-      name: h && h.name ? h.name : `Host ${index + 1}`,
-      role: index === 0 ? "organiser" : "host",
-      token: tokens[index] || null
-    }));
-
-    const nowIso = new Date().toISOString();
-
-    await createGame(gameId, {
-      gameId,
-      organiserUid: uid || null,
-      organiserName,
-      gameTitle,
-      createdAt: nowIso,
-      status: "links", // organiser is on the invite-links step
-      setup: {
-        scoringMode:
-          setup && (setup.mode === "category" ? "category" : "simple"),
-        allowThemes: !!(setup && setup.allowThemes),
-        categories: Array.isArray(setup && setup.categories)
-          ? setup.categories
-          : ["Food"],
-        customCategories: Array.isArray(setup && setup.customCategories)
-          ? setup.customCategories
-          : [],
-        comments: {
-          mode:
-            setup && setup.mode === "category"
-              ? "perCategory"
-              : "overall",
-          maxChars: 200
-        }
-      },
-      hosts: hostDocs
-    });
-
+  if (!gameId) {
     try {
-      window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
+      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+      if (stored && stored.trim()) {
+        gameId = stored.trim();
+      }
     } catch (_) {}
-
-    if (model) model.gameId = gameId;
-    return gameId;
-  } catch (err) {
-    console.error("[LinksScreen] ensureFirestoreGame failed", err);
-    throw err;
   }
+
+  const organiserName =
+    (model.organiserName && String(model.organiserName).trim()) ||
+    (hosts[0] && hosts[0].name) ||
+    "the organiser";
+
+  const gameTitle =
+    (setup &&
+      typeof setup.gameTitle === "string" &&
+      setup.gameTitle.trim()) ||
+    `${organiserName}'s Culinary Quest`;
+
+  if (!gameId) {
+    gameId = makeGameId(gameTitle, organiserName);
+  }
+
+  const hostDocs = hosts.map((h, index) => ({
+    index,
+    name: h && h.name ? h.name : `Host ${index + 1}`,
+    role: index === 0 ? "organiser" : "host",
+    token: tokens[index] || null
+  }));
+
+  const nowIso = new Date().toISOString();
+  const uid = await getUid();
+
+  await createGame(gameId, {
+    gameId,
+    organiserUid: uid || null,
+    organiserName,
+    gameTitle,
+    createdAt: nowIso,
+    status: "links", // organiser is on the invite-links step
+    setup: {
+      scoringMode:
+        setup && (setup.mode === "category" ? "category" : "simple"),
+      allowThemes: !!(setup && setup.allowThemes),
+      categories: Array.isArray(setup && setup.categories)
+        ? setup.categories
+        : ["Food"],
+      customCategories: Array.isArray(setup && setup.customCategories)
+        ? setup.customCategories
+        : [],
+      comments: {
+        mode:
+          setup && setup.mode === "category"
+            ? "perCategory"
+            : "overall",
+        maxChars: 200
+      }
+    },
+    hosts: hostDocs
+  });
+
+  try {
+    window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
+  } catch (_) {}
+
+  if (model) model.gameId = gameId;
+  return gameId;
 }
 
 // Build the invite URL for a given game + token
 function buildInviteUrl(token, gameId) {
-  const loc = window.location;
+  const loc  = window.location;
   const base = `${loc.origin}${loc.pathname}`;
+
+  let finalGameId = gameId || null;
+  if (!finalGameId) {
+    try {
+      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+      if (stored && stored.trim()) finalGameId = stored.trim();
+    } catch (_) {}
+  }
 
   const params = new URLSearchParams();
   params.set("state", "invite");
   params.set("invite", token);
 
-  // Include the Firestore gameId so InviteScreen can load names + settings
-  if (gameId && typeof gameId === "string" && gameId.trim()) {
-    params.set("game", gameId.trim());
+  if (finalGameId && finalGameId.trim()) {
+    params.set("game", finalGameId.trim());
   }
 
   return `${base}?${params.toString()}`;
@@ -372,35 +374,24 @@ export function render(root, model = {}, actions = {}) {
 
   if (!listEl) return;
 
-  // --- Firestore game creation & status line --------------------
+  // Show immediate status and kick off game creation
+  if (statusEl) {
+    statusEl.textContent = "Preparing cloud game…";
+  }
 
   let currentGameId =
     (model && typeof model.gameId === "string" && model.gameId.trim()) ||
     null;
 
-  if (!currentGameId) {
-    try {
-      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) {
-        currentGameId = stored.trim();
-        if (statusEl) {
-          statusEl.textContent = `Cloud game ready: ${currentGameId}`;
-        }
-      }
-    } catch (_) {}
-  }
-
-  if (statusEl && !currentGameId) {
-    statusEl.textContent = "Preparing cloud game…";
-  }
-
-  const gamePromise = ensureFirestoreGame(model, setup, hosts, tokens)
+  const gameIdPromise = ensureFirestoreGame(model, setup, hosts, tokens)
     .then((gameId) => {
       if (gameId) {
         currentGameId = gameId;
-        if (statusEl) statusEl.textContent = `Cloud game ready: ${gameId}`;
-      } else if (statusEl) {
-        statusEl.textContent = "Cloud game not created.";
+      }
+      if (statusEl) {
+        statusEl.textContent = gameId
+          ? `Cloud game ready: ${gameId}`
+          : "Cloud game not created.";
       }
       if (gameId && actions && typeof actions.patch === "function") {
         actions.patch({ gameId });
@@ -416,8 +407,7 @@ export function render(root, model = {}, actions = {}) {
       return null;
     });
 
-  // --- List rows ------------------------------------------------
-
+  // One row per host
   const rows = hosts.map((host, index) => {
     const name  = (host && host.name && host.name.trim()) || `Host ${index + 1}`;
     const label = index === 0 ? "Organiser link (you)" : "Host link";
@@ -443,60 +433,48 @@ export function render(root, model = {}, actions = {}) {
 
   listEl.innerHTML = rows.join("");
 
-// --- Copy buttons (simplified – no Firestore dependency) -----
+  // Copy buttons – we wait for a gameId if needed
+  listEl.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest(".host-link-copy");
+    if (!btn) return;
 
-listEl.addEventListener("click", (ev) => {
-  const btn = ev.target.closest(".host-link-copy");
-  if (!btn) return;
+    const idx = Number(btn.dataset.hostIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
 
-  const idx = Number(btn.dataset.hostIndex);
-  if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
+    const token = tokens[idx];
+    if (!token) return;
 
-  const token = tokens[idx];
-  if (!token) return;
+    let gameId =
+      (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+      currentGameId ||
+      null;
 
-  // Build the invite URL (we’ll include gameId if we have one, but
-  // this works even without Firestore)
-  const loc = window.location;
-  const base = `${loc.origin}${loc.pathname}`;
+    if (!gameId && gameIdPromise) {
+      gameId = await gameIdPromise;
+    }
 
-  const params = new URLSearchParams();
-  params.set("state", "invite");
-  params.set("invite", token);
+    const url = buildInviteUrl(token, gameId);
+    const originalText = btn.textContent;
 
-  // use any gameId that’s already known (model / localStorage)
-  let gameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-    null;
-
-  if (!gameId) {
     try {
-      const stored = window.localStorage.getItem("cq_current_game_id_v1");
-      if (stored && stored.trim()) gameId = stored.trim();
-    } catch (_) {}
-  }
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(url);
+      } else {
+        window.prompt("Copy this invite link", url);
+      }
 
-  if (gameId) {
-    params.set("game", gameId);
-  }
+      btn.textContent = "Copied!";
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 1500);
+    } catch (err) {
+      window.prompt("Copy this invite link", url);
+    }
+  });
 
-  const url = `${base}?${params.toString()}`;
-
-  // 1) Always show a prompt so we KNOW the handler is running
-  window.prompt("Copy this invite link", url);
-
-  // 2) Give visible feedback on the button
-  const originalText = btn.textContent;
-  btn.textContent = "Copied!";
-  btn.disabled = true;
-  setTimeout(() => {
-    btn.textContent = originalText;
-    btn.disabled = false;
-  }, 1500);
-});
-
-  // --- Navigation -----------------------------------------------
-
+  // Navigation
   if (backBtn) {
     backBtn.addEventListener("click", () => {
       try {
