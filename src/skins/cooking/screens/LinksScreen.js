@@ -268,7 +268,7 @@ function buildInviteUrl(token, gameId) {
   params.set("state", "invite");
   params.set("invite", token);
 
-  // NEW: include the Firestore gameId so InviteScreen can load names + settings
+  // Include the Firestore gameId so InviteScreen can load names + settings
   if (gameId && typeof gameId === "string" && gameId.trim()) {
     params.set("game", gameId.trim());
   }
@@ -347,7 +347,7 @@ export function render(root, model = {}, actions = {}) {
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-            <div class="menu-actions">
+      <div class="menu-actions">
         <button class="btn btn-secondary" id="linksBack">Back</button>
         <button class="btn btn-primary" id="linksNext">Continue</button>
       </div>
@@ -364,36 +364,39 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-  const listEl  = root.querySelector("#linksList");
-  const backBtn = root.querySelector("#linksBack");
-  const nextBtn = root.querySelector("#linksNext");
+  const listEl   = root.querySelector("#linksList");
+  const backBtn  = root.querySelector("#linksBack");
+  const nextBtn  = root.querySelector("#linksNext");
   const statusEl = root.querySelector("#fsStatus");
 
-  // Fire-and-forget game creation in Firestore, with on-screen status
+  if (!listEl) return;
+
+  // Show immediate status
   if (statusEl) {
     statusEl.textContent = "Preparing cloud game…";
   }
 
-  ensureFirestoreGame(model, setup, hosts, tokens)
-    .then((gameId) => {
-      if (statusEl) {
-        if (gameId) {
-          statusEl.textContent = `Cloud game ready: ${gameId}`;
-        } else {
-          statusEl.textContent = "Cloud game not created.";
-        }
+  // Kick off Firestore game creation (don’t block UI)
+  let gameIdPromise = ensureFirestoreGame(model, setup, hosts, tokens).then((gameId) => {
+    if (statusEl) {
+      if (gameId) {
+        statusEl.textContent = `Cloud game ready: ${gameId}`;
+      } else {
+        statusEl.textContent = "Cloud game not created.";
       }
-      if (gameId && actions && typeof actions.patch === "function") {
-        actions.patch({ gameId });
-      }
-    })
-    .catch((err) => {
-      if (statusEl) {
-        statusEl.textContent =
-          "Cloud error: " + (err && err.message ? err.message : String(err));
-      }
-    });
-  if (!listEl) return;
+    }
+    if (gameId && actions && typeof actions.patch === "function") {
+      actions.patch({ gameId });
+    }
+    return gameId;
+  }).catch((err) => {
+    console.error("[LinksScreen] ensureFirestoreGame error", err);
+    if (statusEl) {
+      statusEl.textContent =
+        "Cloud error: " + (err && err.message ? err.message : String(err));
+    }
+    return null;
+  });
 
   // One row per host
   const rows = hosts.map((host, index) => {
@@ -421,7 +424,7 @@ export function render(root, model = {}, actions = {}) {
 
   listEl.innerHTML = rows.join("");
 
-// Copy buttons
+  // Copy buttons – now we *wait* for a gameId if we don't have one yet
   listEl.addEventListener("click", async (ev) => {
     const btn = ev.target.closest(".host-link-copy");
     if (!btn) return;
@@ -432,9 +435,9 @@ export function render(root, model = {}, actions = {}) {
     const token = tokens[idx];
     if (!token) return;
 
-    // Get gameId from model or (as a fallback) from localStorage
     let gameId =
-      (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
+      (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+      null;
 
     if (!gameId) {
       try {
@@ -442,9 +445,12 @@ export function render(root, model = {}, actions = {}) {
         if (stored && stored.trim()) {
           gameId = stored.trim();
         }
-      } catch (_) {
-        // ignore localStorage errors – links will still work, just without names
-      }
+      } catch (_) {}
+    }
+
+    // If we *still* don't have one, await the in-flight Firestore call.
+    if (!gameId && gameIdPromise) {
+      gameId = await gameIdPromise;
     }
 
     const url = buildInviteUrl(token, gameId);
@@ -466,7 +472,7 @@ export function render(root, model = {}, actions = {}) {
     } catch (err) {
       window.prompt("Copy this invite link", url);
     }
-  })
+  });
 
   // Navigation
   if (backBtn) {
