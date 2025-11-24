@@ -432,28 +432,41 @@ listEl.addEventListener("click", async (ev) => {
   const token = tokens[idx];
   if (!token) return;
 
-  // We need the cloud game id to build the link
+  // Get gameId from model or (as a fallback) from localStorage
   let gameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) || "";
+    (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
   if (!gameId) {
     try {
       const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && typeof stored === "string" && stored.trim()) {
+      if (stored && stored.trim()) {
         gameId = stored.trim();
       }
-    } catch (_) {}
+    } catch (_) {
+      // ignore localStorage errors – links will still work, just without names
+    }
   }
 
-  if (!gameId) {
-    window.alert(
-      "We couldn't find your cloud game yet. Please wait a moment and try copying the link again."
-    );
-    return;
-  }
-
-  const url = buildInviteUrl(gameId, token);
+  const url = buildInviteUrl(token, gameId);
   const originalText = btn.textContent;
+
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      await navigator.clipboard.writeText(url);
+    } else {
+      window.prompt("Copy this invite link", url);
+    }
+
+    btn.textContent = "Copied!";
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 1500);
+  } catch (err) {
+    window.prompt("Copy this invite link", url);
+  }
+});
 
   try {
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
