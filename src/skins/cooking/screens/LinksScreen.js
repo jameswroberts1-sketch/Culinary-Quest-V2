@@ -424,29 +424,88 @@ export function render(root, model = {}, actions = {}) {
 
   listEl.innerHTML = rows.join("");
 
-  // Copy buttons – now we *wait* for a gameId if we don't have one yet
+  // Copy buttons – robust, with clear fallback
 listEl.addEventListener("click", async (ev) => {
   const btn = ev.target.closest(".host-link-copy");
   if (!btn) return;
 
-  const idx = Number(btn.dataset.hostIndex);
-  if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
+  try {
+    const idx = Number(btn.dataset.hostIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) {
+      console.warn("[LinksScreen] bad host index on copy", btn.dataset.hostIndex);
+      return;
+    }
 
-  const token = tokens[idx];
-  if (!token) return;
+    const token = tokens[idx];
+    if (!token) {
+      console.warn("[LinksScreen] missing token for host", idx);
+      return;
+    }
 
-  let gameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-    null;
+    // 1) Work out gameId
+    let gameId =
+      (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+      null;
 
-  if (!gameId) {
-    try {
-      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) {
-        gameId = stored.trim();
+    if (!gameId) {
+      try {
+        const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+        if (stored && stored.trim()) {
+          gameId = stored.trim();
+        }
+      } catch (e) {
+        // ignore localStorage problems
       }
-    } catch (_) {}
+    }
+
+    // If we *still* don't have one, await the in-flight Firestore call.
+    if (!gameId && typeof gameIdPromise !== "undefined" && gameIdPromise) {
+      try {
+        gameId = await gameIdPromise;
+      } catch (e) {
+        console.warn("[LinksScreen] gameIdPromise rejected", e);
+        gameId = null;
+      }
+    }
+
+    // 2) Build the URL (works even if gameId is null – just omits &game=)
+    const url = buildInviteUrl(token, gameId);
+    const originalText = btn.textContent;
+
+    // 3) Try clipboard API first…
+    let copied = false;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch (e) {
+        console.warn("[LinksScreen] clipboard.writeText failed, falling back", e);
+      }
+    }
+
+    // …fallback to a prompt if clipboard is blocked / unavailable
+    if (!copied) {
+      window.prompt("Copy this invite link", url);
+    }
+
+    // 4) Tiny bit of feedback on the button
+    btn.textContent = "Copied!";
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 1500);
+  } catch (err) {
+    // Absolute last-resort: show the URL in an alert
+    console.error("[LinksScreen] unexpected error in copy handler", err);
+    window.alert(
+      "We hit a small problem copying the link.\n\n" +
+      "Here it is – long-press to copy:\n\n" +
+      (btn && btn.dataset ? btn.dataset.hostIndex : "") +
+      ""
+    );
   }
+});
 
   // If we *still* don't have one, await the in-flight Firestore call.
   if (!gameId && gameIdPromise) {
