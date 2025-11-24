@@ -259,15 +259,15 @@ async function ensureFirestoreGame(model, setup, hosts, tokens) {
   }
 }
 
-/* ---------------- URL helper ---------------- */
-
-function buildInviteUrl(token) {
+// Build the invite URL for a given game + token
+function buildInviteUrl(gameId, token) {
   const loc = window.location;
-  const base = `${loc.origin}${loc.pathname}`;
+  const base = `${loc.origin}${loc.pathname}`; // ignore any existing query
 
   const params = new URLSearchParams();
-  params.set("state", "invite");
-  params.set("invite", token);
+  params.set("state", "invite");  // tell the app which screen to open
+  params.set("game", gameId);     // which Firestore game to load
+  params.set("invite", token);    // which host token this link belongs to
 
   return `${base}?${params.toString()}`;
 }
@@ -417,37 +417,57 @@ export function render(root, model = {}, actions = {}) {
 
   listEl.innerHTML = rows.join("");
 
-  // Copy buttons
-  listEl.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest(".host-link-copy");
-    if (!btn) return;
+// Copy buttons
+listEl.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest(".host-link-copy");
+  if (!btn) return;
 
-    const idx = Number(btn.dataset.hostIndex);
-    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
+  const idx = Number(btn.dataset.hostIndex);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
 
-    const token = tokens[idx];
-    if (!token) return;
+  const token = tokens[idx];
+  if (!token) return;
 
-    const url = buildInviteUrl(token);
-    const originalText = btn.textContent;
+  // We need the cloud game id to build the link
+  let gameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) || "";
 
+  if (!gameId) {
     try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        await navigator.clipboard.writeText(url);
-      } else {
-        window.prompt("Copy this invite link", url);
+      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+      if (stored && typeof stored === "string" && stored.trim()) {
+        gameId = stored.trim();
       }
+    } catch (_) {}
+  }
 
-      btn.textContent = "Copied!";
-      btn.disabled = true;
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }, 1500);
-    } catch (err) {
+  if (!gameId) {
+    window.alert(
+      "We couldn't find your cloud game yet. Please wait a moment and try copying the link again."
+    );
+    return;
+  }
+
+  const url = buildInviteUrl(gameId, token);
+  const originalText = btn.textContent;
+
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      await navigator.clipboard.writeText(url);
+    } else {
       window.prompt("Copy this invite link", url);
     }
-  });
+
+    btn.textContent = "Copied!";
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }, 1500);
+  } catch (err) {
+    window.prompt("Copy this invite link", url);
+  }
+});
 
   // Navigation
   if (backBtn) {
