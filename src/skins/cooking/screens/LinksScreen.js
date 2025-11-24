@@ -443,55 +443,57 @@ export function render(root, model = {}, actions = {}) {
 
   listEl.innerHTML = rows.join("");
 
-  // --- Copy buttons ---------------------------------------------
+// --- Copy buttons (simplified – no Firestore dependency) -----
 
-  listEl.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest(".host-link-copy");
-    if (!btn) return;
+listEl.addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".host-link-copy");
+  if (!btn) return;
 
-    const idx = Number(btn.dataset.hostIndex);
-    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
+  const idx = Number(btn.dataset.hostIndex);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
 
-    const token = tokens[idx];
-    if (!token) return;
+  const token = tokens[idx];
+  if (!token) return;
 
-    // Make sure we have a gameId: use in-memory, localStorage or wait
-    let gameId = currentGameId;
+  // Build the invite URL (we’ll include gameId if we have one, but
+  // this works even without Firestore)
+  const loc = window.location;
+  const base = `${loc.origin}${loc.pathname}`;
 
-    if (!gameId) {
-      try {
-        const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-        if (stored && stored.trim()) {
-          gameId = stored.trim();
-        }
-      } catch (_) {}
-    }
+  const params = new URLSearchParams();
+  params.set("state", "invite");
+  params.set("invite", token);
 
-    if (!gameId && gamePromise) {
-      gameId = await gamePromise;
-    }
+  // use any gameId that’s already known (model / localStorage)
+  let gameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+    null;
 
-    const url = buildInviteUrl(token, gameId);
-    const originalText = btn.textContent;
-
+  if (!gameId) {
     try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        await navigator.clipboard.writeText(url);
-      } else {
-        window.prompt("Copy this invite link", url);
-      }
+      const stored = window.localStorage.getItem("cq_current_game_id_v1");
+      if (stored && stored.trim()) gameId = stored.trim();
+    } catch (_) {}
+  }
 
-      btn.textContent = "Copied!";
-      btn.disabled = true;
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }, 1500);
-    } catch (err) {
-      // Fallback – old-school copy box
-      window.prompt("Copy this invite link", url);
-    }
-  });
+  if (gameId) {
+    params.set("game", gameId);
+  }
+
+  const url = `${base}?${params.toString()}`;
+
+  // 1) Always show a prompt so we KNOW the handler is running
+  window.prompt("Copy this invite link", url);
+
+  // 2) Give visible feedback on the button
+  const originalText = btn.textContent;
+  btn.textContent = "Copied!";
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }, 1500);
+});
 
   // --- Navigation -----------------------------------------------
 
