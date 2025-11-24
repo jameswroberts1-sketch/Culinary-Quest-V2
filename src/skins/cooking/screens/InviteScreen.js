@@ -3,23 +3,11 @@
 
 import { updateGame } from "../../../engine/firestore.js";
 
-const HOSTS_STORAGE_KEY   = "cq_hosts_v1";
-const NIGHTS_STORAGE_KEY  = "cq_host_nights_v1";
-const SETUP_STORAGE_KEY = "cq_setup_v2";
+const HOSTS_STORAGE_KEY  = "cq_hosts_v1";
+const NIGHTS_STORAGE_KEY = "cq_host_nights_v1";
+const SETUP_STORAGE_KEY  = "cq_setup_v2";
 
-function loadAllowThemes() {
-  try {
-    const raw = window.localStorage.getItem(SETUP_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.allowThemes === "boolean") {
-      return parsed.allowThemes;
-    }
-  } catch (_) {}
-  return false;
-}
-
-// --- helpers --------------------------------------------------
+// ---------- helpers ----------
 
 function esc(str) {
   if (str == null) return "";
@@ -28,6 +16,29 @@ function esc(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function loadAllowThemes(model) {
+  // Prefer the in-memory model if present
+  if (
+    model &&
+    model.setup &&
+    typeof model.setup.allowThemes === "boolean"
+  ) {
+    return model.setup.allowThemes;
+  }
+
+  // Fall back to localStorage
+  try {
+    const raw = window.localStorage.getItem(SETUP_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.allowThemes === "boolean") {
+      return parsed.allowThemes;
+    }
+  } catch (_) {}
+
+  return false;
 }
 
 // Load hosts the same way as HostsScreen / LinksScreen
@@ -60,7 +71,7 @@ function hydrateHosts(model = {}) {
   return hosts;
 }
 
-// Map hostIndex -> { date, time, status }
+// Map hostIndex -> { date, time, theme, status }
 function loadNights() {
   try {
     const raw = window.localStorage.getItem(NIGHTS_STORAGE_KEY);
@@ -78,14 +89,14 @@ function saveNights(nights) {
   } catch (_) {}
 }
 
-// --- main render ----------------------------------------------
+// ---------- main render ----------
 
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
 
-  // Always start at the top of the page (avoid “zoomed in” look on iOS)
+  // Scroll to top (iOS zoom fix)
   try {
     const scroller =
       document.scrollingElement ||
@@ -99,12 +110,10 @@ export function render(root, model = {}, actions = {}) {
     }
   } catch (_) {}
 
-  const hosts = hydrateHosts(model);
-  const allowThemes = loadAllowThemes();
+  const hosts       = hydrateHosts(model);
+  const allowThemes = loadAllowThemes(model);
 
   // Which host is this invite for?
-  //  - Organiser flow: LinksScreen set model.activeHostIndex = 0
-  //  - Host links: app.js set model.activeHostIndex based on the invite token
   let hostIndex = 0;
   if (Number.isInteger(model.activeHostIndex)) {
     hostIndex = model.activeHostIndex;
@@ -113,14 +122,12 @@ export function render(root, model = {}, actions = {}) {
     hostIndex = 0;
   }
 
-  // Work out whether this visit came from a copied invite link
-  const params = new URLSearchParams(window.location.search);
-  const hasInviteToken   = !!params.get("invite");
-  const qpHostName       = params.get("h");
-  const qpOrganiserName  = params.get("o");
+  // Was this opened via an invite link?
+  const params          = new URLSearchParams(window.location.search);
+  const hasInviteToken  = !!params.get("invite");
+  const qpHostName      = params.get("h");
+  const qpOrganiserName = params.get("o");
 
-  // Display names – prefer URL params (for external browsers),
-  // then fall back to the organiser model / saved hosts.
   const organiserNameRaw =
     (qpOrganiserName && qpOrganiserName.trim()) ||
     (model.organiserName && String(model.organiserName)) ||
@@ -138,14 +145,13 @@ export function render(root, model = {}, actions = {}) {
   const safeOrganiser = esc(organiserName);
   const safeHost      = esc(hostName);
 
-  // Inside the organiser flow (no ?invite= in URL), host #1 is the organiser.
-  // Any visit that arrives via an invite link is treated as a normal host,
-  // even if that link belongs to Host 1.
+  // Inside organiser flow (no ?invite= in URL), host #1 is the organiser
   const isOrganiser = !hasInviteToken && hostIndex === 0;
-  
-  // Nights data (for date uniqueness + prefill)
-  const nights   = loadNights();
-  const myNight  = nights[hostIndex] || {};
+
+  // Local nights cache (for date uniqueness + prefill)
+  const nights  = loadNights();
+  const myNight = nights[hostIndex] || {};
+
   const takenByOthers = Object.entries(nights).filter(
     ([idx, night]) =>
       Number(idx) !== hostIndex &&
@@ -153,24 +159,49 @@ export function render(root, model = {}, actions = {}) {
       typeof night.date === "string" &&
       night.date
   );
-  // Game id for cloud sync (if present in model)
-  const gameId = model && typeof model.gameId === "string" ? model.gameId : 
-  
-    // Copy variants ------------------------------------------------
-  let entreeTitle, entreeBodyHTML;
+
+  // Cloud game id, if present
+  const gameId =
+    model && typeof model.gameId === "string" ? model.gameId : null;
+
+  async function syncRsvpToFirestore(status, date, time, theme) {
+    if (!gameId) return; // organiser hasn’t created a cloud game yet
+
+    try {
+      const nowIso = new Date().toISOString();
+      await updateGame(gameId, {
+        [`rsvps.${hostIndex}`]: {
+          hostIndex,
+          status,
+          date: date || null,
+          time: time || null,
+          theme: theme || null,
+          updatedAt: nowIso
+        }
+      });
+    } catch (err) {
+      console.warn("[InviteScreen] Failed to sync RSVP to Firestore", err);
+    }
+  }
+
+  // --- copy variants ------------------------------------------------
+
+  let entreeTitle;
+  let entreeBodyHTML;
 
   if (isOrganiser) {
     entreeTitle = "YOUR NIGHT";
 
     if (allowThemes) {
       entreeBodyHTML = `
-        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on,
-        set a start time and let everyone know what kind of themed night you're planning.
+        Okay <strong>${safeHost}</strong>, here's where you choose which date you want
+        to host on, set a start time and let everyone know what kind of themed night
+        you're planning.
       `;
     } else {
       entreeBodyHTML = `
-        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on
-        and set a start time for your dinner.
+        Okay <strong>${safeHost}</strong>, here's where you choose which date you want
+        to host on and set a start time for your dinner.
       `;
     }
   } else {
@@ -220,7 +251,8 @@ export function render(root, model = {}, actions = {}) {
       </div>
     `;
 
-  // HTML ---------------------------------------------------------
+  // --- HTML ----------------------------------------------------------
+
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -237,9 +269,9 @@ export function render(root, model = {}, actions = {}) {
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">${entreeTitle}</h2>
-        <p class="menu-copy">
+        <div class="menu-copy">
           ${entreeBodyHTML}
-        </p>
+        </div>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
@@ -271,7 +303,7 @@ export function render(root, model = {}, actions = {}) {
           type="time"
           value="${myNight.time ? esc(myNight.time) : ""}"
         />
-        
+
         ${
           allowThemes
             ? `
@@ -289,25 +321,25 @@ export function render(root, model = {}, actions = {}) {
         `
             : ""
         }
-        
+
         ${
-  takenByOthers.length
-    ? `<p class="menu-copy" style="margin-top:10px;font-size:13px;">
-         <strong>Already booked:</strong><br />
-         ${takenByOthers
-           .map(([idx, night]) => {
-             const otherIdx = Number(idx);
-             const otherName =
-               hosts[otherIdx] && hosts[otherIdx].name
-                 ? esc(hosts[otherIdx].name)
-                 : "Another host";
-             const niceDate = night.date;
-             return `• ${niceDate} — ${otherName}`;
-           })
-           .join("<br />")}
-       </p>`
-    : ""
-}
+          takenByOthers.length
+            ? `<p class="menu-copy" style="margin-top:10px;font-size:13px;">
+                 <strong>Already booked:</strong><br />
+                 ${takenByOthers
+                   .map(([idx, night]) => {
+                     const otherIdx = Number(idx);
+                     const otherName =
+                       hosts[otherIdx] && hosts[otherIdx].name
+                         ? esc(hosts[otherIdx].name)
+                         : "Another host";
+                     const niceDate = night.date;
+                     return `• ${niceDate} — ${otherName}`;
+                   })
+                   .join("<br />")}
+               </p>`
+            : ""
+        }
 
         ${buttonsHTML}
       </section>
@@ -320,14 +352,14 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-  const dateInput   = root.querySelector("#inviteDate");
-  const timeInput   = root.querySelector("#inviteTime");
-  const saveBtn     = root.querySelector("#inviteSave");
-  const acceptBtn   = root.querySelector("#inviteAccept");
-  const declineBtn  = root.querySelector("#inviteDecline");
-  const themeInput  = root.querySelector("#inviteTheme");
+  const dateInput  = root.querySelector("#inviteDate");
+  const timeInput  = root.querySelector("#inviteTime");
+  const themeInput = root.querySelector("#inviteTheme");
+  const saveBtn    = root.querySelector("#inviteSave");
+  const acceptBtn  = root.querySelector("#inviteAccept");
+  const declineBtn = root.querySelector("#inviteDecline");
 
-  // --- local helpers inside render ------------------------------
+  // --- helpers inside render ----------------------------------------
 
   function enforceDateUnique(chosenDate) {
     if (!chosenDate) return null;
@@ -338,7 +370,7 @@ export function render(root, model = {}, actions = {}) {
     return clash || null;
   }
 
-if (dateInput) {
+  if (dateInput) {
     dateInput.addEventListener("change", () => {
       const val = dateInput.value ? dateInput.value.trim() : "";
       if (!val) return;
@@ -353,44 +385,20 @@ if (dateInput) {
 
         window.alert(
           `${clashNight.date} is already booked by ${clashHost}. ` +
-          "Please choose a different date so each dinner has its own night."
+            "Please choose a different date so each dinner has its own night."
         );
 
-        // Clear the invalid choice so they can't accidentally submit it
         dateInput.value = "";
       }
     });
   }
-  
-    async function syncRsvpToFirestore(status, date, time, theme) {
-    if (!gameId) return; // organiser hasn’t created a cloud game yet
 
-    try {
-      const nowIso = new Date().toISOString();
-
-      await updateGame(gameId, {
-        [`rsvps.${hostIndex}`]: {
-          hostIndex,
-          status,
-          date: date || null,
-          time: time || null,
-          theme: theme || null,
-          updatedAt: nowIso
-        }
-      });
-    } catch (err) {
-      // Don’t break the UI if Firestore fails – just log it.
-      console.warn("[InviteScreen] Failed to sync RSVP to Firestore", err);
-    }
-  }
-  
   function renderDone(status) {
     const statusWord =
       status === "declined" ? "MAYBE NEXT TIME" : "YOU'RE IN!";
 
     let bodyHTML;
     if (isOrganiser) {
-      // In practice the organiser only “accepts” via Save, but keep branch here.
       bodyHTML = `
         Thanks, <strong>${safeHost}</strong> — we've saved your hosting night and
         added it to the line-up. You can close this tab now and continue planning
@@ -425,17 +433,19 @@ if (dateInput) {
         <section class="menu-section">
           <div class="menu-course">ENTRÉE</div>
           <h2 class="menu-h2">${statusWord}</h2>
-          <p class="menu-copy">
+          <div class="menu-copy">
             ${bodyHTML}
-          </p>
+          </div>
         </section>
       </section>
     `;
   }
 
-    function handleAccept() {
-    const dateVal = dateInput && dateInput.value ? dateInput.value.trim() : "";
-    const timeVal = timeInput && timeInput.value ? timeInput.value.trim() : "";
+  function handleAccept() {
+    const dateVal =
+      dateInput && dateInput.value ? dateInput.value.trim() : "";
+    const timeVal =
+      timeInput && timeInput.value ? timeInput.value.trim() : "";
     const themeVal =
       themeInput && themeInput.value ? themeInput.value.trim() : "";
 
@@ -469,7 +479,6 @@ if (dateInput) {
       }
     } catch (_) {}
 
-    // Fire-and-forget sync to Firestore (if we have a gameId)
     syncRsvpToFirestore("accepted", dateVal, timeVal || null, themeVal || null);
 
     if (isOrganiser) {
@@ -480,8 +489,8 @@ if (dateInput) {
       renderDone("accepted");
     }
   }
-  
-    function handleDecline() {
+
+  function handleDecline() {
     nights[hostIndex] = {
       date: null,
       time: null,
@@ -496,15 +505,12 @@ if (dateInput) {
       }
     } catch (_) {}
 
-    // Fire-and-forget sync to Firestore
     syncRsvpToFirestore("declined", null, null, null);
-
     renderDone("declined");
   }
 
-  // --- wire up buttons -----------------------------------------
-
-  if (saveBtn)   saveBtn.addEventListener("click", handleAccept);
-  if (acceptBtn) acceptBtn.addEventListener("click", handleAccept);
+  // Wire up buttons
+  if (saveBtn)    saveBtn.addEventListener("click", handleAccept);
+  if (acceptBtn)  acceptBtn.addEventListener("click", handleAccept);
   if (declineBtn) declineBtn.addEventListener("click", handleDecline);
 }
