@@ -101,7 +101,16 @@ function renderError(root) {
   `;
 }
 
-async function saveRsvpToFirestore(gameId, hostIndex, status, date, time, theme) {
+async function saveRsvpToFirestore(
+  gameId,
+  hostIndex,
+  status,
+  date,
+  time,
+  theme,
+  address,
+  phone
+) {
   if (!gameId) return;
   try {
     const nowIso = new Date().toISOString();
@@ -110,10 +119,12 @@ async function saveRsvpToFirestore(gameId, hostIndex, status, date, time, theme)
     await updateGame(gameId, {
       [field]: {
         hostIndex,
-        status: status || null,
-        date:   date   || null,
-        time:   time   || null,
-        theme:  theme  || null,
+        status:  status  || null,
+        date:    date    || null,
+        time:    time    || null,
+        theme:   theme   || null,
+        address: address || null,
+        phone:   phone   || null,
         updatedAt: nowIso
       }
     });
@@ -444,8 +455,375 @@ function renderInviteUI(root, options) {
       status,
       status === "declined" ? null : dateVal,
       status === "declined" ? null : (timeVal || null),
-      status === "declined" ? null : (themeVal || null)
+      status === "declined" ? null : (themeVal || null),
+      null, // address (only set on pre-event screen)
+      null  // phone   (only set on pre-event screen)
     );
+
+    // Build a sorted schedule of accepted hosts with dates + times
+function buildSchedule(game) {
+  const out = [];
+  if (!game || !game.rsvps || typeof game.rsvps !== "object") return out;
+
+  Object.keys(game.rsvps).forEach((k) => {
+    const idx = Number(k);
+    if (Number.isNaN(idx)) return;
+    const r = game.rsvps[k];
+    if (!r || r.status !== "accepted" || !r.date) return;
+
+    const date = r.date;
+    const time = r.time && typeof r.time === "string" && r.time.trim()
+      ? r.time.trim()
+      : "19:00"; // sensible default
+
+    const start = new Date(`${date}T${time}:00`);
+    if (isNaN(start.getTime())) return;
+
+    out.push({
+      hostIndex: idx,
+      date,
+      time,
+      startMs: start.getTime()
+    });
+  });
+
+  // Oldest first
+  out.sort((a, b) => a.startMs - b.startMs);
+  return out;
+}
+
+function pickCurrentEvent(game, nowMs) {
+  const schedule = buildSchedule(game);
+  if (!schedule.length) return null;
+
+  const sixHours = 6 * 60 * 60 * 1000;
+  const now = nowMs != null ? nowMs : Date.now();
+
+  // If we're before the very first event, that first one is "upcoming"
+  if (now < schedule[0].startMs) {
+    const ev = schedule[0];
+    return {
+      currentHostIndex: ev.hostIndex,
+      startMs: ev.startMs,
+      endMs: ev.startMs + sixHours
+    };
+  }
+
+  // Find the first event whose 6h window hasn't fully passed
+  for (const ev of schedule) {
+    const endMs = ev.startMs + sixHours;
+    if (now <= endMs) {
+      return {
+        currentHostIndex: ev.hostIndex,
+        startMs: ev.startMs,
+        endMs
+      };
+    }
+  }
+
+  // Everything is finished – treat as "after last event"
+  const last = schedule[schedule.length - 1];
+  return {
+    currentHostIndex: last.hostIndex,
+    startMs: last.startMs,
+    endMs: last.startMs + sixHours,
+    allFinished: true
+  };
+}
+
+function formatShortDate(dateStr) {
+  // Expecting "YYYY-MM-DD"
+  if (!dateStr || typeof dateStr !== "string") return dateStr || "";
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const mi = Number(m) - 1;
+  const yy = y.slice(-2);
+  const mm = months[mi] || m;
+  return `${d}-${mm}-${yy}`;
+}
+
+function formatShortTime(timeStr) {
+  // Expect "HH:MM" → leave as-is if malformed
+  if (!timeStr || typeof timeStr !== "string") return "";
+  const [hStr, mStr] = timeStr.split(":");
+  const h = Number(hStr);
+  if (Number.isNaN(h)) return timeStr;
+
+  // keep in 24h for now; easier to read than nothing
+  return `${hStr.padStart(2, "0")}:${(mStr || "00").padStart(2, "0")}`;
+}
+
+function ordinal(n) {
+  const s = ["th","st","nd","rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+// Host/guest pre-event view while game is in progress
+function renderInProgressPreEvent(root, opts) {
+  const {
+    isCurrentHost,
+    hostName,
+    organiserName,
+    rsvp,
+    gameId,
+    hostIndex
+  } = opts;
+
+  const safeHost = esc(hostName || `Host ${hostIndex + 1}`);
+  const safeOrganiser = esc(organiserName || "the organiser");
+
+  const dateStr = rsvp && rsvp.date ? formatShortDate(rsvp.date) : "";
+  const timeStr = rsvp && rsvp.time ? formatShortTime(rsvp.time) : "";
+  const theme   = rsvp && rsvp.theme ? rsvp.theme : "";
+  const address = rsvp && rsvp.address ? rsvp.address : "";
+  const phone   = rsvp && rsvp.phone ? rsvp.phone : "";
+
+  let heading;
+  let bodyCopy;
+
+  if (isCurrentHost) {
+    heading = "YOUR NIGHT IS UP NEXT";
+    bodyCopy = `
+      Okay <strong>${safeHost}</strong>, things are getting exciting – your dinner is next in the line-up.
+      <br><br>
+      Confirm your start time and where you're hosting so your guests know where to go.
+      If you chose a theme earlier, we'll remind everyone about it too.
+    `;
+  } else {
+    heading = "NEXT DINNER IN THE QUEST";
+    bodyCopy = `
+      Get ready to enjoy <strong>${safeHost}</strong>’s culinary skills.
+      <br><br>
+      They’re hosting you on <strong>${dateStr || "a date to be confirmed"}</strong>
+      ${timeStr ? " at <strong>" + timeStr + "</strong>" : ""}.
+      ${address ? "<br><br><strong>Address:</strong> " + esc(address) : ""}
+      ${phone   ? "<br><strong>Contact:</strong> " + esc(phone)     : ""}
+      ${!timeStr ? "<br><br>If no start time is shown, please contact the host or organiser directly." : ""}
+    `;
+  }
+
+  root.innerHTML = `
+    <section class="menu-card">
+      <div class="menu-hero">
+        <img
+          class="menu-logo"
+          src="./src/skins/cooking/assets/cq-logo.png"
+          alt="Culinary Quest"
+        />
+      </div>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+
+      <section class="menu-section">
+        <div class="menu-course">ENTRÉE</div>
+        <h2 class="menu-h2">${heading}</h2>
+        <p class="menu-copy">
+          ${bodyCopy}
+        </p>
+      </section>
+
+      <div class="menu-divider" aria-hidden="true"></div>
+
+      <section class="menu-section">
+        <div class="menu-course">MAIN</div>
+        <h2 class="menu-h2">EVENT DETAILS</h2>
+
+        <p class="menu-copy">
+          ${
+            isCurrentHost
+              ? "Update your start time and address. These details are only shared with your fellow guests."
+              : "Here are the latest details for this dinner."
+          }
+        </p>
+
+        <label class="menu-copy" for="preEventDate" style="text-align:left;margin-top:8px;">
+          <strong>Hosting date</strong>
+        </label>
+        <input
+          id="preEventDate"
+          class="menu-input"
+          type="date"
+          value="${rsvp && rsvp.date ? esc(rsvp.date) : ""}"
+          ${isCurrentHost ? "" : "disabled"}
+        />
+
+        <label class="menu-copy" for="preEventTime" style="text-align:left;margin-top:10px;">
+          <strong>Start time</strong> <span class="muted">(optional)</span>
+        </label>
+        <input
+          id="preEventTime"
+          class="menu-input"
+          type="time"
+          value="${rsvp && rsvp.time ? esc(rsvp.time) : ""}"
+          ${isCurrentHost ? "" : "disabled"}
+        />
+
+        <label class="menu-copy" for="preEventAddress" style="text-align:left;margin-top:10px;">
+          <strong>Address</strong> <span class="muted">(only shared with guests)</span>
+        </label>
+        <textarea
+          id="preEventAddress"
+          class="menu-input"
+          rows="2"
+          ${isCurrentHost ? "" : "disabled"}
+        >${address ? esc(address) : ""}</textarea>
+
+        <label class="menu-copy" for="preEventPhone" style="text-align:left;margin-top:10px;">
+          <strong>Contact phone</strong> <span class="muted">(only shared with guests)</span>
+        </label>
+        <input
+          id="preEventPhone"
+          class="menu-input"
+          type="tel"
+          value="${phone ? esc(phone) : ""}"
+          ${isCurrentHost ? "" : "disabled"}
+        />
+
+        ${
+          theme
+            ? `<p class="menu-copy" style="margin-top:10px;">
+                 <strong>Theme:</strong> ${esc(theme)}
+               </p>`
+            : ""
+        }
+
+        ${
+          isCurrentHost
+            ? `
+        <div class="menu-actions">
+          <button class="btn btn-primary" id="preEventSave">
+            Save details
+          </button>
+        </div>
+        `
+            : ""
+        }
+      </section>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+
+      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+        InviteScreen – game in progress (pre-event view)
+      </p>
+    </section>
+  `;
+
+  if (!isCurrentHost) {
+    return; // guests just see the info
+  }
+
+  // Host can update details
+  const dateEl    = root.querySelector("#preEventDate");
+  const timeEl    = root.querySelector("#preEventTime");
+  const addrEl    = root.querySelector("#preEventAddress");
+  const phoneEl   = root.querySelector("#preEventPhone");
+  const saveBtn   = root.querySelector("#preEventSave");
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const newDate = dateEl && dateEl.value ? dateEl.value.trim() : rsvp.date || null;
+      const newTime = timeEl && timeEl.value ? timeEl.value.trim() : rsvp.time || null;
+      const newAddr = addrEl && addrEl.value ? addrEl.value.trim() : null;
+      const newPhone = phoneEl && phoneEl.value ? phoneEl.value.trim() : null;
+
+      if (!newDate) {
+        window.alert("Please make sure your hosting date is set.");
+        return;
+      }
+
+      await saveRsvpToFirestore(
+        gameId,
+        hostIndex,
+        rsvp.status || "accepted",
+        newDate,
+        newTime,
+        rsvp.theme || null,
+        newAddr,
+        newPhone
+      );
+
+      window.alert("Your event details have been saved.");
+    });
+  }
+}
+
+// After-event view (scoring gate)
+function renderInProgressPostEvent(root, opts) {
+  const {
+    isCurrentHost,
+    hostName,
+    organiserName
+  } = opts;
+
+  const safeHost = esc(hostName || "your host");
+  const safeOrganiser = esc(organiserName || "the organiser");
+
+  if (isCurrentHost) {
+    // Host: relax – no scoring for yourself
+    root.innerHTML = `
+      <section class="menu-card">
+        <div class="menu-hero">
+          <img
+            class="menu-logo"
+            src="./src/skins/cooking/assets/cq-logo.png"
+            alt="Culinary Quest"
+          />
+        </div>
+
+        <div class="menu-ornament" aria-hidden="true"></div>
+
+        <section class="menu-section">
+          <div class="menu-course">ENTRÉE</div>
+          <h2 class="menu-h2">SIT BACK &amp; RELAX</h2>
+          <p class="menu-copy">
+            You've done your best, <strong>${safeHost}</strong>.
+            As the host, you don't get to score your own dinner – now it's up to your guests.
+            <br><br>
+            Keep an eye out for the final leaderboard once everyone has hosted and scored.
+          </p>
+        </section>
+      </section>
+    `;
+  } else {
+    // Guest: scoring placeholder (we'll wire actual scoring later)
+    root.innerHTML = `
+      <section class="menu-card">
+        <div class="menu-hero">
+          <img
+            class="menu-logo"
+            src="./src/skins/cooking/assets/cq-logo.png"
+            alt="Culinary Quest"
+          />
+        </div>
+
+        <div class="menu-ornament" aria-hidden="true"></div>
+
+        <section class="menu-section">
+          <div class="menu-course">ENTRÉE</div>
+          <h2 class="menu-h2">TIME TO SCORE</h2>
+          <p class="menu-copy">
+            It's time to score <strong>${safeHost}</strong>'s dinner.
+          </p>
+        </section>
+
+        <div class="menu-divider" aria-hidden="true"></div>
+
+        <section class="menu-section">
+          <div class="menu-course">MAIN</div>
+          <h2 class="menu-h2">SCORING COMING SOON</h2>
+          <p class="menu-copy">
+            This version of the app doesn't include the scoring form yet,
+            but this is where you'll rate their night out of 10
+            (or by category, if your organiser chose that option).
+          </p>
+        </section>
+      </section>
+    `;
+  }
+}
 
     if (isOrganiser) {
       // Organiser never really "declines", so both paths go to tracker
@@ -583,18 +961,20 @@ export function render(root, model = {}, actions = {}) {
           ? game.setup.allowThemes
           : false;
 
+      // Build nights map from Firestore RSVPs
       const nights = {};
-
       if (game.rsvps && typeof game.rsvps === "object") {
         Object.keys(game.rsvps).forEach((k) => {
           const idx = Number(k);
           if (Number.isNaN(idx)) return;
           const r = game.rsvps[k] || {};
           nights[idx] = {
-            date:   r.date   || null,
-            time:   r.time   || null,
-            theme:  r.theme  || null,
-            status: r.status || null
+            date:    r.date    || null,
+            time:    r.time    || null,
+            theme:   r.theme   || null,
+            status:  r.status  || null,
+            address: r.address || null,
+            phone:   r.phone   || null
           };
         });
       }
@@ -603,25 +983,108 @@ export function render(root, model = {}, actions = {}) {
       const local = loadNights();
       if (local && local[hostIndex]) {
         const ln = local[hostIndex];
+        const existing = nights[hostIndex] || {};
         nights[hostIndex] = {
-          date:   ln.date   || nights[hostIndex]?.date   || null,
-          time:   ln.time   || nights[hostIndex]?.time   || null,
-          theme:  ln.theme  || nights[hostIndex]?.theme  || null,
-          status: ln.status || nights[hostIndex]?.status || null
+          date:    ln.date    || existing.date    || null,
+          time:    ln.time    || existing.time    || null,
+          theme:   ln.theme   || existing.theme   || null,
+          status:  ln.status  || existing.status  || null,
+          address: existing.address || null,
+          phone:   existing.phone   || null
         };
       }
 
-      renderInviteUI(root, {
-  isOrganiser: hostIndex === 0,   // organiser = host 0
-  hostIndex,
-  hostName,
-  organiserName,
-  allowThemes,
-  nights,
-  hosts,
-  gameId: game.gameId || urlGameId,
-  actions: {} // external hosts don’t need app actions
-});
+      const gameId = game.gameId || urlGameId;
+      const gameStatus = game.status || "links";
+      const nowMs = Date.now();
+
+      // Treat either 'inProgress' or 'started' as the active run phase
+      const isRunning =
+        gameStatus === "inProgress" || gameStatus === "started";
+
+      if (!isRunning) {
+        // Before games begin → keep existing RSVP behaviour
+        renderInviteUI(root, {
+          isOrganiser: false,
+          hostIndex,
+          hostName,
+          organiserName,
+          allowThemes,
+          nights,
+          hosts,
+          gameId,
+          actions: {}
+        });
+        return;
+      }
+
+      const timing = pickCurrentEvent(game, nowMs);
+      if (!timing || timing.allFinished) {
+        // All dinners finished – simple message for now
+        root.innerHTML = `
+          <section class="menu-card">
+            <div class="menu-hero">
+              <img
+                class="menu-logo"
+                src="./src/skins/cooking/assets/cq-logo.png"
+                alt="Culinary Quest"
+              />
+            </div>
+
+            <div class="menu-ornament" aria-hidden="true"></div>
+
+            <section class="menu-section">
+              <div class="menu-course">ENTRÉE</div>
+              <h2 class="menu-h2">THIS QUEST HAS FINISHED</h2>
+              <p class="menu-copy">
+                All dinners in this Culinary Quest have now taken place.
+                Scoring and results will appear once your organiser has wrapped things up.
+              </p>
+            </section>
+          </section>
+        `;
+        return;
+      }
+
+      const { currentHostIndex, startMs, endMs } = timing;
+      const rsvp = nights[currentHostIndex] || {};
+      const isCurrentHost = hostIndex === currentHostIndex;
+
+      if (!rsvp || !rsvp.date) {
+        // If somehow we have an in-progress game but no date, fall back to RSVP UI
+        renderInviteUI(root, {
+          isOrganiser: false,
+          hostIndex,
+          hostName,
+          organiserName,
+          allowThemes,
+          nights,
+          hosts,
+          gameId,
+          actions: {}
+        });
+        return;
+      }
+
+      if (nowMs <= endMs) {
+        // Before or during the event → pre-event view
+        renderInProgressPreEvent(root, {
+          isCurrentHost,
+          hostIndex,
+          hostName,
+          organiserName,
+          rsvp,
+          gameId
+        });
+      } else {
+        // After the 6-hour window → post-event view (host relax / guest scoring placeholder)
+        renderInProgressPostEvent(root, {
+          isCurrentHost,
+          hostIndex,
+          hostName,
+          organiserName
+        });
+      }
     } catch (err) {
       console.error("[InviteScreen] Failed to load game", err);
       renderError(root);
