@@ -1,137 +1,125 @@
 // path: src/engine/firestore.js
-// Centralised Firebase + Firestore helpers for Culinary Quest (V2)
-//
-// Exports:
-//   - getUid()                 → Promise<string|null>
-//   - createGame(gameId, data) → Promise<void>
-//   - readGame(gameId)         → Promise<object|null>
-//   - updateGame(gameId, patch)→ Promise<void>
-//
-// This module guarantees that:
-//   * Firebase is initialised once
-//   * Anonymous auth has finished (or failed harmlessly)
-//   * All calls share the same underlying connection
+// Central Firebase / Firestore helpers for Culinary Quest
 
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+// --- Firebase modular SDK imports (from CDN) -------------------
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getFirestore,
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getAuth,
-  onAuthStateChanged,
-  signInAnonymously,
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+// --- YOUR Firebase config --------------------------------------
+// ⚠️ IMPORTANT: paste your own config values from
+// Firebase console → Project settings → "Your apps" → Web app → CDN.
+const firebaseConfig = {
+    apiKey: "AIzaSyDfwN_5WYj9AKFqDWkEEIrUIwjL8XaZ7oQ",
+    authDomain: "culinary-quest-f2777.firebaseapp.com",
+    databaseURL: "https://culinary-quest-f2777-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "culinary-quest-f2777",
+    storageBucket: "culinary-quest-f2777.firebasestorage.app",
+    messagingSenderId: "214188908997",
+    appId: "1:214188908997:web:519064cad50efe615e2bac",
+    measurementId: "G-EMF9YGM2LT"
+  };
+
+// --- One-time initialisation + anonymous sign-in ----------------
+
+let firebaseReadyPromise = null;
 
 /**
- * IMPORTANT:
- * Use the SAME config you’re already using for Firestore.
- * If your current firestore.js has a firebaseConfig object, copy it here.
+ * Ensure Firebase app, Firestore and anonymous auth are ready.
+ * All public helpers below await this first.
  */
-const firebaseConfig = {
-  apiKey: "PASTE_YOUR",
-  authDomain: "EXISTING_FIREBASE",
-  projectId: "CONFIG_HERE",
-  storageBucket: "…",
-  messagingSenderId: "…",
-  appId: "…",
-};
+async function ensureFirebase() {
+  if (!firebaseReadyPromise) {
+    firebaseReadyPromise = (async () => {
+      // Initialise app + services
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const auth = getAuth(app);
 
-// ---------------------------------------------------------------------------
-// Single, shared Firebase initialisation + anonymous auth
-// ---------------------------------------------------------------------------
-
-let _initPromise = null;
-
-function initFirebaseOnce() {
-  if (_initPromise) return _initPromise;
-
-  _initPromise = new Promise((resolve, reject) => {
-    try {
-      // Use the global firebase compat SDK that you already load in index.html
-      if (!firebase.apps || firebase.apps.length === 0) {
-        firebase.initializeApp(firebaseConfig);
+      // Make sure we have an authenticated user (for rules that require auth)
+      let user;
+      try {
+        const cred = await signInAnonymously(auth);
+        user = cred.user;
+      } catch (err) {
+        // If we’re already signed in, reuse that; otherwise bubble error up
+        if (auth.currentUser) {
+          user = auth.currentUser;
+        } else {
+          console.error("[firestore] Anonymous sign-in failed", err);
+          throw err;
+        }
       }
 
-      const auth = firebase.auth();
-      const db   = firebase.firestore();
+      const uid = user ? user.uid : null;
 
-      // Keep it simple – no persistence needed for anon users
-      if (auth && auth.setPersistence) {
-        auth.setPersistence(firebase.auth.Auth.Persistence.NONE).catch(() => {});
-      }
-
-      // Make sure we always have *some* user (or null if it fails)
-      auth
-        .signInAnonymously()
-        .then((cred) => {
-          const uid = cred && cred.user ? cred.user.uid : null;
-          resolve({ db, auth, uid });
-        })
-        .catch((err) => {
-          console.warn("[firestore] anonymous sign-in failed", err);
-          resolve({ db, auth, uid: null });
-        });
-    } catch (err) {
-      console.error("[firestore] initFirebaseOnce threw", err);
-      reject(err);
-    }
-  });
-
-  return _initPromise;
-}
-
-// ---------------------------------------------------------------------------
-// Public helpers used by the app
-// ---------------------------------------------------------------------------
-
-export async function getUid() {
-  const { uid } = await initFirebaseOnce();
-  return uid || null;
-}
-
-// Create or overwrite a game document
-export async function createGame(gameId, data) {
-  if (!gameId) {
-    throw new Error("createGame: gameId is required");
+      return { app, db, auth, uid };
+    })();
   }
-  const { db } = await initFirebaseOnce();
 
-  const ref = db.collection("games").doc(gameId);
-  await ref.set(data, { merge: true });
-
-  return gameId;
+  return firebaseReadyPromise;
 }
 
-// Read a game document (or null if it doesn't exist)
+// --- Public helpers used by your screens ------------------------
+
+/**
+ * Return the current anonymous uid (or null on failure).
+ */
+export async function getUid() {
+  const { uid } = await ensureFirebase();
+  return uid;
+}
+
+/**
+ * Create or overwrite a game document.
+ * `data` is a plain object; we always merge so you can call it again safely.
+ */
+export async function createGame(gameId, data) {
+  if (!gameId || typeof gameId !== "string") {
+    throw new Error("createGame: invalid gameId");
+  }
+  const { db } = await ensureFirebase();
+  const ref = doc(db, "games", gameId.trim());
+
+  await setDoc(ref, data || {}, { merge: true });
+}
+
+/**
+ * Read a game document. Returns the plain data object, or null if it doesn’t exist.
+ */
 export async function readGame(gameId) {
-  if (!gameId) return null;
-  const { db } = await initFirebaseOnce();
+  if (!gameId || typeof gameId !== "string") {
+    throw new Error("readGame: invalid gameId");
+  }
+  const { db } = await ensureFirebase();
+  const ref = doc(db, "games", gameId.trim());
+  const snap = await getDoc(ref);
 
-  const ref  = db.collection("games").doc(gameId);
-  const snap = await ref.get();
-
-  if (!snap.exists) return null;
-
-  const doc = snap.data() || {};
-  if (!doc.gameId) doc.gameId = gameId;
-  return doc;
+  if (!snap.exists()) return null;
+  return snap.data();
 }
 
-// Apply a shallow patch to a game document
+/**
+ * Apply a partial update to an existing game document.
+ */
 export async function updateGame(gameId, patch) {
-  if (!gameId) {
-    throw new Error("updateGame: gameId is required");
+  if (!gameId || typeof gameId !== "string") {
+    throw new Error("updateGame: invalid gameId");
   }
   if (!patch || typeof patch !== "object") {
     return;
   }
 
-  const { db } = await initFirebaseOnce();
-  const ref = db.collection("games").doc(gameId);
-
-  await ref.set(patch, { merge: true });
+  const { db } = await ensureFirebase();
+  const ref = doc(db, "games", gameId.trim());
+  await updateDoc(ref, patch);
 }
