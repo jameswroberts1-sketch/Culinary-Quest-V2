@@ -1,27 +1,14 @@
 // path: src/skins/cooking/screens/InviteScreen.js
-// Per-host invite screen – used by organiser and all other hosts.
-// Now pulls organiser/host names + allowThemes from Firestore when opened via invite link.
+// Per-host invite screen – organiser AND guests, with Firestore-backed names & RSVPs
 
 import { readGame, updateGame } from "../../../engine/firestore.js";
 
-const HOSTS_STORAGE_KEY  = "cq_hosts_v1";
-const NIGHTS_STORAGE_KEY = "cq_host_nights_v1";
-const SETUP_STORAGE_KEY  = "cq_setup_v2"; // fallback for allowThemes
+const HOSTS_STORAGE_KEY   = "cq_hosts_v1";
+const NIGHTS_STORAGE_KEY  = "cq_host_nights_v1";
+const SETUP_STORAGE_KEY   = "cq_setup_v2";
+const CURRENT_GAME_KEY    = "cq_current_game_id_v1";
 
-// --- helpers --------------------------------------------------
-
-function loadAllowThemesFallback() {
-  // legacy fallback: read from local setup cache if model.setup is missing
-  try {
-    const raw = window.localStorage.getItem(SETUP_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.allowThemes === "boolean") {
-      return parsed.allowThemes;
-    }
-  } catch (_) {}
-  return false;
-}
+// ---------- small helpers ----------
 
 function esc(str) {
   if (str == null) return "";
@@ -32,8 +19,8 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-// Load hosts in the same shape as other screens
-function hydrateHosts(model = {}) {
+// Local cache of host names (from HostsScreen)
+function hydrateHostsFromLocal(model = {}) {
   let hosts = [];
 
   if (Array.isArray(model.hosts) && model.hosts.length) {
@@ -42,7 +29,6 @@ function hydrateHosts(model = {}) {
     }));
   }
 
-  // Merge in local cache from HostsScreen (non-destructive)
   try {
     const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
     if (raw) {
@@ -62,7 +48,7 @@ function hydrateHosts(model = {}) {
   return hosts;
 }
 
-// Map hostIndex -> { date, time, theme, status }
+// hostIndex -> { date, time, theme, status }
 function loadNights() {
   try {
     const raw = window.localStorage.getItem(NIGHTS_STORAGE_KEY);
@@ -80,180 +66,38 @@ function saveNights(nights) {
   } catch (_) {}
 }
 
-// --- main render ----------------------------------------------
-
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  // Always start at the top of the page
+function loadAllowThemesFallback() {
   try {
-    const scroller =
-      document.scrollingElement ||
-      document.documentElement ||
-      document.body;
-    if (scroller && typeof scroller.scrollTo === "function") {
-      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    } else {
-      scroller.scrollTop = 0;
-      scroller.scrollLeft = 0;
+    const raw = window.localStorage.getItem(SETUP_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.allowThemes === "boolean") {
+      return parsed.allowThemes;
     }
   } catch (_) {}
+  return false;
+}
 
-  const params        = new URLSearchParams(window.location.search);
-  const gameIdFromUrl = params.get("game");
-  const inviteToken   = params.get("invite");
+// ---------- shared form renderer ----------
 
-  // --- If this is an external invite link, hydrate from Firestore first ----
-  if (gameIdFromUrl && inviteToken && !model._inviteHydrated) {
-    // Minimal loading card while we fetch the game
-    root.innerHTML = `
-      <section class="menu-card">
-        <div class="menu-hero">
-          <img
-            class="menu-logo"
-            src="./src/skins/cooking/assets/cq-logo.png"
-            alt="Culinary Quest"
-          />
-        </div>
-        <div class="menu-ornament" aria-hidden="true"></div>
-        <section class="menu-section">
-          <div class="menu-course">ENTRÉE</div>
-          <h2 class="menu-h2">Loading your invite…</h2>
-          <p class="menu-copy">
-            Please wait a moment while we fetch your invite details.
-          </p>
-        </section>
-      </section>
-    `;
+function renderInviteForm(root, model, actions, opts) {
+  const {
+    hostIndex,
+    hostName,
+    organiserName,
+    allowThemes,
+    gameId,
+    isOrganiser,
+    hostsForDates
+  } = opts;
 
-    (async () => {
-      try {
-        const game = await readGame(gameIdFromUrl);
-        if (!game) {
-          root.innerHTML = `
-            <section class="menu-card">
-              <div class="menu-hero">
-                <img
-                  class="menu-logo"
-                  src="./src/skins/cooking/assets/cq-logo.png"
-                  alt="Culinary Quest"
-                />
-              </div>
-              <div class="menu-ornament" aria-hidden="true"></div>
-              <section class="menu-section">
-                <div class="menu-course">ENTRÉE</div>
-                <h2 class="menu-h2">Invite not found</h2>
-                <p class="menu-copy">
-                  We couldn't find the game for this invite link. It may have
-                  been deleted or the link could be incorrect.
-                </p>
-              </section>
-            </section>
-          `;
-          return;
-        }
+  const safeHost       = esc(hostName || `Host ${hostIndex + 1}`);
+  const safeOrganiser  = esc(organiserName || "the organiser");
+  const hostsArr       = Array.isArray(hostsForDates) ? hostsForDates : [];
+  const nights         = loadNights();
+  const myNight        = nights[hostIndex] || {};
 
-        const hostsFromGame = Array.isArray(game.hosts) ? game.hosts : [];
-        const idx = hostsFromGame.findIndex(
-          (h) => h && h.token === inviteToken
-        );
-        const safeIdx = idx >= 0 ? idx : 0;
-
-        const mergedModel = {
-          ...model,
-          _inviteHydrated: true,
-          gameId: gameIdFromUrl,
-          organiserName:
-            game.organiserName ||
-            (game.meta && game.meta.organiserName) ||
-            "the organiser",
-          hosts: hostsFromGame.map((h) => ({
-            name: h && h.name ? h.name : ""
-          })),
-          setup: game.setup || model.setup || {},
-          activeHostIndex: safeIdx
-        };
-
-        // Re-call render with the hydrated model
-        render(root, mergedModel, actions);
-      } catch (err) {
-        console.error("[InviteScreen] failed to load game from Firestore", err);
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img
-                class="menu-logo"
-                src="./src/skins/cooking/assets/cq-logo.png"
-                alt="Culinary Quest"
-              />
-            </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
-            <section class="menu-section">
-              <div class="menu-course">ENTRÉE</div>
-              <h2 class="menu-h2">Something went wrong</h2>
-              <p class="menu-copy">
-                We couldn't load your invite right now. Please try opening
-                the link again in a moment.
-              </p>
-            </section>
-          </section>
-        `;
-      }
-    })();
-
-    return; // stop here – the async block will re-render
-  }
-
-  // --- From here on we either have organiser flow or a hydrated invite ----
-
-  const hosts = hydrateHosts(model);
-
-  // Game id: prefer model (organiser flow), then URL (hydrated link)
-  const gameId =
-    (model && typeof model.gameId === "string" && model.gameId) ||
-    gameIdFromUrl ||
-    null;
-
-  // allowThemes from Firestore (via model.setup) or local fallback
-  const allowThemes =
-    model &&
-    model.setup &&
-    typeof model.setup.allowThemes === "boolean"
-      ? model.setup.allowThemes
-      : loadAllowThemesFallback();
-
-  // Which host index is this?
-  let hostIndex = 0;
-  if (Number.isInteger(model.activeHostIndex)) {
-    hostIndex = model.activeHostIndex;
-  }
-  if (hostIndex < 0 || hostIndex >= hosts.length) {
-    hostIndex = 0;
-  }
-
-  const organiserNameRaw =
-    (model.organiserName && String(model.organiserName)) ||
-    (hosts[0] && hosts[0].name) ||
-    "the organiser";
-
-  const hostNameRaw =
-    (hosts[hostIndex] && hosts[hostIndex].name) ||
-    `Host ${hostIndex + 1}`;
-
-  const organiserName = organiserNameRaw.trim() || "the organiser";
-  const hostName      = hostNameRaw.trim()      || `Host ${hostIndex + 1}`;
-
-  const safeOrganiser = esc(organiserName);
-  const safeHost      = esc(hostName);
-
-  // Organiser flow only happens inside the app (no ?game= in URL)
-  const isOrganiser = !gameIdFromUrl && hostIndex === 0;
-
-  // Nights data (for date uniqueness + prefill)
-  const nights        = loadNights();
-  const myNight       = nights[hostIndex] || {};
+  // Who else has already picked a date on THIS device?
   const takenByOthers = Object.entries(nights).filter(
     ([idx, night]) =>
       Number(idx) !== hostIndex &&
@@ -262,48 +106,26 @@ export function render(root, model = {}, actions = {}) {
       night.date
   );
 
-  // Fire-and-forget helper to push RSVP to Firestore
-  async function syncRsvpToFirestore(status, date, time, theme) {
-    if (!gameId) return; // organiser hasn’t created a cloud game yet
-
-    try {
-      const nowIso = new Date().toISOString();
-
-      await updateGame(gameId, {
-        [`rsvps.${hostIndex}`]: {
-          hostIndex,
-          status,
-          date: date || null,
-          time: time || null,
-          theme: theme || null,
-          updatedAt: nowIso
-        }
-      });
-    } catch (err) {
-      console.warn("[InviteScreen] Failed to sync RSVP to Firestore", err);
-    }
-  }
-
-  // Copy variants ------------------------------------------------
-  let entreeTitle, entreeBodyHTML;
+  // Copy variants
+  let entreeTitle = isOrganiser ? "YOUR NIGHT" : "YOUR INVITE";
+  let entreeBodyHTML;
 
   if (isOrganiser) {
-    entreeTitle = "YOUR NIGHT";
-
+    // Organiser – always “save & view RSVPs”
     if (allowThemes) {
       entreeBodyHTML = `
-        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on,
-        set a start time and let everyone know what kind of themed night you're planning.
+        Okay <strong>${safeHost}</strong>, here's where you choose which date you
+        want to host on, set a start time and let everyone know what kind of
+        themed night you're planning.
       `;
     } else {
       entreeBodyHTML = `
-        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on
-        and set a start time for your dinner.
+        Okay <strong>${safeHost}</strong>, here's where you choose which date you
+        want to host on and set a start time for your dinner.
       `;
     }
   } else {
-    entreeTitle = "YOUR INVITE";
-
+    // Guest via invite link
     if (allowThemes) {
       entreeBodyHTML = `
         Welcome <strong>${safeHost}</strong> – <strong>${safeOrganiser}</strong> has invited you to
@@ -348,7 +170,7 @@ export function render(root, model = {}, actions = {}) {
       </div>
     `;
 
-  // HTML ---------------------------------------------------------
+  // Main screen HTML
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -399,7 +221,7 @@ export function render(root, model = {}, actions = {}) {
           type="time"
           value="${myNight.time ? esc(myNight.time) : ""}"
         />
-        
+
         ${
           allowThemes
             ? `
@@ -417,20 +239,19 @@ export function render(root, model = {}, actions = {}) {
         `
             : ""
         }
-        
+
         ${
           takenByOthers.length
             ? `<p class="menu-copy" style="margin-top:10px;font-size:13px;">
                  <strong>Already booked:</strong><br />
                  ${takenByOthers
                    .map(([idx, night]) => {
-                     const otherIdx = Number(idx);
-                     const otherName =
-                       hosts[otherIdx] && hosts[otherIdx].name
-                         ? esc(hosts[otherIdx].name)
+                     const i = Number(idx);
+                     const otherHost =
+                       hostsArr[i] && hostsArr[i].name
+                         ? esc(hostsArr[i].name)
                          : "Another host";
-                     const niceDate = night.date;
-                     return `• ${niceDate} — ${otherName}`;
+                     return `• ${night.date} — ${otherHost}`;
                    })
                    .join("<br />")}
                </p>`
@@ -448,14 +269,14 @@ export function render(root, model = {}, actions = {}) {
     </section>
   `;
 
-  const dateInput  = root.querySelector("#inviteDate");
-  const timeInput  = root.querySelector("#inviteTime");
-  const saveBtn    = root.querySelector("#inviteSave");
-  const acceptBtn  = root.querySelector("#inviteAccept");
-  const declineBtn = root.querySelector("#inviteDecline");
-  const themeInput = root.querySelector("#inviteTheme");
+  const dateInput   = root.querySelector("#inviteDate");
+  const timeInput   = root.querySelector("#inviteTime");
+  const themeInput  = root.querySelector("#inviteTheme");
+  const saveBtn     = root.querySelector("#inviteSave");
+  const acceptBtn   = root.querySelector("#inviteAccept");
+  const declineBtn  = root.querySelector("#inviteDecline");
 
-  // --- local helpers inside render ------------------------------
+  // --- helpers inside the form ---
 
   function enforceDateUnique(chosenDate) {
     if (!chosenDate) return null;
@@ -474,19 +295,39 @@ export function render(root, model = {}, actions = {}) {
       const clash = enforceDateUnique(val);
       if (clash) {
         const [clashIdx, clashNight] = clash;
-        const clashHost =
-          hosts[Number(clashIdx)] && hosts[Number(clashIdx)].name
-            ? hosts[Number(clashIdx)].name
+        const other =
+          hostsArr[Number(clashIdx)] && hostsArr[Number(clashIdx)].name
+            ? hostsArr[Number(clashIdx)].name
             : "another host";
 
         window.alert(
-          `${clashNight.date} is already booked by ${clashHost}. ` +
+          `${clashNight.date} is already booked by ${other}. ` +
             "Please choose a different date so each dinner has its own night."
         );
 
         dateInput.value = "";
       }
     });
+  }
+
+  async function syncRsvpToFirestore(status, date, time, theme) {
+    if (!gameId) return; // organiser didn’t manage to create a cloud game yet
+
+    try {
+      const nowIso = new Date().toISOString();
+      await updateGame(gameId, {
+        [`rsvps.${hostIndex}`]: {
+          hostIndex,
+          status,
+          date: date || null,
+          time: time || null,
+          theme: theme || null,
+          updatedAt: nowIso
+        }
+      });
+    } catch (err) {
+      console.warn("[InviteScreen] Failed to sync RSVP to Firestore", err);
+    }
   }
 
   function renderDone(status) {
@@ -537,7 +378,7 @@ export function render(root, model = {}, actions = {}) {
     `;
   }
 
-  function handleAccept() {
+  async function handleAccept() {
     const dateVal = dateInput && dateInput.value ? dateInput.value.trim() : "";
     const timeVal = timeInput && timeInput.value ? timeInput.value.trim() : "";
     const themeVal =
@@ -573,7 +414,7 @@ export function render(root, model = {}, actions = {}) {
       }
     } catch (_) {}
 
-    // Fire-and-forget sync to Firestore
+    // Fire-and-forget cloud sync
     syncRsvpToFirestore("accepted", dateVal, timeVal || null, themeVal || null);
 
     if (isOrganiser) {
@@ -585,7 +426,7 @@ export function render(root, model = {}, actions = {}) {
     }
   }
 
-  function handleDecline() {
+  async function handleDecline() {
     nights[hostIndex] = {
       date: null,
       time: null,
@@ -600,15 +441,179 @@ export function render(root, model = {}, actions = {}) {
       }
     } catch (_) {}
 
-    // Fire-and-forget sync to Firestore
     syncRsvpToFirestore("declined", null, null, null);
-
     renderDone("declined");
   }
-
-  // --- wire up buttons -----------------------------------------
 
   if (saveBtn)    saveBtn.addEventListener("click", handleAccept);
   if (acceptBtn)  acceptBtn.addEventListener("click", handleAccept);
   if (declineBtn) declineBtn.addEventListener("click", handleDecline);
+}
+
+// ---------- entry point ----------
+
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
+  // Always start top-of-page
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    if (scroller && typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } else {
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    }
+  } catch (_) {}
+
+  const params      = new URLSearchParams(window.location.search);
+  const inviteToken = params.get("invite");
+  const urlGameId   = params.get("game");
+
+  let gameId =
+    (urlGameId && urlGameId.trim()) ||
+    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+    null;
+
+  if (!gameId) {
+    try {
+      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+      if (stored && stored.trim()) {
+        gameId = stored.trim();
+      }
+    } catch (_) {}
+  }
+
+  // GUEST FLOW – opened via invite link: ?state=invite&invite=XXX&game=YYY
+  if (inviteToken && gameId) {
+    root.innerHTML = `
+      <section class="menu-card">
+        <div class="menu-hero">
+          <img
+            class="menu-logo"
+            src="./src/skins/cooking/assets/cq-logo.png"
+            alt="Culinary Quest"
+          />
+        </div>
+        <div class="menu-ornament" aria-hidden="true"></div>
+        <section class="menu-section">
+          <div class="menu-course">ENTRÉE</div>
+          <h2 class="menu-h2">Loading your invite…</h2>
+          <p class="menu-copy">
+            Just a moment while we fetch your details.
+          </p>
+        </section>
+      </section>
+    `;
+
+    (async () => {
+      try {
+        const game = await readGame(gameId);
+        if (!game || !Array.isArray(game.hosts)) {
+          throw new Error("No such game");
+        }
+
+        const hosts = game.hosts;
+        const host = hosts.find((h) => h && h.token === inviteToken);
+        if (!host) {
+          throw new Error("Invite token not found");
+        }
+
+        const hostIndex =
+          typeof host.index === "number"
+            ? host.index
+            : hosts.indexOf(host);
+
+        const organiserName =
+          (game.organiserName && String(game.organiserName).trim()) ||
+          (hosts[0] && hosts[0].name) ||
+          "the organiser";
+
+        const hostName =
+          (host.name && String(host.name).trim()) ||
+          `Host ${hostIndex + 1}`;
+
+        const allowThemes =
+          !!(game.setup && typeof game.setup.allowThemes === "boolean"
+            ? game.setup.allowThemes
+            : loadAllowThemesFallback());
+
+        renderInviteForm(root, model, actions, {
+          hostIndex,
+          hostName,
+          organiserName,
+          allowThemes,
+          gameId,
+          isOrganiser: false,
+          hostsForDates: hosts
+        });
+      } catch (err) {
+        console.error("[InviteScreen] Failed to load invite from Firestore", err);
+        root.innerHTML = `
+          <section class="menu-card">
+            <div class="menu-hero">
+              <img
+                class="menu-logo"
+                src="./src/skins/cooking/assets/cq-logo.png"
+                alt="Culinary Quest"
+              />
+            </div>
+            <div class="menu-ornament" aria-hidden="true"></div>
+            <section class="menu-section">
+              <div class="menu-course">ENTRÉE</div>
+              <h2 class="menu-h2">Something went wrong</h2>
+              <p class="menu-copy">
+                We couldn't load your invite right now. Please try opening the link again
+                in a moment.
+              </p>
+            </section>
+          </section>
+        `;
+      }
+    })();
+
+    return;
+  }
+
+  // ORGANISER FLOW – inside the app (no invite token)
+  const localHosts = hydrateHostsFromLocal(model);
+
+  let hostIndex = 0;
+  if (Number.isInteger(model.activeHostIndex)) {
+    hostIndex = model.activeHostIndex;
+  }
+  if (hostIndex < 0 || hostIndex >= localHosts.length) {
+    hostIndex = 0;
+  }
+
+  const organiserName =
+    (model.organiserName && String(model.organiserName).trim()) ||
+    (localHosts[0] && localHosts[0].name) ||
+    "the organiser";
+
+  const hostName =
+    (localHosts[hostIndex] && localHosts[hostIndex].name) ||
+    (hostIndex === 0 ? organiserName : `Host ${hostIndex + 1}`);
+
+  const allowThemes =
+    !!(model &&
+      model.setup &&
+      typeof model.setup.allowThemes === "boolean"
+      ? model.setup.allowThemes
+      : loadAllowThemesFallback());
+
+  renderInviteForm(root, model, actions, {
+    hostIndex,
+    hostName,
+    organiserName,
+    allowThemes,
+    gameId,
+    isOrganiser: true,
+    hostsForDates: localHosts
+  });
 }
