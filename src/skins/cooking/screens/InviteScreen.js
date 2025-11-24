@@ -293,7 +293,25 @@ export function render(root, model = {}, actions = {}) {
           type="time"
           value="${myNight.time ? esc(myNight.time) : ""}"
         />
-
+        
+        ${
+          allowThemes
+            ? `
+        <label class="menu-copy" for="inviteTheme" style="text-align:left;margin-top:10px;">
+          <strong>Theme for your night</strong> <span class="muted">(optional)</span>
+        </label>
+        <input
+          id="inviteTheme"
+          class="menu-input"
+          type="text"
+          maxlength="80"
+          placeholder="e.g. Mexican Fiesta, Tapas & Tinto"
+          value="${myNight.theme ? esc(myNight.theme) : ""}"
+        />
+        `
+            : ""
+        }
+        
         ${
   takenByOthers.length
     ? `<p class="menu-copy" style="margin-top:10px;font-size:13px;">
@@ -329,6 +347,7 @@ export function render(root, model = {}, actions = {}) {
   const saveBtn     = root.querySelector("#inviteSave");
   const acceptBtn   = root.querySelector("#inviteAccept");
   const declineBtn  = root.querySelector("#inviteDecline");
+  const themeInput  = root.querySelector("#inviteTheme");
 
   // --- local helpers inside render ------------------------------
 
@@ -363,6 +382,28 @@ if (dateInput) {
         dateInput.value = "";
       }
     });
+  }
+  
+    async function syncRsvpToFirestore(status, date, time, theme) {
+    if (!gameId) return; // organiser hasn’t created a cloud game yet
+
+    try {
+      const nowIso = new Date().toISOString();
+
+      await updateGame(gameId, {
+        [`rsvps.${hostIndex}`]: {
+          hostIndex,
+          status,
+          date: date || null,
+          time: time || null,
+          theme: theme || null,
+          updatedAt: nowIso
+        }
+      });
+    } catch (err) {
+      // Don’t break the UI if Firestore fails – just log it.
+      console.warn("[InviteScreen] Failed to sync RSVP to Firestore", err);
+    }
   }
   
   function renderDone(status) {
@@ -414,9 +455,11 @@ if (dateInput) {
     `;
   }
 
-  function handleAccept() {
+    function handleAccept() {
     const dateVal = dateInput && dateInput.value ? dateInput.value.trim() : "";
     const timeVal = timeInput && timeInput.value ? timeInput.value.trim() : "";
+    const themeVal =
+      themeInput && themeInput.value ? themeInput.value.trim() : "";
 
     if (!dateVal) {
       window.alert("Please choose a hosting date before continuing.");
@@ -437,46 +480,46 @@ if (dateInput) {
     nights[hostIndex] = {
       date: dateVal,
       time: timeVal || null,
+      theme: themeVal || null,
       status: "accepted"
     };
     saveNights(nights);
-    
-    // Also push this RSVP to Firestore, if a cloud game is active
-    syncRsvpToCloud("accepted", dateVal, timeVal || null);
 
-    // Let the rest of the app know (safe even if nothing listens)
     try {
       if (actions && typeof actions.patch === "function") {
         actions.patch({ hostNights: nights });
       }
     } catch (_) {}
 
+    // Fire-and-forget sync to Firestore (if we have a gameId)
+    syncRsvpToFirestore("accepted", dateVal, timeVal || null, themeVal || null);
+
     if (isOrganiser) {
-      // Organiser goes to the RSVP tracker
       try {
-        actions.setState && actions.setState("organiserHome");
+        actions.setState && actions.setState("rsvpTracker");
       } catch (_) {}
     } else {
       renderDone("accepted");
     }
   }
-
-  function handleDecline() {
+  
+    function handleDecline() {
     nights[hostIndex] = {
       date: null,
       time: null,
+      theme: null,
       status: "declined"
     };
     saveNights(nights);
-
-    // Push decline to Firestore as well
-    syncRsvpToCloud("declined", null, null);
 
     try {
       if (actions && typeof actions.patch === "function") {
         actions.patch({ hostNights: nights });
       }
     } catch (_) {}
+
+    // Fire-and-forget sync to Firestore
+    syncRsvpToFirestore("declined", null, null, null);
 
     renderDone("declined");
   }
