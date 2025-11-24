@@ -300,13 +300,6 @@ export function render(root, model = {}, actions = {}) {
   // Keep tokens stable locally + in model
   persistTokens(tokens, actions);
 
-  // Fire-and-forget game creation in Firestore
-  ensureFirestoreGame(model, setup, hosts, tokens).then((gameId) => {
-    if (gameId && actions && typeof actions.patch === "function") {
-      actions.patch({ gameId });
-    }
-  });
-
   // ---- HTML skeleton ------------------------------------------------
 
   root.innerHTML = `
@@ -350,10 +343,16 @@ export function render(root, model = {}, actions = {}) {
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <div class="menu-actions">
+            <div class="menu-actions">
         <button class="btn btn-secondary" id="linksBack">Back</button>
         <button class="btn btn-primary" id="linksNext">Continue</button>
       </div>
+
+      <!-- tiny Firestore debug line -->
+      <p id="fsStatus"
+         class="muted"
+         style="text-align:center;margin-top:4px;font-size:10px;">
+      </p>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
         LinksScreen – per-host opaque invite links
@@ -364,7 +363,32 @@ export function render(root, model = {}, actions = {}) {
   const listEl  = root.querySelector("#linksList");
   const backBtn = root.querySelector("#linksBack");
   const nextBtn = root.querySelector("#linksNext");
+  const statusEl = root.querySelector("#fsStatus");
 
+  // Fire-and-forget game creation in Firestore, with on-screen status
+  if (statusEl) {
+    statusEl.textContent = "Preparing cloud game…";
+  }
+
+  ensureFirestoreGame(model, setup, hosts, tokens)
+    .then((gameId) => {
+      if (statusEl) {
+        if (gameId) {
+          statusEl.textContent = `Cloud game ready: ${gameId}`;
+        } else {
+          statusEl.textContent = "Cloud game not created.";
+        }
+      }
+      if (gameId && actions && typeof actions.patch === "function") {
+        actions.patch({ gameId });
+      }
+    })
+    .catch((err) => {
+      if (statusEl) {
+        statusEl.textContent =
+          "Cloud error: " + (err && err.message ? err.message : String(err));
+      }
+    });
   if (!listEl) return;
 
   // One row per host
