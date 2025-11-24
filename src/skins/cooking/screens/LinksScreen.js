@@ -260,14 +260,18 @@ async function ensureFirestoreGame(model, setup, hosts, tokens) {
 }
 
 // Build the invite URL for a given game + token
-function buildInviteUrl(gameId, token) {
+function buildInviteUrl(token, gameId) {
   const loc = window.location;
-  const base = `${loc.origin}${loc.pathname}`; // ignore any existing query
+  const base = `${loc.origin}${loc.pathname}`;
 
   const params = new URLSearchParams();
-  params.set("state", "invite");  // tell the app which screen to open
-  params.set("game", gameId);     // which Firestore game to load
-  params.set("invite", token);    // which host token this link belongs to
+  params.set("state", "invite");
+  params.set("invite", token);
+
+  // NEW: include the Firestore gameId so InviteScreen can load names + settings
+  if (gameId && typeof gameId === "string" && gameId.trim()) {
+    params.set("game", gameId.trim());
+  }
 
   return `${base}?${params.toString()}`;
 }
