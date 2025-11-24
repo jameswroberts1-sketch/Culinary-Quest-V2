@@ -1,6 +1,8 @@
 // path: src/skins/cooking/screens/InviteScreen.js
 // Per-host invite screen – used by organiser and all other hosts
 
+import { updateGame } from "../../../engine/firestore.js";
+
 const HOSTS_STORAGE_KEY   = "cq_hosts_v1";
 const NIGHTS_STORAGE_KEY  = "cq_host_nights_v1";
 const SETUP_STORAGE_KEY = "cq_setup_v2";
@@ -151,7 +153,31 @@ export function render(root, model = {}, actions = {}) {
       typeof night.date === "string" &&
       night.date
   );
+  // Game id for cloud sync (if present in model)
+  const gameId = model && typeof model.gameId === "string" ? model.gameId : null;
 
+  // Fire-and-forget helper to push RSVP to Firestore
+  function syncRsvpToCloud(status, date, time) {
+    if (!gameId) return;               // no cloud game, nothing to do
+
+    try {
+      const patch = {};
+      // rsvps.<hostIndex> = { status, date, time }
+      patch[`rsvps.${hostIndex}`] = {
+        status: status || null,
+        date:   date   || null,
+        time:   time   || null
+      };
+
+      // Don't block the UI – just log if it fails
+      updateGame(gameId, patch).catch((err) => {
+        console.error("[InviteScreen] Firestore RSVP update failed", err);
+      });
+    } catch (err) {
+      console.error("[InviteScreen] syncRsvpToCloud threw", err);
+    }
+  }
+  
     // Copy variants ------------------------------------------------
   let entreeTitle, entreeBodyHTML;
 
@@ -414,6 +440,9 @@ if (dateInput) {
       status: "accepted"
     };
     saveNights(nights);
+    
+    // Also push this RSVP to Firestore, if a cloud game is active
+    syncRsvpToCloud("accepted", dateVal, timeVal || null);
 
     // Let the rest of the app know (safe even if nothing listens)
     try {
@@ -439,6 +468,9 @@ if (dateInput) {
       status: "declined"
     };
     saveNights(nights);
+
+    // Push decline to Firestore as well
+    syncRsvpToCloud("declined", null, null);
 
     try {
       if (actions && typeof actions.patch === "function") {
