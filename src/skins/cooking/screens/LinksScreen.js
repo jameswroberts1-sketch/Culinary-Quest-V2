@@ -422,69 +422,51 @@ export function render(root, model = {}, actions = {}) {
   listEl.innerHTML = rows.join("");
 
 // Copy buttons
-listEl.addEventListener("click", async (ev) => {
-  const btn = ev.target.closest(".host-link-copy");
-  if (!btn) return;
+  listEl.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest(".host-link-copy");
+    if (!btn) return;
 
-  const idx = Number(btn.dataset.hostIndex);
-  if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
+    const idx = Number(btn.dataset.hostIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
 
-  const token = tokens[idx];
-  if (!token) return;
+    const token = tokens[idx];
+    if (!token) return;
 
-  // Get gameId from model or (as a fallback) from localStorage
-  let gameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
+    // Get gameId from model or (as a fallback) from localStorage
+    let gameId =
+      (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
-  if (!gameId) {
-    try {
-      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) {
-        gameId = stored.trim();
+    if (!gameId) {
+      try {
+        const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+        if (stored && stored.trim()) {
+          gameId = stored.trim();
+        }
+      } catch (_) {
+        // ignore localStorage errors – links will still work, just without names
       }
-    } catch (_) {
-      // ignore localStorage errors – links will still work, just without names
     }
-  }
 
-  const url = buildInviteUrl(token, gameId);
-  const originalText = btn.textContent;
+    const url = buildInviteUrl(token, gameId);
+    const originalText = btn.textContent;
 
-  try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      await navigator.clipboard.writeText(url);
-    } else {
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(url);
+      } else {
+        window.prompt("Copy this invite link", url);
+      }
+
+      btn.textContent = "Copied!";
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 1500);
+    } catch (err) {
       window.prompt("Copy this invite link", url);
     }
-
-    btn.textContent = "Copied!";
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.disabled = false;
-    }, 1500);
-  } catch (err) {
-    window.prompt("Copy this invite link", url);
-  }
-});
-
-  try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      await navigator.clipboard.writeText(url);
-    } else {
-      window.prompt("Copy this invite link", url);
-    }
-
-    btn.textContent = "Copied!";
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.disabled = false;
-    }, 1500);
-  } catch (err) {
-    window.prompt("Copy this invite link", url);
-  }
-});
+  })
 
   // Navigation
   if (backBtn) {
