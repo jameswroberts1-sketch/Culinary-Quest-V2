@@ -248,7 +248,7 @@ function renderInProgressPreEvent(root, opts) {
   } = opts;
 
   const safeViewer = esc(viewerName || `Host ${viewerIndex + 1}`);
-  const safeHost = esc(currentHostName || `Host ${currentHostIndex + 1}`);
+  const safeHost   = esc(currentHostName || `Host ${currentHostIndex + 1}`);
   const safeOrganiser = esc(organiserName || "the organiser");
 
   const dateStr = rsvp && rsvp.date ? formatShortDate(rsvp.date) : "";
@@ -256,6 +256,14 @@ function renderInProgressPreEvent(root, opts) {
   const theme   = rsvp && rsvp.theme ? rsvp.theme : "";
   const address = rsvp && rsvp.address ? rsvp.address : "";
   const phone   = rsvp && rsvp.phone ? rsvp.phone : "";
+
+  const menu    = rsvp && rsvp.menu ? rsvp.menu : {};
+  const entreeName = menu.entreeName || "";
+  const entreeDesc = menu.entreeDesc || "";
+  const mainName   = menu.mainName   || "";
+  const mainDesc   = menu.mainDesc   || "";
+  const dessertName = menu.dessertName || "";
+  const dessertDesc = menu.dessertDesc || "";
 
   let heading;
   let bodyCopy;
@@ -266,7 +274,7 @@ function renderInProgressPreEvent(root, opts) {
     bodyCopy = `
       Okay <strong>${safeViewer}</strong>, things are getting exciting – your dinner is next in the line-up.
       <br><br>
-      Confirm your start time and where you're hosting so your guests know where to go.
+      Confirm your start time, where you're hosting, and what you're serving so your guests know what to expect.
       If you chose a theme earlier, we'll remind everyone about it too.
     `;
   } else {
@@ -284,6 +292,92 @@ function renderInProgressPreEvent(root, opts) {
     `;
   }
 
+  // Optional "On the menu" section – shown to everyone if anything is filled in
+  let menuSummaryHTML = "";
+  if (entreeName || mainName || dessertName) {
+    const lines = [];
+    if (entreeName) {
+      lines.push(
+        `<strong>Entrée:</strong> ${esc(entreeName)}${
+          entreeDesc ? " – " + esc(entreeDesc) : ""
+        }`
+      );
+    }
+    if (mainName) {
+      lines.push(
+        `<strong>Main:</strong> ${esc(mainName)}${
+          mainDesc ? " – " + esc(mainDesc) : ""
+        }`
+      );
+    }
+    if (dessertName) {
+      lines.push(
+        `<strong>Dessert:</strong> ${esc(dessertName)}${
+          dessertDesc ? " – " + esc(dessertDesc) : ""
+        }`
+      );
+    }
+
+    menuSummaryHTML = `
+      <div class="menu-divider" aria-hidden="true"></div>
+      <section class="menu-section">
+        <div class="menu-course">DESSERT</div>
+        <h2 class="menu-h2">ON THE MENU</h2>
+        <p class="menu-copy">
+          ${lines.join("<br><br>")}
+        </p>
+      </section>
+    `;
+  }
+
+  // For guests: NO input fields – just the summary + optional menu
+  if (!isCurrentHost) {
+    root.innerHTML = `
+      <section class="menu-card">
+        <div class="menu-hero">
+          <img
+            class="menu-logo"
+            src="./src/skins/cooking/assets/cq-logo.png"
+            alt="Culinary Quest"
+          />
+        </div>
+
+        <div class="menu-ornament" aria-hidden="true"></div>
+
+        <section class="menu-section">
+          <div class="menu-course">ENTRÉE</div>
+          <h2 class="menu-h2">${heading}</h2>
+          <p class="menu-copy">
+            ${bodyCopy}
+          </p>
+        </section>
+
+        <div class="menu-divider" aria-hidden="true"></div>
+
+        <section class="menu-section">
+          <div class="menu-course">MAIN</div>
+          <h2 class="menu-h2">EVENT DETAILS</h2>
+          <p class="menu-copy">
+            <strong>Date:</strong> ${dateStr || "To be confirmed"}<br>
+            <strong>Time:</strong> ${timeStr || "To be confirmed"}<br>
+            ${address ? "<strong>Address:</strong> " + esc(address) + "<br>" : ""}
+            ${phone   ? "<strong>Contact:</strong> " + esc(phone)   + "<br>" : ""}
+            ${theme   ? "<strong>Theme:</strong> " + esc(theme)     + "<br>" : ""}
+          </p>
+        </section>
+
+        ${menuSummaryHTML}
+
+        <div class="menu-ornament" aria-hidden="true"></div>
+        <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+          InviteScreen – game in progress (pre-event view)
+        </p>
+      </section>
+    `;
+    return;
+  }
+
+  // Host view: show editable fields
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -311,11 +405,7 @@ function renderInProgressPreEvent(root, opts) {
         <h2 class="menu-h2">EVENT DETAILS</h2>
 
         <p class="menu-copy">
-          ${
-            isCurrentHost
-              ? "Update your start time and address. These details are only shared with your fellow guests."
-              : "Here are the latest details for this dinner."
-          }
+          Update your start time, address and menu details. These are only shared with your fellow guests.
         </p>
 
         <label class="menu-copy" for="preEventDate" style="text-align:left;margin-top:8px;">
@@ -326,7 +416,6 @@ function renderInProgressPreEvent(root, opts) {
           class="menu-input"
           type="date"
           value="${rsvp && rsvp.date ? esc(rsvp.date) : ""}"
-          ${isCurrentHost ? "" : "disabled"}
         />
 
         <label class="menu-copy" for="preEventTime" style="text-align:left;margin-top:10px;">
@@ -337,7 +426,6 @@ function renderInProgressPreEvent(root, opts) {
           class="menu-input"
           type="time"
           value="${rsvp && rsvp.time ? esc(rsvp.time) : ""}"
-          ${isCurrentHost ? "" : "disabled"}
         />
 
         <label class="menu-copy" for="preEventAddress" style="text-align:left;margin-top:10px;">
@@ -347,7 +435,6 @@ function renderInProgressPreEvent(root, opts) {
           id="preEventAddress"
           class="menu-input"
           rows="2"
-          ${isCurrentHost ? "" : "disabled"}
         >${address ? esc(address) : ""}</textarea>
 
         <label class="menu-copy" for="preEventPhone" style="text-align:left;margin-top:10px;">
@@ -358,47 +445,93 @@ function renderInProgressPreEvent(root, opts) {
           class="menu-input"
           type="tel"
           value="${phone ? esc(phone) : ""}"
-          ${isCurrentHost ? "" : "disabled"}
         />
 
-        ${
-          theme
-            ? `<p class="menu-copy" style="margin-top:10px;">
-                 <strong>Theme:</strong> ${esc(theme)}
-               </p>`
-            : ""
-        }
+        <div class="menu-divider" aria-hidden="true"></div>
 
-        ${
-          isCurrentHost
-            ? `
-        <div class="menu-actions">
+        <h2 class="menu-h2" style="margin-top:16px;">MENU DETAILS</h2>
+
+        <label class="menu-copy" for="preEventEntreeName" style="text-align:left;margin-top:8px;">
+          <strong>Entrée</strong>
+        </label>
+        <input
+          id="preEventEntreeName"
+          class="menu-input"
+          type="text"
+          maxlength="80"
+          placeholder="e.g. Prawn cocktail"
+          value="${entreeName ? esc(entreeName) : ""}"
+        />
+        <textarea
+          id="preEventEntreeDesc"
+          class="menu-input"
+          rows="2"
+          placeholder="Short description of your entrée"
+        >${entreeDesc ? esc(entreeDesc) : ""}</textarea>
+
+        <label class="menu-copy" for="preEventMainName" style="text-align:left;margin-top:10px;">
+          <strong>Main</strong>
+        </label>
+        <input
+          id="preEventMainName"
+          class="menu-input"
+          type="text"
+          maxlength="80"
+          placeholder="e.g. Lamb sausages with roasted vegetables"
+          value="${mainName ? esc(mainName) : ""}"
+        />
+        <textarea
+          id="preEventMainDesc"
+          class="menu-input"
+          rows="2"
+          placeholder="Short description of your main"
+        >${mainDesc ? esc(mainDesc) : ""}</textarea>
+
+        <label class="menu-copy" for="preEventDessertName" style="text-align:left;margin-top:10px;">
+          <strong>Dessert</strong>
+        </label>
+        <input
+          id="preEventDessertName"
+          class="menu-input"
+          type="text"
+          maxlength="80"
+          placeholder="e.g. Chocolate fondant"
+          value="${dessertName ? esc(dessertName) : ""}"
+        />
+        <textarea
+          id="preEventDessertDesc"
+          class="menu-input"
+          rows="2"
+          placeholder="Short description of your dessert"
+        >${dessertDesc ? esc(dessertDesc) : ""}</textarea>
+
+        <div class="menu-actions" style="margin-top:16px;">
           <button class="btn btn-primary" id="preEventSave">
             Save details
           </button>
         </div>
-        `
-            : ""
-        }
       </section>
 
-      <div class="menu-ornament" aria-hidden="true"></div>
+      ${menuSummaryHTML}
 
+      <div class="menu-ornament" aria-hidden="true"></div>
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
         InviteScreen – game in progress (pre-event view)
       </p>
     </section>
   `;
 
-  if (!isCurrentHost) {
-    return; // guests just see the info
-  }
-
-  // Host can update details
+  // Host save handler
   const dateEl    = root.querySelector("#preEventDate");
   const timeEl    = root.querySelector("#preEventTime");
   const addrEl    = root.querySelector("#preEventAddress");
   const phoneEl   = root.querySelector("#preEventPhone");
+  const entreeNameEl = root.querySelector("#preEventEntreeName");
+  const entreeDescEl = root.querySelector("#preEventEntreeDesc");
+  const mainNameEl   = root.querySelector("#preEventMainName");
+  const mainDescEl   = root.querySelector("#preEventMainDesc");
+  const dessertNameEl = root.querySelector("#preEventDessertName");
+  const dessertDescEl = root.querySelector("#preEventDessertDesc");
   const saveBtn   = root.querySelector("#preEventSave");
 
   if (saveBtn) {
@@ -407,6 +540,15 @@ function renderInProgressPreEvent(root, opts) {
       const newTime  = timeEl && timeEl.value ? timeEl.value.trim() : rsvp.time || null;
       const newAddr  = addrEl && addrEl.value ? addrEl.value.trim() : null;
       const newPhone = phoneEl && phoneEl.value ? phoneEl.value.trim() : null;
+
+      const menuObj = {
+        entreeName:  entreeNameEl && entreeNameEl.value ? entreeNameEl.value.trim() : "",
+        entreeDesc:  entreeDescEl && entreeDescEl.value ? entreeDescEl.value.trim() : "",
+        mainName:    mainNameEl && mainNameEl.value ? mainNameEl.value.trim() : "",
+        mainDesc:    mainDescEl && mainDescEl.value ? mainDescEl.value.trim() : "",
+        dessertName: dessertNameEl && dessertNameEl.value ? dessertNameEl.value.trim() : "",
+        dessertDesc: dessertDescEl && dessertDescEl.value ? dessertDescEl.value.trim() : ""
+      };
 
       if (!newDate) {
         window.alert("Please make sure your hosting date is set.");
@@ -421,7 +563,8 @@ function renderInProgressPreEvent(root, opts) {
         newTime,
         rsvp.theme || null,
         newAddr,
-        newPhone
+        newPhone,
+        { menu: menuObj }
       );
 
       window.alert("Your event details have been saved.");
