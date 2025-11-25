@@ -69,9 +69,17 @@ const model = {
     const hostIndex = tokens.indexOf(token);
     if (hostIndex === -1) return;
 
-    // This visitor is coming in via a host invite link
-    model.state = "invite";
+    // Always remember who this visitor is (by host index)
     model.activeHostIndex = hostIndex;
+
+    const stateParam = params.get("state");
+
+    // If no explicit state was requested in the URL, default invite links to the Invite screen
+    if (!stateParam) {
+      model.state = "invite";
+    }
+    // If there *is* a state param (e.g. availability, invite, future states),
+    // we leave model.state alone so getInitialState() wins.
   } catch (_) {
     // fail quietly – fall back to normal intro flow
   }
