@@ -32,12 +32,12 @@ function formatDate(dateStr) {
 function normaliseStatus(rawStatus) {
   const s = (rawStatus || "").toLowerCase();
   if (s === "accepted") {
-    return { key: "accepted", label: "Accepted", color: "#1c7c33" };
+    return { key: "accepted", label: "ACCEPTED", color: "#1c7c33" };
   }
   if (s === "declined") {
-    return { key: "declined", label: "Declined", color: "#c0392b" };
+    return { key: "declined", label: "DECLINED", color: "#c0392b" };
   }
-  return { key: "pending", label: "Outstanding", color: "#e67e22" };
+  return { key: "pending", label: "OUTSTANDING", color: "#e67e22" };
 }
 
 function renderShell(root) {
@@ -77,6 +77,10 @@ function renderShell(root) {
         <div id="rsvpListContainer">
           <p class="menu-copy">Loading…</p>
         </div>
+
+        <!-- NEW: consolidated availability picture -->
+        <div id="availabilitySummaryContainer" class="menu-copy" style="margin-top:14px;font-size:13px;">
+        </div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -103,6 +107,7 @@ function renderShell(root) {
     </section>
   `;
 }
+
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
@@ -124,14 +129,15 @@ export function render(root, model = {}, actions = {}) {
 
   renderShell(root);
 
-  const introEl     = root.querySelector("#rsvpIntro");
-  const listWrap    = root.querySelector("#rsvpListContainer");
-  const summaryEl   = root.querySelector("#rsvpSummary");
-  const backBtn     = root.querySelector("#rsvpBack");
-  const refreshBtn  = root.querySelector("#rsvpRefresh");
-  const cancelBtn   = root.querySelector("#rsvpCancel");
-  const confirmBtn = root.querySelector("#rsvpConfirm");
-  const beginBtn    = root.querySelector("#rsvpBegin");
+  const introEl      = root.querySelector("#rsvpIntro");
+  const listWrap     = root.querySelector("#rsvpListContainer");
+  const summaryEl    = root.querySelector("#rsvpSummary");
+  const availSummaryEl = root.querySelector("#availabilitySummaryContainer");
+  const backBtn      = root.querySelector("#rsvpBack");
+  const refreshBtn   = root.querySelector("#rsvpRefresh");
+  const cancelBtn    = root.querySelector("#rsvpCancel");
+  const confirmBtn   = root.querySelector("#rsvpConfirm");
+  const beginBtn     = root.querySelector("#rsvpBegin");
 
   // Work out which game to load
   let gameId =
@@ -157,6 +163,9 @@ export function render(root, model = {}, actions = {}) {
         </p>
       `;
     }
+    if (availSummaryEl) {
+      availSummaryEl.textContent = "";
+    }
     return;
   }
 
@@ -166,6 +175,9 @@ export function render(root, model = {}, actions = {}) {
     }
     if (listWrap) {
       listWrap.innerHTML = `<p class="menu-copy">Loading…</p>`;
+    }
+    if (availSummaryEl) {
+      availSummaryEl.textContent = "";
     }
 
     try {
@@ -179,11 +191,19 @@ export function render(root, model = {}, actions = {}) {
             </p>
           `;
         }
+        if (availSummaryEl) {
+          availSummaryEl.textContent = "";
+        }
         return;
       }
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
-      const rsvps = game.rsvps && typeof game.rsvps === "object" ? game.rsvps : {};
+      const rsvps =
+        game.rsvps && typeof game.rsvps === "object" ? game.rsvps : {};
+      const availability =
+        game.availability && typeof game.availability === "object"
+          ? game.availability
+          : {};
 
       if (introEl) {
         introEl.textContent = "Here’s your current line-up of hosts and dates.";
@@ -197,23 +217,33 @@ export function render(root, model = {}, actions = {}) {
             </p>
           `;
         }
+        if (availSummaryEl) {
+          availSummaryEl.textContent = "";
+        }
         return;
       }
 
       let acceptedCount = 0;
       let declinedCount = 0;
       let pendingCount  = 0;
+      const acceptedIndices = [];
 
       const rowsHtml = hosts.map((host, index) => {
-        const hostName = host && host.name ? String(host.name) : `Host ${index + 1}`;
+        const hostName =
+          host && host.name ? String(host.name) : `Host ${index + 1}`;
         const rsvp = rsvps.hasOwnProperty(index)
           ? rsvps[index]
           : rsvps[String(index)] || {};
 
         const normalised = normaliseStatus(rsvp.status);
-        if (normalised.key === "accepted") acceptedCount++;
-        else if (normalised.key === "declined") declinedCount++;
-        else pendingCount++;
+        if (normalised.key === "accepted") {
+          acceptedCount++;
+          acceptedIndices.push(index);
+        } else if (normalised.key === "declined") {
+          declinedCount++;
+        } else {
+          pendingCount++;
+        }
 
         let dateText;
         if (rsvp.date) {
@@ -277,6 +307,82 @@ export function render(root, model = {}, actions = {}) {
           `${declinedCount} declined · ` +
           `${pendingCount} outstanding`;
       }
+
+      // ----- NEW: consolidated availability summary -----
+      if (availSummaryEl) {
+        const availabilityKeys = Object.keys(availability || {});
+        if (!availabilityKeys.length) {
+          // No availability data yet
+          availSummaryEl.innerHTML = `
+            <p>
+              Once you’ve shared the schedule and hosts have responded,
+              you’ll see a summary of who can’t attend each dinner here.
+            </p>
+          `;
+        } else {
+          const perNightBlocks = acceptedIndices.map((hostIndex) => {
+            const host = hosts[hostIndex] || {};
+            const hostName =
+              host && host.name ? String(host.name) : `Host ${hostIndex + 1}`;
+
+            const rsvp = rsvps.hasOwnProperty(hostIndex)
+              ? rsvps[hostIndex]
+              : rsvps[String(hostIndex)] || {};
+
+            const niceDate = rsvp.date ? formatDate(rsvp.date) : "No date chosen";
+            const timeText = rsvp.time ? ` at ${esc(rsvp.time)}` : "";
+
+            const cantNames = [];
+
+            availabilityKeys.forEach((viewerKey) => {
+              const viewerMap =
+                availability[viewerKey] ||
+                availability[Number(viewerKey)] ||
+                {};
+              if (viewerMap && viewerMap[hostIndex] === true) {
+                const vIdx = Number(viewerKey);
+                const viewerHost = hosts[vIdx] || {};
+                const viewerName =
+                  viewerHost && viewerHost.name
+                    ? String(viewerHost.name)
+                    : `Host ${vIdx + 1}`;
+                cantNames.push(viewerName);
+              }
+            });
+
+            let line;
+            if (!cantNames.length) {
+              line =
+                "Everyone who has replied so far is available for this dinner.";
+            } else if (cantNames.length === 1) {
+              line = `${esc(cantNames[0])} can’t attend this dinner.`;
+            } else {
+              const namesText = cantNames.map(esc).join(", ");
+              line = `${cantNames.length} people can’t attend: ${namesText}.`;
+            }
+
+            return `
+              <div style="margin-top:8px;">
+                <strong>${esc(hostName)}</strong> – ${niceDate}${timeText}<br>
+                ${line}
+              </div>
+            `;
+          });
+
+          availSummaryEl.innerHTML = `
+            <div class="menu-divider" aria-hidden="true"></div>
+            <h2 class="menu-h2" style="font-size:18px;margin-top:10px;">
+              Availability summary
+            </h2>
+            <p style="margin-bottom:6px;">
+              Based on the responses so far, here’s who can’t attend each dinner.
+            </p>
+            ${perNightBlocks.join("")}
+          `;
+        }
+      }
+      // ----- end availability summary -----
+
     } catch (err) {
       console.error("[RsvpTrackerScreen] Failed to load RSVPs", err);
       if (introEl) {
@@ -289,12 +395,15 @@ export function render(root, model = {}, actions = {}) {
           </p>
         `;
       }
+      if (availSummaryEl) {
+        availSummaryEl.textContent = "";
+      }
     }
   }
 
   // ---- button handlers ----
 
-  // Initial load (option A – manual refresh button)
+  // Initial load
   loadAndRender();
 
   if (backBtn) {
@@ -311,66 +420,73 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-if (confirmBtn) {
-  confirmBtn.addEventListener("click", async () => {
-    if (!gameId) return;
-    try {
-      await updateGame(gameId, { status: "availability" });
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", async () => {
+      if (!gameId) return;
+      try {
+        await updateGame(gameId, { status: "availability" });
 
-      window.alert(
-        "Schedule shared with hosts.\n\n" +
-        "Ask everyone to open their usual invite link to confirm which nights they can’t attend."
-      );
-      // Organiser stays on this screen – they can keep reviewing the line-up.
-    } catch (err) {
-      console.warn("[RsvpTracker] failed to enter availability phase", err);
-      window.alert("Sorry, we couldn’t share the schedule just now. Please try again.");
-    }
-  });
-}
+        window.alert(
+          "Schedule shared with hosts.\n\n" +
+            "Ask everyone to open their usual invite link to confirm which nights they can’t attend."
+        );
+        // Organiser stays on this screen – they can keep reviewing the line-up.
+      } catch (err) {
+        console.warn("[RsvpTracker] failed to enter availability phase", err);
+        window.alert(
+          "Sorry, we couldn’t share the schedule just now. Please try again."
+        );
+      }
+    });
+  }
 
   if (cancelBtn) {
     cancelBtn.addEventListener("click", async () => {
       if (!gameId) return;
       const ok = window.confirm(
         "Are you sure you want to cancel this Culinary Quest? " +
-        "Guests will no longer be able to use their links."
+          "Guests will no longer be able to use their links."
       );
       if (!ok) return;
 
       try {
         const nowIso = new Date().toISOString();
         await updateGame(gameId, { status: "cancelled", cancelledAt: nowIso });
-        window.alert("Event cancelled. You can close this tab or start a new game from the intro screen.");
-        // optional: take them back to intro
+        window.alert(
+          "Event cancelled. You can close this tab or start a new game from the intro screen."
+        );
         try {
           actions.setState && actions.setState("intro");
         } catch (_) {}
       } catch (err) {
         console.warn("[RsvpTrackerScreen] Cancel event failed", err);
-        window.alert("Sorry, we couldn’t cancel the event just now. Please try again.");
+        window.alert(
+          "Sorry, we couldn’t cancel the event just now. Please try again."
+        );
       }
     });
   }
 
   if (beginBtn) {
-  beginBtn.addEventListener("click", async () => {
-    if (!gameId) return;
-    try {
-      await updateGame(gameId, { status: "inProgress" });
+    beginBtn.addEventListener("click", async () => {
+      if (!gameId) return;
+      try {
+        await updateGame(gameId, { status: "inProgress" });
 
-      window.alert(
-        "Your game has started.\n\n" +
-        "From now on, host links will show the live event view for each dinner."
-      );
+        window.alert(
+          "Your game has started.\n\n" +
+            "From now on, host links will show the live event view for each dinner."
+        );
 
-      if (actions && typeof actions.setState === "function") {
-        actions.setState("organiserHome");
+        if (actions && typeof actions.setState === "function") {
+          actions.setState("organiserHome");
+        }
+      } catch (err) {
+        console.warn("[RsvpTracker] failed to start game", err);
+        window.alert(
+          "Sorry, we couldn’t start the game just now. Please try again."
+        );
       }
-    } catch (err) {
-      console.warn("[RsvpTracker] failed to start game", err);
-      window.alert("Sorry, we couldn’t start the game just now. Please try again.");
-    }
-  });
-}
+    });
+  }
 }
