@@ -139,6 +139,7 @@ export function render(root, model = {}, actions = {}) {
   const backBtn     = root.querySelector("#rsvpBack");
   const refreshBtn  = root.querySelector("#rsvpRefresh");
   const cancelBtn   = root.querySelector("#rsvpCancel");
+  const confirmBtn = root.querySelector("#rsvpConfirm");
   const beginBtn    = root.querySelector("#rsvpBegin");
 
   // Work out which game to load
@@ -319,6 +320,23 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
+  if (confirmBtn) {
+  confirmBtn.addEventListener("click", async () => {
+    try {
+      await updateGame(gameId, { status: "availability" });
+
+      window.alert(
+        "Schedule shared with hosts.\n\n" +
+        "Ask everyone to open their usual invite link to confirm which nights they can’t attend."
+      );
+      // Organiser stays on this screen – they can keep reviewing the line-up.
+    } catch (err) {
+      console.warn("[RsvpTracker] failed to enter availability phase", err);
+      window.alert("Sorry, we couldn’t share the schedule just now. Please try again.");
+    }
+  });
+}
+
   if (cancelBtn) {
     cancelBtn.addEventListener("click", async () => {
       if (!gameId) return;
@@ -344,23 +362,22 @@ export function render(root, model = {}, actions = {}) {
   }
 
   if (beginBtn) {
-    beginBtn.addEventListener("click", async () => {
-      if (!gameId) return;
-      const ok = window.confirm(
-        "Ready to lock in these RSVPs and let the games begin?"
-      );
-      if (!ok) return;
+  beginBtn.addEventListener("click", async () => {
+    try {
+      await updateGame(gameId, { status: "inProgress" });
 
-      try {
-        const nowIso = new Date().toISOString();
-        await updateGame(gameId, { status: "inProgress", startedAt: nowIso });
-        window.alert("Your Culinary Quest is now in progress!");
-        // Reload so any future UI tweaks can react to status
-        loadAndRender();
-      } catch (err) {
-        console.warn("[RsvpTrackerScreen] Begin event failed", err);
-        window.alert("Sorry, we couldn’t update the event just now. Please try again.");
+      window.alert(
+        "Your game has started.\n\n" +
+        "From now on, host links will show the live event view for each dinner."
+      );
+
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("organiserHome");
       }
-    });
-  }
+    } catch (err) {
+      console.warn("[RsvpTracker] failed to start game", err);
+      window.alert("Sorry, we couldn’t start the game just now. Please try again.");
+    }
+  });
+}
 }
