@@ -79,6 +79,9 @@ export const routes = {
 
   invite: () => safeLoad("./screens/InviteScreen.js", "Invite"),
   organiserHome: () => safeLoad("./screens/OrganiserHomeScreen.js", "Organiser home"),
+
+  gameDashboard: () =>
+    safeLoad("./screens/GameDashboardScreen.js", "Game dashboard"),
   
   // ⬇️ NEW: real tracker screen instead of stub
   rsvpTracker: () => safeLoad("./screens/RsvpTrackerScreen.js", "RSVP tracker"),
