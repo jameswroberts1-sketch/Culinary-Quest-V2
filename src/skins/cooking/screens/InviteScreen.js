@@ -1146,6 +1146,7 @@ export function render(root, model = {}, actions = {}) {
           status:  ln.status  || existing.status  || null,
           address: existing.address || null,
           phone:   existing.phone   || null
+          menu:    existing.menu    || null
         };
       }
 
