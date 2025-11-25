@@ -55,12 +55,18 @@ function renderShell(root) {
 
       <!-- ENTREE -->
       <section class="menu-section">
-        <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">RSVP TRACKER</h2>
-        <p class="menu-copy" id="rsvpIntro">
-          Loading hosts and their chosen dates…
-        </p>
-      </section>
+  <div class="menu-course">ENTRÉE</div>
+  <h2 class="menu-h2">RSVP TRACKER</h2>
+  <p class="menu-copy">
+    Here’s your current line-up of hosts and dates.
+  </p>
+
+  <div class="menu-actions" style="margin-top:12px;">
+    <button class="btn btn-secondary" id="rsvpRefresh">
+      Refresh RSVPs
+    </button>
+  </div>
+</section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
