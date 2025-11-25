@@ -109,25 +109,30 @@ async function saveRsvpToFirestore(
   time,
   theme,
   address,
-  phone
+  phone,
+  extra = {}
 ) {
   if (!gameId) return;
   try {
     const nowIso = new Date().toISOString();
     const field = `rsvps.${hostIndex}`;
 
-    await updateGame(gameId, {
-      [field]: {
-        hostIndex,
-        status:  status  || null,
-        date:    date    || null,
-        time:    time    || null,
-        theme:   theme   || null,
-        address: address || null,
-        phone:   phone   || null,
-        updatedAt: nowIso
-      }
-    });
+    const payload = {
+      hostIndex,
+      status:  status  || null,
+      date:    date    || null,
+      time:    time    || null,
+      theme:   theme   || null,
+      address: address || null,
+      phone:   phone   || null,
+      updatedAt: nowIso
+    };
+
+    if (extra.menu) {
+      payload.menu = extra.menu;
+    }
+
+    await updateGame(gameId, { [field]: payload });
   } catch (err) {
     console.warn("[InviteScreen] Failed to sync RSVP to Firestore", err);
   }
@@ -1113,20 +1118,21 @@ export function render(root, model = {}, actions = {}) {
       // Build nights map from Firestore RSVPs
       const nights = {};
       if (game.rsvps && typeof game.rsvps === "object") {
-        Object.keys(game.rsvps).forEach((k) => {
-          const idx = Number(k);
-          if (Number.isNaN(idx)) return;
-          const r = game.rsvps[k] || {};
-          nights[idx] = {
-            date:    r.date    || null,
-            time:    r.time    || null,
-            theme:   r.theme   || null,
-            status:  r.status  || null,
-            address: r.address || null,
-            phone:   r.phone   || null
-          };
-        });
-      }
+  Object.keys(game.rsvps).forEach((k) => {
+    const idx = Number(k);
+    if (Number.isNaN(idx)) return;
+    const r = game.rsvps[k] || {};
+    nights[idx] = {
+      date:    r.date    || null,
+      time:    r.time    || null,
+      theme:   r.theme   || null,
+      status:  r.status  || null,
+      address: r.address || null,
+      phone:   r.phone   || null,
+      menu:    r.menu    || null
+    };
+  });
+}
 
       // Merge local nights for this browser for this hostIndex (so they can revise)
       const local = loadNights();
