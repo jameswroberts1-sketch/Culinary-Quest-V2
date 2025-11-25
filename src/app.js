@@ -25,6 +25,8 @@ window.addEventListener("error", (e) => {
 
 /* ------------ simple in-memory model + actions ------------ */
 
+const CURRENT_GAME_KEY = "cq_current_game_id_v1"; // add this near TOKENS_STORAGE_KEY
+
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
   const stateFromUrl = params.get("state");
@@ -33,7 +35,8 @@ function getInitialState() {
   if (
     stateFromUrl === "invite" ||
     stateFromUrl === "rsvpTracker" ||
-    stateFromUrl === "availability"   // ⬅️ NEW
+    stateFromUrl === "availability" ||
+    stateFromUrl === "organiserHome"
   ) {
     return stateFromUrl;
   }
@@ -43,6 +46,19 @@ function getInitialState() {
     return "invite";
   }
 
+  // If there is a stored current game, default the organiser to the home hub
+  try {
+    const storedGameId = window.localStorage.getItem(CURRENT_GAME_KEY);
+    if (storedGameId && storedGameId.trim()) {
+      return "organiserHome";
+    }
+  } catch (_) {
+    // ignore and fall back to intro
+  }
+
+  // Normal organiser flow – first-time users
+  return "intro";
+}
   // Normal organiser flow
   return "intro";
 }
