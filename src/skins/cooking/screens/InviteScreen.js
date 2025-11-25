@@ -6,6 +6,10 @@ import { readGame, updateGame } from "../../../engine/firestore.js";
 const HOSTS_STORAGE_KEY  = "cq_hosts_v1";
 const NIGHTS_STORAGE_KEY = "cq_host_nights_v1";
 
+// --------------------------------------------------
+// Small helpers
+// --------------------------------------------------
+
 function esc(str) {
   if (str == null) return "";
   return String(str)
@@ -101,6 +105,7 @@ function renderError(root) {
   `;
 }
 
+// Save RSVP (and optional menu) into Firestore
 async function saveRsvpToFirestore(
   gameId,
   hostIndex,
@@ -138,7 +143,10 @@ async function saveRsvpToFirestore(
   }
 }
 
-// Build a sorted schedule of accepted hosts with dates + times
+// --------------------------------------------------
+// Schedule helpers – used when game is in progress
+// --------------------------------------------------
+
 function buildSchedule(game) {
   const out = [];
   if (!game || !game.rsvps || typeof game.rsvps !== "object") return out;
@@ -165,8 +173,7 @@ function buildSchedule(game) {
     });
   });
 
-  // Oldest first
-  out.sort((a, b) => a.startMs - b.startMs);
+  out.sort((a, b) => a.startMs - b.startMs); // earliest first
   return out;
 }
 
@@ -177,7 +184,7 @@ function pickCurrentEvent(game, nowMs) {
   const sixHours = 6 * 60 * 60 * 1000;
   const now = nowMs != null ? nowMs : Date.now();
 
-  // If we're before the very first event, that first one is "upcoming"
+  // Before first event → that first one is "upcoming"
   if (now < schedule[0].startMs) {
     const ev = schedule[0];
     return {
@@ -187,7 +194,7 @@ function pickCurrentEvent(game, nowMs) {
     };
   }
 
-  // Find the first event whose 6h window hasn't fully passed
+  // Find first event whose 6h window hasn't passed yet
   for (const ev of schedule) {
     const endMs = ev.startMs + sixHours;
     if (now <= endMs) {
@@ -199,7 +206,7 @@ function pickCurrentEvent(game, nowMs) {
     }
   }
 
-  // Everything is finished – treat as "after last event"
+  // Everything finished
   const last = schedule[schedule.length - 1];
   return {
     currentHostIndex: last.hostIndex,
@@ -210,7 +217,7 @@ function pickCurrentEvent(game, nowMs) {
 }
 
 function formatShortDate(dateStr) {
-  // Expecting "YYYY-MM-DD"
+  // Expect "YYYY-MM-DD"
   if (!dateStr || typeof dateStr !== "string") return dateStr || "";
   const parts = dateStr.split("-");
   if (parts.length !== 3) return dateStr;
@@ -223,23 +230,25 @@ function formatShortDate(dateStr) {
 }
 
 function formatShortTime(timeStr) {
-  // Expect "HH:MM" → leave as-is if malformed
+  // Expect "HH:MM"
   if (!timeStr || typeof timeStr !== "string") return "";
   const [hStr, mStr] = timeStr.split(":");
   const h = Number(hStr);
   if (Number.isNaN(h)) return timeStr;
-
-  // keep in 24h for now; easier to read than nothing
   return `${hStr.padStart(2, "0")}:${(mStr || "00").padStart(2, "0")}`;
 }
 
+// optional helper (handy later for results)
 function ordinal(n) {
   const s = ["th","st","nd","rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-// Host/guest pre-event view while game is in progress
+// --------------------------------------------------
+// Game in progress: pre-event view
+// --------------------------------------------------
+
 function renderInProgressPreEvent(root, opts) {
   const {
     isCurrentHost,
@@ -263,10 +272,10 @@ function renderInProgressPreEvent(root, opts) {
   const phone   = rsvp && rsvp.phone ? rsvp.phone : "";
 
   const menu    = rsvp && rsvp.menu ? rsvp.menu : {};
-  const entreeName = menu.entreeName || "";
-  const entreeDesc = menu.entreeDesc || "";
-  const mainName   = menu.mainName   || "";
-  const mainDesc   = menu.mainDesc   || "";
+  const entreeName  = menu.entreeName  || "";
+  const entreeDesc  = menu.entreeDesc  || "";
+  const mainName    = menu.mainName    || "";
+  const mainDesc    = menu.mainDesc    || "";
   const dessertName = menu.dessertName || "";
   const dessertDesc = menu.dessertDesc || "";
 
@@ -274,7 +283,6 @@ function renderInProgressPreEvent(root, opts) {
   let bodyCopy;
 
   if (isCurrentHost) {
-    // Viewer IS the upcoming host
     heading = "YOUR NIGHT IS UP NEXT";
     bodyCopy = `
       Okay <strong>${safeViewer}</strong>, things are getting exciting – your dinner is next in the line-up.
@@ -283,7 +291,6 @@ function renderInProgressPreEvent(root, opts) {
       If you chose a theme earlier, we'll remind everyone about it too.
     `;
   } else {
-    // Viewer is a guest; show who is hosting
     heading = "NEXT DINNER IN THE QUEST";
     bodyCopy = `
       Hi <strong>${safeViewer}</strong> – I hope you’re looking forward to enjoying
@@ -297,7 +304,7 @@ function renderInProgressPreEvent(root, opts) {
     `;
   }
 
-  // Optional "On the menu" section – shown to everyone if anything is filled in
+  // Build menu summary (shown to everyone if present)
   let menuSummaryHTML = "";
   if (entreeName || mainName || dessertName) {
     const lines = [];
@@ -335,7 +342,7 @@ function renderInProgressPreEvent(root, opts) {
     `;
   }
 
-  // For guests: NO input fields – just the summary + optional menu
+  // Guest view – read-only
   if (!isCurrentHost) {
     root.innerHTML = `
       <section class="menu-card">
@@ -367,7 +374,7 @@ function renderInProgressPreEvent(root, opts) {
             <strong>Time:</strong> ${timeStr || "To be confirmed"}<br>
             ${address ? "<strong>Address:</strong> " + esc(address) + "<br>" : ""}
             ${phone   ? "<strong>Contact:</strong> " + esc(phone)   + "<br>" : ""}
-            ${theme   ? "<strong>Theme:</strong> " + esc(theme)     + "<br>" : ""}
+            ${theme   ? "<strong>Theme:</strong> "   + esc(theme)   + "<br>" : ""}
           </p>
         </section>
 
@@ -382,7 +389,7 @@ function renderInProgressPreEvent(root, opts) {
     return;
   }
 
-  // Host view: show editable fields
+  // Host view – editable
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -517,8 +524,6 @@ function renderInProgressPreEvent(root, opts) {
         </div>
       </section>
 
-      ${menuSummaryHTML}
-
       <div class="menu-ornament" aria-hidden="true"></div>
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
         InviteScreen – game in progress (pre-event view)
@@ -531,13 +536,13 @@ function renderInProgressPreEvent(root, opts) {
   const timeEl    = root.querySelector("#preEventTime");
   const addrEl    = root.querySelector("#preEventAddress");
   const phoneEl   = root.querySelector("#preEventPhone");
-  const entreeNameEl = root.querySelector("#preEventEntreeName");
-  const entreeDescEl = root.querySelector("#preEventEntreeDesc");
-  const mainNameEl   = root.querySelector("#preEventMainName");
-  const mainDescEl   = root.querySelector("#preEventMainDesc");
+  const entreeNameEl  = root.querySelector("#preEventEntreeName");
+  const entreeDescEl  = root.querySelector("#preEventEntreeDesc");
+  const mainNameEl    = root.querySelector("#preEventMainName");
+  const mainDescEl    = root.querySelector("#preEventMainDesc");
   const dessertNameEl = root.querySelector("#preEventDessertName");
   const dessertDescEl = root.querySelector("#preEventDessertDesc");
-  const saveBtn   = root.querySelector("#preEventSave");
+  const saveBtn       = root.querySelector("#preEventSave");
 
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
@@ -576,7 +581,11 @@ function renderInProgressPreEvent(root, opts) {
     });
   }
 }
-// After-event view (scoring gate)
+
+// --------------------------------------------------
+// Game in progress: post-event view
+// --------------------------------------------------
+
 function renderInProgressPostEvent(root, opts) {
   const {
     isCurrentHost,
@@ -652,7 +661,11 @@ function renderInProgressPostEvent(root, opts) {
     `;
   }
 }
-// Shared UI renderer for both organiser + host
+
+// --------------------------------------------------
+// Standard invite / RSVP UI (before game starts)
+// --------------------------------------------------
+
 function renderInviteUI(root, options) {
   const {
     isOrganiser,
@@ -930,7 +943,7 @@ function renderInviteUI(root, options) {
     });
   }
 
-    async function handleAccept(status) {
+  async function handleAccept(status) {
     const dateVal = dateInput && dateInput.value ? dateInput.value.trim() : "";
     const timeVal = timeInput && timeInput.value ? timeInput.value.trim() : "";
     const themeVal =
@@ -994,7 +1007,9 @@ function renderInviteUI(root, options) {
   if (declineBtn) declineBtn.addEventListener("click", () => { handleAccept("declined"); });
 }
 
-// ------------------------------------------------------------------
+// --------------------------------------------------
+// Main exported render
+// --------------------------------------------------
 
 export function render(root, model = {}, actions = {}) {
   if (!root) {
@@ -1115,26 +1130,27 @@ export function render(root, model = {}, actions = {}) {
           ? game.setup.allowThemes
           : false;
 
-      // Build nights map from Firestore RSVPs
+      // Build nights map from Firestore RSVPs (includes menu)
       const nights = {};
       if (game.rsvps && typeof game.rsvps === "object") {
-  Object.keys(game.rsvps).forEach((k) => {
-    const idx = Number(k);
-    if (Number.isNaN(idx)) return;
-    const r = game.rsvps[k] || {};
-    nights[idx] = {
-      date:    r.date    || null,
-      time:    r.time    || null,
-      theme:   r.theme   || null,
-      status:  r.status  || null,
-      address: r.address || null,
-      phone:   r.phone   || null,
-      menu:    r.menu    || null
-    };
-  });
-}
+        Object.keys(game.rsvps).forEach((k) => {
+          const idx = Number(k);
+          if (Number.isNaN(idx)) return;
+          const r = game.rsvps[k] || {};
+          nights[idx] = {
+            date:    r.date    || null,
+            time:    r.time    || null,
+            theme:   r.theme   || null,
+            status:  r.status  || null,
+            address: r.address || null,
+            phone:   r.phone   || null,
+            menu:    r.menu    || null
+          };
+        });
+      }
 
-      // Merge local nights for this browser for this hostIndex (so they can revise)
+      // Merge local nights for this browser for this hostIndex (so they can revise
+      // before things are written to Firestore)
       const local = loadNights();
       if (local && local[hostIndex]) {
         const ln = local[hostIndex];
@@ -1145,7 +1161,7 @@ export function render(root, model = {}, actions = {}) {
           theme:   ln.theme   || existing.theme   || null,
           status:  ln.status  || existing.status  || null,
           address: existing.address || null,
-          phone:   existing.phone   || null
+          phone:   existing.phone   || null,
           menu:    existing.menu    || null
         };
       }
@@ -1159,7 +1175,7 @@ export function render(root, model = {}, actions = {}) {
         gameStatus === "inProgress" || gameStatus === "started";
 
       if (!isRunning) {
-        // Before games begin → keep existing RSVP behaviour
+        // Before games begin → standard RSVP behaviour
         renderInviteUI(root, {
           isOrganiser: false,
           hostIndex,
@@ -1224,27 +1240,27 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-if (nowMs <= endMs) {
-  // Before or during the event → pre-event view
-  renderInProgressPreEvent(root, {
-    isCurrentHost,
-    viewerIndex: hostIndex,
-    viewerName: hostName,        // whose link we're on
-    currentHostIndex,
-    currentHostName,             // whose dinner is next
-    organiserName,
-    rsvp,
-    gameId
-  });
-} else {
-  // After the 6-hour window → post-event view (host relax / guest scoring placeholder)
-  renderInProgressPostEvent(root, {
-    isCurrentHost,
-    viewerName: hostName,
-    currentHostName,
-    organiserName
-  });
-}
+      if (nowMs <= endMs) {
+        // Before or during the event → pre-event view
+        renderInProgressPreEvent(root, {
+          isCurrentHost,
+          viewerIndex: hostIndex,
+          viewerName: hostName,
+          currentHostIndex,
+          currentHostName,
+          organiserName,
+          rsvp,
+          gameId
+        });
+      } else {
+        // After the 6-hour window → post-event view
+        renderInProgressPostEvent(root, {
+          isCurrentHost,
+          viewerName: hostName,
+          currentHostName,
+          organiserName
+        });
+      }
     } catch (err) {
       console.error("[InviteScreen] Failed to load game", err);
       renderError(root);
