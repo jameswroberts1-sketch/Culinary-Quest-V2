@@ -1,5 +1,5 @@
 // path: src/skins/cooking/screens/OrganiserHomeScreen.js
-// Organiser Home – central hub for a single Culinary Quest game
+// Organiser home – simple hub with Home / My games tabs
 
 import { readGame } from "../../../engine/firestore.js";
 
@@ -29,56 +29,14 @@ function scrollToTop() {
   } catch (_) {}
 }
 
-function normaliseStatus(raw) {
-  const s = (raw || "").toLowerCase();
-  switch (s) {
-    case "links":
-      return {
-        key: "links",
-        label: "Collecting RSVPs",
-        description: "Host links are live. Guests are still accepting or declining.",
-        color: "#1d4ed8"
-      };
-    case "availability":
-      return {
-        key: "availability",
-        label: "Checking availability",
-        description: "Hosts are confirming which nights they can’t attend.",
-        color: "#7c3aed"
-      };
-    case "inprogress":
-    case "started":
-      return {
-        key: "inProgress",
-        label: "Game in progress",
-        description: "Dinners are underway. Host links show the next live event.",
-        color: "#15803d"
-      };
-    case "finished":
-      return {
-        key: "finished",
-        label: "Finished",
-        description: "All dinners are complete. Ready to review scores and results.",
-        color: "#0f172a"
-      };
-    case "cancelled":
-      return {
-        key: "cancelled",
-        label: "Cancelled",
-        description: "This Culinary Quest has been cancelled.",
-        color: "#b91c1c"
-      };
-    default:
-      return {
-        key: "unknown",
-        label: "Draft / unknown",
-        description: "Status not set yet. You can still manage hosts and links.",
-        color: "#6b7280"
-      };
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
   }
-}
 
-function renderShell(root) {
+  scrollToTop();
+
+  // Basic shell with two panes + bottom nav
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -91,89 +49,142 @@ function renderShell(root) {
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- ENTREE -->
-      <section class="menu-section">
+      <!-- HOME PANE -->
+      <section class="menu-section" id="homePane">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">ORGANISER HOME</h2>
-        <p class="menu-copy" id="homeIntro">
-          Loading your game details…
+        <h2 class="menu-h2">Organiser home</h2>
+        <p class="menu-copy">
+          Welcome back to <em>Culinary Quest</em>. From here you can start a new
+          competition or jump into a Quest you’ve already created.
+        </p>
+
+        <div class="menu-actions" style="margin-top:14px;">
+          <button class="btn btn-primary" id="homeStartNew">
+            Start a new Culinary Quest
+          </button>
+        </div>
+
+        <p class="muted" style="margin-top:10px;font-size:11px;">
+          You can still come back here at any time without disturbing a Quest
+          that’s already under way.
         </p>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
-      <!-- MAIN -->
-      <section class="menu-section">
+      <!-- MY GAMES PANE -->
+      <section class="menu-section" id="gamesPane" style="display:none;">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">GAME OVERVIEW</h2>
-        <div id="homeSummary">
-          <p class="menu-copy">Fetching latest info from the cloud…</p>
-        </div>
+        <h2 class="menu-h2">My games</h2>
 
-        <div class="menu-divider" aria-hidden="true" style="margin-top:16px;"></div>
-
-        <h2 class="menu-h2" style="margin-top:14px;">WHAT WOULD YOU LIKE TO DO?</h2>
-        <div class="menu-actions" style="flex-direction:column;gap:8px;margin-top:8px;">
-          <button class="btn btn-primary" id="homeLinks">
-            View / copy host links &amp; invites
-          </button>
-          <button class="btn btn-primary" id="homeRsvpTracker">
-            Open RSVP tracker
-          </button>
-          <button class="btn btn-secondary" id="homeBackIntro">
-            Back to intro
-          </button>
+        <div id="gamesPaneContent">
+          <p class="menu-copy">
+            Looking for your current Quest…
+          </p>
         </div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
-      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        OrganiserHomeScreen – hub for managing your Quest
+
+      <!-- BOTTOM NAV (Home / My games) -->
+      <nav
+        class="bottom-nav"
+        style="
+          margin-top:8px;
+          padding:8px 12px 4px;
+          border-top:1px solid rgba(0,0,0,0.06);
+          display:flex;
+          justify-content:space-around;
+          gap:12px;
+        "
+      >
+        <button
+          class="bottom-nav-item bottom-nav-item--active"
+          data-tab="home"
+          style="
+            flex:1;
+            border:none;
+            background:none;
+            font-size:12px;
+            padding:6px 0;
+          "
+        >
+          <div style="font-weight:600;">Home</div>
+        </button>
+
+        <button
+          class="bottom-nav-item"
+          data-tab="games"
+          style="
+            flex:1;
+            border:none;
+            background:none;
+            font-size:12px;
+            padding:6px 0;
+          "
+        >
+          <div style="font-weight:600;">My games</div>
+        </button>
+      </nav>
+
+      <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
+        OrganiserHomeScreen – Home / My games hub
       </p>
     </section>
   `;
-}
 
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
+  const homePane   = root.querySelector("#homePane");
+  const gamesPane  = root.querySelector("#gamesPane");
+  const homeTab    = root.querySelector('[data-tab="home"]');
+  const gamesTab   = root.querySelector('[data-tab="games"]');
+  const startBtn   = root.querySelector("#homeStartNew");
+  const gamesShell = root.querySelector("#gamesPaneContent");
+
+  function selectTab(tab) {
+    if (!homePane || !gamesPane || !homeTab || !gamesTab) return;
+
+    if (tab === "games") {
+      homePane.style.display = "none";
+      gamesPane.style.display = "block";
+      homeTab.classList.remove("bottom-nav-item--active");
+      gamesTab.classList.add("bottom-nav-item--active");
+    } else {
+      homePane.style.display = "block";
+      gamesPane.style.display = "none";
+      homeTab.classList.add("bottom-nav-item--active");
+      gamesTab.classList.remove("bottom-nav-item--active");
+    }
   }
 
-  scrollToTop();
-  renderShell(root);
-
-  const introEl      = root.querySelector("#homeIntro");
-  const summaryEl    = root.querySelector("#homeSummary");
-  const linksBtn     = root.querySelector("#homeLinks");
-  const trackerBtn   = root.querySelector("#homeRsvpTracker");
-  const backIntroBtn = root.querySelector("#homeBackIntro");
-
-  // Wire buttons immediately (they don't depend on data)
-  if (linksBtn) {
-    linksBtn.addEventListener("click", () => {
-      try {
-        actions.setState && actions.setState("links");
-      } catch (_) {}
+  if (homeTab) {
+    homeTab.addEventListener("click", () => selectTab("home"));
+  }
+  if (gamesTab) {
+    gamesTab.addEventListener("click", () => {
+      selectTab("games");
     });
   }
 
-  if (trackerBtn) {
-    trackerBtn.addEventListener("click", () => {
+  // Start new Quest → clear current game + go back into setup flow
+  if (startBtn && actions && typeof actions.setState === "function") {
+    startBtn.addEventListener("click", () => {
       try {
-        actions.setState && actions.setState("rsvpTracker");
+        window.localStorage.removeItem(CURRENT_GAME_KEY);
       } catch (_) {}
+
+      try {
+        if (actions.patch) {
+          actions.patch({ gameId: null });
+        }
+      } catch (_) {}
+
+      actions.setState("intro"); // your usual starting point
     });
   }
 
-  if (backIntroBtn) {
-    backIntroBtn.addEventListener("click", () => {
-      try {
-        actions.setState && actions.setState("intro");
-      } catch (_) {}
-    });
-  }
+  // ---- Load current game summary for "My games" pane ----
+  selectTab("games");  // default to My games when returning, feels natural
 
-  // Work out which game to load
   let gameId =
     (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
@@ -187,96 +198,134 @@ export function render(root, model = {}, actions = {}) {
   }
 
   if (!gameId) {
-    if (introEl) {
-      introEl.textContent = "We couldn’t find your current game.";
-    }
-    if (summaryEl) {
-      summaryEl.innerHTML = `
+    if (gamesShell) {
+      gamesShell.innerHTML = `
         <p class="menu-copy">
-          It looks like you don’t have an active game selected on this device.
-          <br><br>
-          Go back to the intro screen and start a new Culinary Quest, or load an
-          existing one if you’ve added that flow later on.
+          You don’t have an active Quest yet.
         </p>
+        <div class="menu-actions" style="margin-top:10px;">
+          <button class="btn btn-primary" id="gamesStartFromPane">
+            Start your first Culinary Quest
+          </button>
+        </div>
       `;
+      const paneStart = root.querySelector("#gamesStartFromPane");
+      if (paneStart && actions && typeof actions.setState === "function") {
+        paneStart.addEventListener("click", () => {
+          try {
+            window.localStorage.removeItem(CURRENT_GAME_KEY);
+          } catch (_) {}
+          if (actions.patch) {
+            actions.patch({ gameId: null });
+          }
+          actions.setState("intro");
+        });
+      }
     }
     return;
   }
 
-  // Async load game details
+  // We have a gameId – fetch summary and show an "Open dashboard" button
   (async () => {
+    if (!gamesShell) return;
+
+    gamesShell.innerHTML = `
+      <p class="menu-copy">Loading your current Quest…</p>
+    `;
+
     try {
       const game = await readGame(gameId);
+
       if (!game) {
-        if (introEl) {
-          introEl.textContent = "We couldn’t load this game from the cloud.";
-        }
-        if (summaryEl) {
-          summaryEl.innerHTML = `
-            <p class="menu-copy">
-              This game may have been deleted. You might need to start a new Culinary Quest.
-            </p>
-          `;
+        gamesShell.innerHTML = `
+          <p class="menu-copy">
+            We couldn’t find this Quest in the cloud. It may have been deleted
+            or created on another device.
+          </p>
+          <div class="menu-actions" style="margin-top:10px;">
+            <button class="btn btn-primary" id="gamesStartFresh">
+              Start a new Culinary Quest
+            </button>
+          </div>
+        `;
+        const freshBtn = root.querySelector("#gamesStartFresh");
+        if (freshBtn && actions && typeof actions.setState === "function") {
+          freshBtn.addEventListener("click", () => {
+            try {
+              window.localStorage.removeItem(CURRENT_GAME_KEY);
+            } catch (_) {}
+            if (actions.patch) {
+              actions.patch({ gameId: null });
+            }
+            actions.setState("intro");
+          });
         }
         return;
       }
 
-      const statusInfo = normaliseStatus(game.status);
-      const organiserName =
-        (game.organiserName && String(game.organiserName)) || "you";
-      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
-      const hostCount = hosts.length;
+      const name =
+        (game.name && String(game.name)) ||
+        (game.setup && game.setup.title) ||
+        "Untitled Culinary Quest";
 
-      if (introEl) {
-        introEl.innerHTML = `
-          Welcome back, <strong>${esc(organiserName)}</strong>.
-          <br>
-          You’re managing game <strong>${esc(game.gameId || gameId)}</strong>.
-        `;
-      }
+      const code   = game.gameId || gameId;
+      const status = (game.status && String(game.status)) || "draft";
+      const hosts  = Array.isArray(game.hosts) ? game.hosts.length : 0;
 
-      const hostNames = hosts
-        .map((h, idx) => (h && h.name ? String(h.name) : `Host ${idx + 1}`))
-        .slice(0, 6); // don’t explode the screen
+      gamesShell.innerHTML = `
+        <div
+          class="menu-copy"
+          style="
+            text-align:left;
+            font-size:13px;
+            padding:10px 12px;
+            border-radius:16px;
+            background:#ffffff;
+            box-shadow:0 1px 3px rgba(0,0,0,0.08);
+          "
+        >
+          <div style="font-weight:600;margin-bottom:4px;">
+            ${esc(name)}
+          </div>
+          <div style="margin-bottom:2px;">
+            <strong>Game code:</strong> ${esc(code)}
+          </div>
+          <div style="margin-bottom:2px;">
+            <strong>Hosts:</strong> ${hosts || 0}
+          </div>
+          <div>
+            <strong>Status:</strong> ${esc(status)}
+          </div>
+        </div>
 
-      const extraHosts =
-        hostCount > 6 ? ` + ${hostCount - 6} more` : "";
+        <div class="menu-actions" style="margin-top:12px;">
+          <button class="btn btn-primary" id="gamesOpenDashboard">
+            Open Quest dashboard
+          </button>
+        </div>
+      `;
 
-      if (summaryEl) {
-        summaryEl.innerHTML = `
-          <p class="menu-copy" style="margin-bottom:10px;">
-            <strong>Status:</strong>
-            <span style="display:inline-block;margin-left:4px;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;background:${statusInfo.color};">
-              ${esc(statusInfo.label)}
-            </span>
-            <br>
-            <span class="muted" style="font-size:12px;">
-              ${esc(statusInfo.description)}
-            </span>
-          </p>
-
-          <p class="menu-copy" style="margin-bottom:8px;">
-            <strong>Hosts:</strong>
-            ${hostCount ? hostCount : "No hosts yet"}
-            ${hostCount ? "<br><span style='font-size:12px;'>" +
-              esc(hostNames.join(", ")) +
-              extraHosts +
-              "</span>" : ""}
-          </p>
-        `;
+      const openBtn = root.querySelector("#gamesOpenDashboard");
+      if (openBtn && actions && typeof actions.setState === "function") {
+        openBtn.addEventListener("click", () => {
+          // Remember this as the current game in the model and localStorage
+          try {
+            window.localStorage.setItem(CURRENT_GAME_KEY, code);
+          } catch (_) {}
+          if (actions.patch) {
+            actions.patch({ gameId: code });
+          }
+          actions.setState("gameDashboard");
+        });
       }
     } catch (err) {
-      console.error("[OrganiserHomeScreen] Failed to load game", err);
-      if (introEl) {
-        introEl.textContent = "We hit a problem loading your game details.";
-      }
-      if (summaryEl) {
-        summaryEl.innerHTML = `
-          <p class="menu-copy">
-            Please check your connection and try again in a moment.
-          </p>
-        `;
-      }
+      console.error("[OrganiserHome] Failed to load game summary", err);
+      gamesShell.innerHTML = `
+        <p class="menu-copy">
+          We hit a problem loading your current Quest.
+          Please check your connection and try again in a moment.
+        </p>
+      `;
     }
   })();
 }
