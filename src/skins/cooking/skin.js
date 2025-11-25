@@ -67,11 +67,6 @@ export function loadSkin() {
 }
 
 /* ------------ route table (all as loaders) ------------ */
-
-/* ------------ route table (all as loaders) ------------ */
-
-// path: src/skins/cooking/skin.js
-// ...
 export const routes = {
   intro: () => safeLoad("./screens/IntroScreen.js", "Intro"),
   lobby: () => safeLoad("./screens/IntroScreen.js", "Intro"),
@@ -87,6 +82,9 @@ export const routes = {
   
   // ⬇️ NEW: real tracker screen instead of stub
   rsvpTracker: () => safeLoad("./screens/RsvpTrackerScreen.js", "RSVP tracker"),
+
+  // ⬇️ NEW: host availability checklist
+  availability: () => safeLoad("./screens/AvailabilityScreen.js", "Availability"),
 
   started:  () => Promise.resolve(stubRenderer("Game")),
   finished: () => Promise.resolve(stubRenderer("Results")),
