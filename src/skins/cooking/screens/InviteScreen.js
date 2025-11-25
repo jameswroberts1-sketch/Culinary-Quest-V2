@@ -1211,8 +1211,22 @@ export function render(root, model = {}, actions = {}) {
         };
       }
 
-      const gameId = game.gameId || urlGameId;
+            const gameId = game.gameId || urlGameId;
       const gameStatus = game.status || "links";
+
+      // ⬇️ NEW: availability phase redirect
+      // If the organiser has moved the game into the availability phase,
+      // this host's usual invite link should show the availability checklist
+      // rather than the RSVP / in-progress view.
+      if (
+        gameStatus === "availability" &&
+        actions &&
+        typeof actions.setState === "function"
+      ) {
+        actions.setState("availability");
+        return;
+      }
+
       const nowMs = Date.now();
 
       // Treat either 'inProgress' or 'started' as the active run phase
@@ -1220,7 +1234,7 @@ export function render(root, model = {}, actions = {}) {
         gameStatus === "inProgress" || gameStatus === "started";
 
       if (!isRunning) {
-        // Before games begin → standard RSVP behaviour
+        // Before games begin → keep existing RSVP behaviour
         renderInviteUI(root, {
           isOrganiser: false,
           hostIndex,
