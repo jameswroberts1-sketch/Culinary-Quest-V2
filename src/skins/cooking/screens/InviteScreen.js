@@ -249,6 +249,7 @@ function ordinal(n) {
 // Game in progress: pre-event view
 // --------------------------------------------------
 
+// Host/guest pre-event view while game is in progress
 function renderInProgressPreEvent(root, opts) {
   const {
     isCurrentHost,
@@ -272,40 +273,15 @@ function renderInProgressPreEvent(root, opts) {
   const phone   = rsvp && rsvp.phone ? rsvp.phone : "";
 
   const menu    = rsvp && rsvp.menu ? rsvp.menu : {};
-  const entreeName  = menu.entreeName  || "";
-  const entreeDesc  = menu.entreeDesc  || "";
-  const mainName    = menu.mainName    || "";
-  const mainDesc    = menu.mainDesc    || "";
-  const dessertName = menu.dessertName || "";
-  const dessertDesc = menu.dessertDesc || "";
+  const entreeName   = menu.entreeName   || "";
+  const entreeDesc   = menu.entreeDesc   || "";
+  const mainName     = menu.mainName     || "";
+  const mainDesc     = menu.mainDesc     || "";
+  const dessertName  = menu.dessertName  || "";
+  const dessertDesc  = menu.dessertDesc  || "";
 
-  let heading;
-  let bodyCopy;
-
-  if (isCurrentHost) {
-    heading = "YOUR NIGHT IS UP NEXT";
-    bodyCopy = `
-      Okay <strong>${safeViewer}</strong>, things are getting exciting – your dinner is next in the line-up.
-      <br><br>
-      Confirm your start time, where you're hosting, and what you're serving so your guests know what to expect.
-      If you chose a theme earlier, we'll remind everyone about it too.
-    `;
-  } else {
-    heading = "NEXT DINNER IN THE QUEST";
-    bodyCopy = `
-      Hi <strong>${safeViewer}</strong> – I hope you’re looking forward to enjoying
-      <strong>${safeHost}</strong>’s culinary skills.
-      <br><br>
-      They’re hosting you on <strong>${dateStr || "a date to be confirmed"}</strong>
-      ${timeStr ? " at <strong>" + timeStr + "</strong>" : ""}.
-      ${address ? "<br><br><strong>Address:</strong> " + esc(address) : ""}
-      ${phone   ? "<br><strong>Contact:</strong> " + esc(phone)     : ""}
-      ${!timeStr ? "<br><br>If no start time is shown, please contact the host or organiser directly." : ""}
-    `;
-  }
-
-  // Build menu summary (shown to everyone if present)
-  let menuSummaryHTML = "";
+  // Lines of menu text we can reuse in both views
+  let menuLinesHTML = "";
   if (entreeName || mainName || dessertName) {
     const lines = [];
     if (entreeName) {
@@ -329,21 +305,77 @@ function renderInProgressPreEvent(root, opts) {
         }`
       );
     }
+    menuLinesHTML = lines.join("<br><br>");
+  }
 
-    menuSummaryHTML = `
+  // Host-only summary block we append at the bottom of their card
+  const menuSummaryHTML = menuLinesHTML
+    ? `
       <div class="menu-divider" aria-hidden="true"></div>
       <section class="menu-section">
         <div class="menu-course">DESSERT</div>
         <h2 class="menu-h2">ON THE MENU</h2>
         <p class="menu-copy">
-          ${lines.join("<br><br>")}
+          ${menuLinesHTML}
         </p>
       </section>
-    `;
-  }
+    `
+    : "";
 
-  // Guest view – read-only
+  // ---------- GUEST VIEW (not the current host) ----------
   if (!isCurrentHost) {
+    const hasTime    = !!timeStr;
+    const hasAddress = !!address;
+    const hasPhone   = !!phone;
+
+    // “John is hosting you on…” + details or “hasn’t provided…yet”
+    let detailsCopy;
+    if (hasTime || hasAddress || hasPhone) {
+      detailsCopy = `
+        <br><br>${safeHost} is hosting you on<br>
+        <strong>${dateStr || "a date to be confirmed"}</strong>
+        ${hasTime ? "<br>at <strong>" + timeStr + "</strong>" : ""}
+        <br><br>
+        The details for ${safeHost}'s event are:<br>
+        ${hasAddress ? "<strong>Address:</strong> " + esc(address) + "<br>" : ""}
+        ${hasPhone ? "<strong>Contact:</strong> " + esc(phone) + "<br>" : ""}
+      `;
+    } else {
+      const missingBits = [];
+      if (!hasTime)    missingBits.push("a start time");
+      if (!hasAddress) missingBits.push("an address");
+      if (!hasPhone)   missingBits.push("a contact number");
+      const missingText = missingBits.join(", ").replace(/, ([^,]*)$/, " and $1");
+
+      detailsCopy = `
+        <br><br>${safeHost} is hosting you on<br>
+        <strong>${dateStr || "a date to be confirmed"}</strong>
+        <br><br>
+        ${safeHost} hasn’t provided ${missingText} yet, so please get in touch with
+        ${safeOrganiser} if you need these details.
+      `;
+    }
+
+    const entreeBody = `
+      Hi <strong>${safeViewer}</strong> – I hope you’re looking forward to enjoying
+      <strong>${safeHost}</strong>’s culinary skills.
+      ${detailsCopy}
+    `;
+
+    // MAIN: menu (or “John hasn’t provided a menu…”)
+    const mainBody = menuLinesHTML
+      ? menuLinesHTML
+      : `${safeHost} hasn’t provided a menu for this Quest yet. Maybe ${safeHost.split(" ")[0] || "they"} just likes surprises!`;
+
+    // DESSERT: scoring + theme reminder
+    const scoringLine = `
+      So bring your ‘A’ game. You’ll be scoring <strong>${safeHost}</strong> out of 10
+      for their efforts to impress.
+    `;
+    const themeLine = theme
+      ? `<br><br><strong>Theme:</strong> ${esc(theme)}`
+      : `<br><br>${safeHost} hasn’t chosen a theme yet – unless you hear otherwise, just come as you are.`;
+
     root.innerHTML = `
       <section class="menu-card">
         <div class="menu-hero">
@@ -356,29 +388,37 @@ function renderInProgressPreEvent(root, opts) {
 
         <div class="menu-ornament" aria-hidden="true"></div>
 
+        <!-- ENTRÉE -->
         <section class="menu-section">
           <div class="menu-course">ENTRÉE</div>
-          <h2 class="menu-h2">${heading}</h2>
+          <h2 class="menu-h2">NEXT DINNER IN THE QUEST</h2>
           <p class="menu-copy">
-            ${bodyCopy}
+            ${entreeBody}
           </p>
         </section>
 
         <div class="menu-divider" aria-hidden="true"></div>
 
+        <!-- MAIN: menu -->
         <section class="menu-section">
           <div class="menu-course">MAIN</div>
-          <h2 class="menu-h2">EVENT DETAILS</h2>
+          <h2 class="menu-h2">ON THE MENU</h2>
           <p class="menu-copy">
-            <strong>Date:</strong> ${dateStr || "To be confirmed"}<br>
-            <strong>Time:</strong> ${timeStr || "To be confirmed"}<br>
-            ${address ? "<strong>Address:</strong> " + esc(address) + "<br>" : ""}
-            ${phone   ? "<strong>Contact:</strong> " + esc(phone)   + "<br>" : ""}
-            ${theme   ? "<strong>Theme:</strong> "   + esc(theme)   + "<br>" : ""}
+            ${mainBody}
           </p>
         </section>
 
-        ${menuSummaryHTML}
+        <div class="menu-divider" aria-hidden="true"></div>
+
+        <!-- DESSERT: scoring + theme -->
+        <section class="menu-section">
+          <div class="menu-course">DESSERT</div>
+          <h2 class="menu-h2">SCORING</h2>
+          <p class="menu-copy">
+            ${scoringLine}
+            ${themeLine}
+          </p>
+        </section>
 
         <div class="menu-ornament" aria-hidden="true"></div>
         <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
@@ -389,7 +429,8 @@ function renderInProgressPreEvent(root, opts) {
     return;
   }
 
-  // Host view – editable
+  // ---------- HOST VIEW (current upcoming host) ----------
+  // Unchanged behaviour, but now reuses menuSummaryHTML built above
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -404,9 +445,12 @@ function renderInProgressPreEvent(root, opts) {
 
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">${heading}</h2>
+        <h2 class="menu-h2">YOUR NIGHT IS UP NEXT</h2>
         <p class="menu-copy">
-          ${bodyCopy}
+          Okay <strong>${safeViewer}</strong>, things are getting exciting – your dinner is next in the line-up.
+          <br><br>
+          Confirm your start time, where you're hosting, and what you're serving so your guests know what to expect.
+          If you chose a theme earlier, we'll remind everyone about it too.
         </p>
       </section>
 
@@ -524,6 +568,8 @@ function renderInProgressPreEvent(root, opts) {
         </div>
       </section>
 
+      ${menuSummaryHTML}
+
       <div class="menu-ornament" aria-hidden="true"></div>
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
         InviteScreen – game in progress (pre-event view)
@@ -536,13 +582,13 @@ function renderInProgressPreEvent(root, opts) {
   const timeEl    = root.querySelector("#preEventTime");
   const addrEl    = root.querySelector("#preEventAddress");
   const phoneEl   = root.querySelector("#preEventPhone");
-  const entreeNameEl  = root.querySelector("#preEventEntreeName");
-  const entreeDescEl  = root.querySelector("#preEventEntreeDesc");
-  const mainNameEl    = root.querySelector("#preEventMainName");
-  const mainDescEl    = root.querySelector("#preEventMainDesc");
+  const entreeNameEl = root.querySelector("#preEventEntreeName");
+  const entreeDescEl = root.querySelector("#preEventEntreeDesc");
+  const mainNameEl   = root.querySelector("#preEventMainName");
+  const mainDescEl   = root.querySelector("#preEventMainDesc");
   const dessertNameEl = root.querySelector("#preEventDessertName");
   const dessertDescEl = root.querySelector("#preEventDessertDesc");
-  const saveBtn       = root.querySelector("#preEventSave");
+  const saveBtn   = root.querySelector("#preEventSave");
 
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
@@ -581,7 +627,6 @@ function renderInProgressPreEvent(root, opts) {
     });
   }
 }
-
 // --------------------------------------------------
 // Game in progress: post-event view
 // --------------------------------------------------
