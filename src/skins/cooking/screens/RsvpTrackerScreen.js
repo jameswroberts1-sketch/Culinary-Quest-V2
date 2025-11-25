@@ -83,7 +83,7 @@ function renderShell(root) {
 
       <!-- Row 1 buttons -->
       <div class="menu-actions">
-        <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
+        <button class="btn btn-secondary" id="rsvpBack">Back to organiser home</button>
       </div>
 
       <!-- Row 2 buttons -->
@@ -351,10 +351,10 @@ export function render(root, model = {}, actions = {}) {
   // Initial load
   loadAndRender();
 
-  if (backBtn) {
+    if (backBtn) {
     backBtn.addEventListener("click", () => {
       try {
-        actions.setState && actions.setState("links");
+        actions.setState && actions.setState("organiserHome");
       } catch (_) {}
     });
   }
