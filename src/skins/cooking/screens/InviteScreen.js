@@ -238,14 +238,17 @@ function ordinal(n) {
 function renderInProgressPreEvent(root, opts) {
   const {
     isCurrentHost,
-    hostName,
+    viewerIndex,
+    viewerName,
+    currentHostIndex,
+    currentHostName,
     organiserName,
     rsvp,
-    gameId,
-    hostIndex
+    gameId
   } = opts;
 
-  const safeHost = esc(hostName || `Host ${hostIndex + 1}`);
+  const safeViewer = esc(viewerName || `Host ${viewerIndex + 1}`);
+  const safeHost = esc(currentHostName || `Host ${currentHostIndex + 1}`);
   const safeOrganiser = esc(organiserName || "the organiser");
 
   const dateStr = rsvp && rsvp.date ? formatShortDate(rsvp.date) : "";
@@ -258,17 +261,20 @@ function renderInProgressPreEvent(root, opts) {
   let bodyCopy;
 
   if (isCurrentHost) {
+    // Viewer IS the upcoming host
     heading = "YOUR NIGHT IS UP NEXT";
     bodyCopy = `
-      Okay <strong>${safeHost}</strong>, things are getting exciting – your dinner is next in the line-up.
+      Okay <strong>${safeViewer}</strong>, things are getting exciting – your dinner is next in the line-up.
       <br><br>
       Confirm your start time and where you're hosting so your guests know where to go.
       If you chose a theme earlier, we'll remind everyone about it too.
     `;
   } else {
+    // Viewer is a guest; show who is hosting
     heading = "NEXT DINNER IN THE QUEST";
     bodyCopy = `
-      Get ready to enjoy <strong>${safeHost}</strong>’s culinary skills.
+      Hi <strong>${safeViewer}</strong> – I hope you’re looking forward to enjoying
+      <strong>${safeHost}</strong>’s culinary skills.
       <br><br>
       They’re hosting you on <strong>${dateStr || "a date to be confirmed"}</strong>
       ${timeStr ? " at <strong>" + timeStr + "</strong>" : ""}.
@@ -397,9 +403,9 @@ function renderInProgressPreEvent(root, opts) {
 
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      const newDate = dateEl && dateEl.value ? dateEl.value.trim() : rsvp.date || null;
-      const newTime = timeEl && timeEl.value ? timeEl.value.trim() : rsvp.time || null;
-      const newAddr = addrEl && addrEl.value ? addrEl.value.trim() : null;
+      const newDate  = dateEl && dateEl.value ? dateEl.value.trim() : rsvp.date || null;
+      const newTime  = timeEl && timeEl.value ? timeEl.value.trim() : rsvp.time || null;
+      const newAddr  = addrEl && addrEl.value ? addrEl.value.trim() : null;
       const newPhone = phoneEl && phoneEl.value ? phoneEl.value.trim() : null;
 
       if (!newDate) {
@@ -409,7 +415,7 @@ function renderInProgressPreEvent(root, opts) {
 
       await saveRsvpToFirestore(
         gameId,
-        hostIndex,
+        currentHostIndex,
         rsvp.status || "accepted",
         newDate,
         newTime,
@@ -422,16 +428,17 @@ function renderInProgressPreEvent(root, opts) {
     });
   }
 }
-
 // After-event view (scoring gate)
 function renderInProgressPostEvent(root, opts) {
   const {
     isCurrentHost,
-    hostName,
+    viewerName,
+    currentHostName,
     organiserName
   } = opts;
 
-  const safeHost = esc(hostName || "your host");
+  const safeViewer = esc(viewerName || "you");
+  const safeHost   = esc(currentHostName || "your host");
   const safeOrganiser = esc(organiserName || "the organiser");
 
   if (isCurrentHost) {
@@ -452,7 +459,7 @@ function renderInProgressPostEvent(root, opts) {
           <div class="menu-course">ENTRÉE</div>
           <h2 class="menu-h2">SIT BACK &amp; RELAX</h2>
           <p class="menu-copy">
-            You've done your best, <strong>${safeHost}</strong>.
+            You've done your best, <strong>${safeViewer}</strong>.
             As the host, you don't get to score your own dinner – now it's up to your guests.
             <br><br>
             Keep an eye out for the final leaderboard once everyone has hosted and scored.
@@ -497,7 +504,6 @@ function renderInProgressPostEvent(root, opts) {
     `;
   }
 }
-
 // Shared UI renderer for both organiser + host
 function renderInviteUI(root, options) {
   const {
@@ -1049,6 +1055,8 @@ export function render(root, model = {}, actions = {}) {
       const { currentHostIndex, startMs, endMs } = timing;
       const rsvp = nights[currentHostIndex] || {};
       const isCurrentHost = hostIndex === currentHostIndex;
+      const currentHostDoc  = hosts[currentHostIndex] || {};
+      const currentHostName = currentHostDoc.name || `Host ${currentHostIndex + 1}`;
 
       if (!rsvp || !rsvp.date) {
         // If somehow we have an in-progress game but no date, fall back to RSVP UI
@@ -1066,25 +1074,27 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-      if (nowMs <= endMs) {
-        // Before or during the event → pre-event view
-        renderInProgressPreEvent(root, {
-          isCurrentHost,
-          hostIndex,
-          hostName,
-          organiserName,
-          rsvp,
-          gameId
-        });
-      } else {
-        // After the 6-hour window → post-event view (host relax / guest scoring placeholder)
-        renderInProgressPostEvent(root, {
-          isCurrentHost,
-          hostIndex,
-          hostName,
-          organiserName
-        });
-      }
+if (nowMs <= endMs) {
+  // Before or during the event → pre-event view
+  renderInProgressPreEvent(root, {
+    isCurrentHost,
+    viewerIndex: hostIndex,
+    viewerName: hostName,        // whose link we're on
+    currentHostIndex,
+    currentHostName,             // whose dinner is next
+    organiserName,
+    rsvp,
+    gameId
+  });
+} else {
+  // After the 6-hour window → post-event view (host relax / guest scoring placeholder)
+  renderInProgressPostEvent(root, {
+    isCurrentHost,
+    viewerName: hostName,
+    currentHostName,
+    organiserName
+  });
+}
     } catch (err) {
       console.error("[InviteScreen] Failed to load game", err);
       renderError(root);
