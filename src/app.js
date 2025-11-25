@@ -25,7 +25,8 @@ window.addEventListener("error", (e) => {
 
 /* ------------ simple in-memory model + actions ------------ */
 
-const CURRENT_GAME_KEY = "cq_current_game_id_v1"; // add this near TOKENS_STORAGE_KEY
+const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
+const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
@@ -59,10 +60,6 @@ function getInitialState() {
   // Normal organiser flow – first-time users
   return "intro";
 }
-  // Normal organiser flow
-  return "intro";
-}
-const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 
 const model = {
   state: getInitialState(),
