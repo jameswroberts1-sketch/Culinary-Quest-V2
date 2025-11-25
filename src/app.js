@@ -30,7 +30,11 @@ function getInitialState() {
   const stateFromUrl = params.get("state");
 
   // If URL explicitly asks for a known state, honour it
-  if (stateFromUrl === "invite" || stateFromUrl === "rsvpTracker") {
+  if (
+    stateFromUrl === "invite" ||
+    stateFromUrl === "rsvpTracker" ||
+    stateFromUrl === "availability"   // ⬅️ NEW
+  ) {
     return stateFromUrl;
   }
 
@@ -42,7 +46,6 @@ function getInitialState() {
   // Normal organiser flow
   return "intro";
 }
-
 const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 
 const model = {
