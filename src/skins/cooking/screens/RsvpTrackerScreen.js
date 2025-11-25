@@ -55,18 +55,18 @@ function renderShell(root) {
 
       <!-- ENTREE -->
       <section class="menu-section">
-  <div class="menu-course">ENTRÉE</div>
-  <h2 class="menu-h2">RSVP TRACKER</h2>
-  <p class="menu-copy">
-    Here’s your current line-up of hosts and dates.
-  </p>
+        <div class="menu-course">ENTRÉE</div>
+        <h2 class="menu-h2">RSVP TRACKER</h2>
+        <p class="menu-copy" id="rsvpIntro">
+          Here’s your current line-up of hosts and dates.
+        </p>
 
-  <div class="menu-actions" style="margin-top:12px;">
-    <button class="btn btn-primary" id="rsvpRefresh">
-      Refresh RSVPs
-    </button>
-  </div>
-</section>
+        <div class="menu-actions" style="margin-top:12px;">
+          <button class="btn btn-primary" id="rsvpRefresh">
+            Refresh RSVPs
+          </button>
+        </div>
+      </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
 
@@ -82,24 +82,16 @@ function renderShell(root) {
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <!-- Row 1 buttons -->
-<div class="menu-actions">
-  <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
-</div>
+      <div class="menu-actions">
+        <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
+      </div>
 
-<!-- Row 2 buttons -->
-<div class="menu-actions" style="margin-top:6px;">
-  <button class="btn btn-secondary" id="rsvpCancel">Cancel event</button>
-  <button class="btn btn-primary" id="rsvpConfirm">Confirm schedule with hosts</button>
-  <button class="btn btn-primary" id="rsvpBegin">Let the games begin</button>
-</div>
-
-<p class="muted" id="rsvpSummary"
-   style="text-align:center;margin-top:8px;font-size:11px;">
-</p>
-
-<p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
-  RsvpTrackerScreen – organiser view of hosts &amp; dates
-</p>
+      <!-- Row 2 buttons -->
+      <div class="menu-actions" style="margin-top:6px;">
+        <button class="btn btn-secondary" id="rsvpCancel">Cancel event</button>
+        <button class="btn btn-primary" id="rsvpConfirm">Confirm schedule with hosts</button>
+        <button class="btn btn-primary" id="rsvpBegin">Let the games begin</button>
+      </div>
 
       <p class="muted" id="rsvpSummary"
          style="text-align:center;margin-top:8px;font-size:11px;">
@@ -111,7 +103,6 @@ function renderShell(root) {
     </section>
   `;
 }
-
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
@@ -320,8 +311,9 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-  if (confirmBtn) {
+if (confirmBtn) {
   confirmBtn.addEventListener("click", async () => {
+    if (!gameId) return;
     try {
       await updateGame(gameId, { status: "availability" });
 
@@ -363,6 +355,7 @@ export function render(root, model = {}, actions = {}) {
 
   if (beginBtn) {
   beginBtn.addEventListener("click", async () => {
+    if (!gameId) return;
     try {
       await updateGame(gameId, { status: "inProgress" });
 
