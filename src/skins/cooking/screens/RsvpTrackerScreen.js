@@ -62,7 +62,7 @@ function renderShell(root) {
   </p>
 
   <div class="menu-actions" style="margin-top:12px;">
-    <button class="btn btn-secondary" id="rsvpRefresh">
+    <button class="btn btn-primary" id="rsvpRefresh">
       Refresh RSVPs
     </button>
   </div>
@@ -82,16 +82,24 @@ function renderShell(root) {
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <!-- Row 1 buttons -->
-      <div class="menu-actions">
-        <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
-        <button class="btn btn-primary" id="rsvpRefresh">Refresh RSVPs</button>
-      </div>
+<div class="menu-actions">
+  <button class="btn btn-secondary" id="rsvpBack">Back to links</button>
+</div>
 
-      <!-- Row 2 buttons -->
-      <div class="menu-actions" style="margin-top:6px;">
-        <button class="btn btn-secondary" id="rsvpCancel">Cancel event</button>
-        <button class="btn btn-primary" id="rsvpBegin">Let the games begin</button>
-      </div>
+<!-- Row 2 buttons -->
+<div class="menu-actions" style="margin-top:6px;">
+  <button class="btn btn-secondary" id="rsvpCancel">Cancel event</button>
+  <button class="btn btn-primary" id="rsvpConfirm">Confirm schedule with hosts</button>
+  <button class="btn btn-primary" id="rsvpBegin">Let the games begin</button>
+</div>
+
+<p class="muted" id="rsvpSummary"
+   style="text-align:center;margin-top:8px;font-size:11px;">
+</p>
+
+<p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
+  RsvpTrackerScreen – organiser view of hosts &amp; dates
+</p>
 
       <p class="muted" id="rsvpSummary"
          style="text-align:center;margin-top:8px;font-size:11px;">
