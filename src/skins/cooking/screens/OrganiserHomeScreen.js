@@ -9,7 +9,7 @@ const LOCAL_KEYS_TO_CLEAR = [
   "cq_hosts_v1",           // host names on organiser’s device
   "cq_host_nights_v1",     // host chosen dates/times
   "cq_host_tokens_v1",     // invite tokens cache
-  "cq_intro_done",         // intro completion flag
+  "cq_intro_done",         // intro has been completed
   "cq_organiser_name"      // organiser name cache
 ];
 
