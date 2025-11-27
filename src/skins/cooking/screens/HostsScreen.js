@@ -1,6 +1,8 @@
 // path: src/skins/cooking/screens/HostsScreen.js
 // Hosts screen – organiser + up to 5 additional hosts
 
+import { createGame } from "../../../engine/firestore.js";   // ⬅️ add this
+
 const HOSTS_STORAGE_KEY = "cq_hosts_v1";
 const MAX_HOSTS = 6; // organiser + up to 5 more
 const MIN_HOSTS = 2;
@@ -88,6 +90,21 @@ function persistHosts(hosts, actions) {
   } catch (_) {
     // non-fatal
   }
+}
+
+function buildGamePayload(model, hosts) {
+  const organiserName =
+    (hosts[0] && hosts[0].name && hosts[0].name.trim()) ||
+    model.organiserName ||
+    "";
+
+  const setup = model && typeof model.setup === "object" ? model.setup : null;
+
+  return {
+    organiserName,
+    hosts: hosts.map((h) => ({ name: h.name || "" })),
+    setup
+  };
 }
 
 export function render(root, model = {}, actions = {}) {
@@ -293,17 +310,51 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-  if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
+    if (nextBtn) {
+    nextBtn.addEventListener("click", async () => {
       const totalNamed = countNonEmpty();
       if (totalNamed < MIN_HOSTS) {
-        // Belt-and-braces guard; button should be disabled anyway
+        // Button should already be disabled, but double-check.
         return;
       }
+
+      // Keep local + model copy of hosts up to date
       persistHosts(hosts, actions);
+
+      // Build payload from current model + hosts
+      const payload = buildGamePayload(model, hosts);
+
       try {
-        actions.setState && actions.setState("links"); // next: per-host invite links
-      } catch (_) {}
+        const game = await createGame(payload);
+        const gameId = game && game.gameId ? String(game.gameId) : null;
+
+        if (!gameId) {
+          window.alert(
+            "We tried to create your Quest but couldn’t find its game code. Please try again."
+          );
+          return;
+        }
+
+        // Remember current game on this device
+        try {
+          window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
+        } catch (_) {}
+
+        // And in the shared model
+        if (actions && typeof actions.patch === "function") {
+          actions.patch({ gameId });
+        }
+
+        // Now move to Links screen
+        if (actions && typeof actions.setState === "function") {
+          actions.setState("links");
+        }
+      } catch (err) {
+        console.error("[HostsScreen] Failed to create game", err);
+        window.alert(
+          "Sorry, we couldn’t save your Quest details just now. Please check your connection and try again."
+        );
+      }
     });
   }
 }
