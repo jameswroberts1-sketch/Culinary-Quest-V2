@@ -165,23 +165,37 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-  // Start new Quest → clear current game + go back into setup flow
-  if (startBtn && actions && typeof actions.setState === "function") {
-    startBtn.addEventListener("click", () => {
-      try {
-        window.localStorage.removeItem(CURRENT_GAME_KEY);
-      } catch (_) {}
+// Start new Quest → clear current game + local host data and go back into setup flow
+if (startBtn && actions && typeof actions.setState === "function") {
+  startBtn.addEventListener("click", () => {
+    try {
+      // Clear all local “current game” data
+      window.localStorage.removeItem(CURRENT_GAME_KEY);
+      window.localStorage.removeItem("cq_hosts_v1");
+      window.localStorage.removeItem("cq_host_nights_v1");
+      window.localStorage.removeItem("cq_host_tokens_v1");
+    } catch (_) {
+      // ignore storage errors
+    }
 
-      try {
-        if (actions.patch) {
-          actions.patch({ gameId: null });
-        }
-      } catch (_) {}
+    try {
+      // Reset in-memory model bits
+      if (typeof actions.patch === "function") {
+        actions.patch({
+          gameId: null,
+          hosts: [],
+          hostNights: {},
+          setup: null
+        });
+      }
+    } catch (_) {
+      // ignore
+    }
 
-      actions.setState("intro"); // your usual starting point
-    });
-  }
-
+    // Back into the usual setup flow
+    actions.setState("intro");
+  });
+}
   // ---- Load current game summary for "My games" pane ----
   selectTab("games");  // default to My games when returning, feels natural
 
