@@ -8,7 +8,8 @@ const LOCAL_KEYS_TO_CLEAR = [
   "cq_setup_v2",           // setup screen config
   "cq_hosts_v1",           // host names on organiser’s device
   "cq_host_nights_v1",     // host chosen dates/times
-  "cq_host_tokens_v1"      // invite tokens cache
+  "cq_host_tokens_v1",     // invite tokens cache
+  "cq_intro_v1"            // organiser intro / name cache (safe even if unused)
 ];
 
 function clearLocalGameState() {
@@ -188,8 +189,9 @@ if (startBtn && actions && typeof actions.setState === "function") {
 
     try {
       if (actions.patch) {
-        actions.patch({ gameId: null, setup: null, hosts: null });
-      }
+  actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
+}
+
     } catch (_) {}
 
     actions.setState("intro"); // your usual starting point
@@ -227,8 +229,8 @@ if (paneStart && actions && typeof actions.setState === "function") {
   paneStart.addEventListener("click", () => {
     clearLocalGameState();
     if (actions.patch) {
-      actions.patch({ gameId: null, setup: null, hosts: null });
-    }
+  actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
+}
     actions.setState("intro");
   });
 }
@@ -264,8 +266,9 @@ if (paneStart && actions && typeof actions.setState === "function") {
           freshBtn.addEventListener("click", () => {
             clearLocalGameState();
     if (actions.patch) {
-      actions.patch({ gameId: null, setup: null, hosts: null });
-    }
+  actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
+}
+
             actions.setState("intro");
           });
         }
