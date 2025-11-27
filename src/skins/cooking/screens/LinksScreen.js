@@ -1,14 +1,9 @@
 // path: src/skins/cooking/screens/LinksScreen.js
-// Links screen – per-host invite links with opaque tokens, backed by Firestore
+// Host links – organiser view of per-host invite URLs (Firestore-backed)
 
-import { createGame, getUid } from "../../../engine/firestore.js";
+import { readGame } from "../../../engine/firestore.js";
 
-const HOSTS_STORAGE_KEY  = "cq_hosts_v1";          // same as HostsScreen
-const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
-const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
-const MAX_HOSTS          = 6;
-
-/* ---------------- basic helpers ---------------- */
+const CURRENT_GAME_KEY = "cq_current_game_id_v1";
 
 function esc(str) {
   if (str == null) return "";
@@ -19,274 +14,7 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-// Human-ish game id: a few initials + random suffix, e.g. "SUF-3F9X"
-function makeGameId(gameTitle, organiserName) {
-  const source =
-    (gameTitle && gameTitle.trim()) ||
-    (organiserName && organiserName.trim()) ||
-    "Culinary Quest";
-
-  const initials = source
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((w) => w[0])
-    .join("");
-
-  const prefix = initials || "CQ";
-  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `${prefix}-${suffix}`;
-}
-
-/* ---------------- hosts + tokens ---------------- */
-
-function hydrateHosts(model = {}) {
-  let hosts = [];
-
-  if (Array.isArray(model.hosts) && model.hosts.length) {
-    hosts = model.hosts.map((h) => ({
-      name: h && typeof h.name === "string" ? h.name : ""
-    }));
-  } else {
-    const organiserName =
-      model.organiserName ||
-      model.hostName ||
-      model.name ||
-      model.organiser ||
-      "";
-
-    if (organiserName) {
-      hosts = [{ name: organiserName }];
-    }
-  }
-
-  if (hosts.length === 0) {
-    hosts = [{ name: "" }];
-  }
-
-  if (hosts.length > MAX_HOSTS) {
-    hosts = hosts.slice(0, MAX_HOSTS);
-  }
-
-  // Merge cached host names from localStorage
-  try {
-    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved) && saved.length) {
-        saved.forEach((entry, idx) => {
-          if (!hosts[idx]) hosts[idx] = { name: "" };
-          if (entry && typeof entry.name === "string" && entry.name.trim()) {
-            hosts[idx].name = entry.name;
-          }
-        });
-      }
-    }
-  } catch (_) {}
-
-  if (!hosts[0]) hosts[0] = { name: "" };
-  return hosts;
-}
-
-// Random opaque token – prefer crypto, fall back to Math.random
-function makeToken(length = 18) {
-  const alphabet =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const n = alphabet.length;
-
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    const bytes = new Uint8Array(length);
-    crypto.getRandomValues(bytes);
-    let out = "";
-    for (let i = 0; i < length; i++) {
-      out += alphabet[bytes[i] % n];
-    }
-    return out;
-  }
-
-  let out = "";
-  for (let i = 0; i < length; i++) {
-    out += alphabet[Math.floor(Math.random() * n)];
-  }
-  return out;
-}
-
-function hydrateTokens(model = {}, hostCount) {
-  let tokens = [];
-
-  // 1) From shared model.hostTokens
-  if (Array.isArray(model.hostTokens)) {
-    tokens = model.hostTokens.slice();
-  } else if (model.hostTokens && typeof model.hostTokens === "object") {
-    tokens = [];
-    Object.keys(model.hostTokens).forEach((k) => {
-      const idx = Number(k);
-      if (!Number.isNaN(idx)) {
-        tokens[idx] = String(model.hostTokens[k] || "");
-      }
-    });
-  }
-
-  // 2) Merge localStorage tokens (non-destructive)
-  try {
-    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved)) {
-        saved.forEach((val, idx) => {
-          if (!tokens[idx] && typeof val === "string" && val.trim()) {
-            tokens[idx] = val;
-          }
-        });
-      }
-    }
-  } catch (_) {}
-
-  // 3) Ensure one opaque token per host
-  const used = new Set(tokens.filter((t) => typeof t === "string" && t));
-
-  for (let i = 0; i < hostCount; i++) {
-    if (typeof tokens[i] === "string" && tokens[i].length > 0) continue;
-    let t;
-    do {
-      t = makeToken(18);
-    } while (used.has(t));
-    tokens[i] = t;
-    used.add(t);
-  }
-
-  return tokens;
-}
-
-function persistTokens(tokens, actions) {
-  try {
-    window.localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
-  } catch (_) {}
-
-  try {
-    if (actions && typeof actions.updateHostTokens === "function") {
-      actions.updateHostTokens(tokens);
-    } else if (actions && typeof actions.setHostTokens === "function") {
-      actions.setHostTokens(tokens);
-    } else if (actions && typeof actions.patch === "function") {
-      actions.patch({ hostTokens: tokens });
-    }
-  } catch (_) {}
-}
-
-/* ---------------- Firestore game creation ---------------- */
-
-async function ensureFirestoreGame(model, setup, hosts, tokens) {
-  // Try reuse existing gameId
-  let gameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-    null;
-
-  if (!gameId) {
-    try {
-      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) {
-        gameId = stored.trim();
-      }
-    } catch (_) {}
-  }
-
-  const organiserName =
-    (model.organiserName && String(model.organiserName).trim()) ||
-    (hosts[0] && hosts[0].name) ||
-    "the organiser";
-
-  const gameTitle =
-    (setup &&
-      typeof setup.gameTitle === "string" &&
-      setup.gameTitle.trim()) ||
-    `${organiserName}'s Culinary Quest`;
-
-  if (!gameId) {
-    gameId = makeGameId(gameTitle, organiserName);
-  }
-
-  const hostDocs = hosts.map((h, index) => ({
-    index,
-    name: h && h.name ? h.name : `Host ${index + 1}`,
-    role: index === 0 ? "organiser" : "host",
-    token: tokens[index] || null
-  }));
-
-  const nowIso = new Date().toISOString();
-  const uid = await getUid();
-
-  await createGame(gameId, {
-    gameId,
-    organiserUid: uid || null,
-    organiserName,
-    gameTitle,
-    createdAt: nowIso,
-    status: "links", // organiser is on the invite-links step
-    setup: {
-      scoringMode:
-        setup && (setup.mode === "category" ? "category" : "simple"),
-      allowThemes: !!(setup && setup.allowThemes),
-      categories: Array.isArray(setup && setup.categories)
-        ? setup.categories
-        : ["Food"],
-      customCategories: Array.isArray(setup && setup.customCategories)
-        ? setup.customCategories
-        : [],
-      comments: {
-        mode:
-          setup && setup.mode === "category"
-            ? "perCategory"
-            : "overall",
-        maxChars: 200
-      }
-    },
-    hosts: hostDocs
-  });
-
-  try {
-    window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
-  } catch (_) {}
-
-  if (model) model.gameId = gameId;
-  return gameId;
-}
-
-// Build the invite URL for a given game + token
-function buildInviteUrl(token, gameId) {
-  const loc  = window.location;
-  const base = `${loc.origin}${loc.pathname}`;
-
-  let finalGameId = gameId || null;
-  if (!finalGameId) {
-    try {
-      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) finalGameId = stored.trim();
-    } catch (_) {}
-  }
-
-  const params = new URLSearchParams();
-  params.set("state", "invite");
-  params.set("invite", token);
-
-  if (finalGameId && finalGameId.trim()) {
-    params.set("game", finalGameId.trim());
-  }
-
-  return `${base}?${params.toString()}`;
-}
-
-/* ---------------- main render ---------------- */
-
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  // Always start at the top
+function scrollToTop() {
   try {
     const scroller =
       document.scrollingElement ||
@@ -299,15 +27,14 @@ export function render(root, model = {}, actions = {}) {
       scroller.scrollLeft = 0;
     }
   } catch (_) {}
+}
 
-  const setup  = model && typeof model.setup === "object" ? model.setup : {};
-  const hosts  = hydrateHosts(model);
-  const tokens = hydrateTokens(model, hosts.length);
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
 
-  // Keep tokens stable locally + in model
-  persistTokens(tokens, actions);
-
-  // ---- HTML skeleton ------------------------------------------------
+  scrollToTop();
 
   root.innerHTML = `
     <section class="menu-card">
@@ -324,11 +51,21 @@ export function render(root, model = {}, actions = {}) {
       <!-- ENTREE -->
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">SHARE YOUR INVITES</h2>
-        <p class="menu-copy">
-          Each host gets a private link to choose their date, RSVP and (optionally) set a theme.
-          Tap <strong>Copy</strong> to share each link via your favourite messaging app.
+        <h2 class="menu-h2">Host invite links</h2>
+        <p class="menu-copy" id="linksIntro">
+          Share these links with your <strong>other hosts</strong> so they can
+          accept their invite and choose a hosting date.
+          <br><br>
+          As the organiser, you don’t need a link yourself – you can always
+          get back to your <strong>Organiser home</strong> and Quest dashboard
+          from your app shortcut.
         </p>
+
+        <div class="menu-actions" style="margin-top:12px;">
+          <button class="btn btn-primary" id="linksRefresh">
+            Refresh host list
+          </button>
+        </div>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
@@ -336,161 +73,257 @@ export function render(root, model = {}, actions = {}) {
       <!-- MAIN -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">HOST LINKS</h2>
-        <p class="menu-copy">
-          These links are unique and hard to guess. Please keep them private to each host.
-        </p>
-
-        <ul class="hosts-list" id="linksList"></ul>
-
-        <p class="menu-copy hosts-summary">
-          Links generated for <strong>${hosts.length}</strong> host${hosts.length === 1 ? "" : "s"}.
-        </p>
+        <h2 class="menu-h2">Links for your hosts</h2>
+        <div id="linksListContainer">
+          <p class="menu-copy">Loading…</p>
+        </div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
+      <!-- FOOTER BUTTONS -->
       <div class="menu-actions">
-        <button class="btn btn-secondary" id="linksBack">Back</button>
-        <button class="btn btn-primary" id="linksNext">Continue</button>
+        <button class="btn btn-secondary" id="linksBack">
+          Back to setup
+        </button>
+        <button class="btn btn-primary" id="linksRsvp">
+          View RSVP tracker
+        </button>
       </div>
 
-      <!-- tiny Firestore debug line -->
-      <p id="fsStatus"
-         class="muted"
-         style="text-align:center;margin-top:4px;font-size:10px;">
+      <p class="muted" id="linksSummary"
+         style="text-align:center;margin-top:8px;font-size:11px;">
       </p>
 
-      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        LinksScreen – per-host opaque invite links
+      <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
+        LinksScreen – organiser view of host invite URLs
       </p>
     </section>
   `;
 
-  const listEl   = root.querySelector("#linksList");
-  const backBtn  = root.querySelector("#linksBack");
-  const nextBtn  = root.querySelector("#linksNext");
-  const statusEl = root.querySelector("#fsStatus");
+  const introEl    = root.querySelector("#linksIntro");
+  const listWrap   = root.querySelector("#linksListContainer");
+  const summaryEl  = root.querySelector("#linksSummary");
+  const backBtn    = root.querySelector("#linksBack");
+  const rsvpBtn    = root.querySelector("#linksRsvp");
+  const refreshBtn = root.querySelector("#linksRefresh");
 
-  if (!listEl) return;
+  // Work out which game to load
+  let gameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
-  // Show immediate status and kick off game creation
-  if (statusEl) {
-    statusEl.textContent = "Preparing cloud game…";
+  if (!gameId) {
+    try {
+      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+      if (stored && stored.trim()) {
+        gameId = stored.trim();
+      }
+    } catch (_) {}
   }
 
-  let currentGameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-    null;
-
-  const gameIdPromise = ensureFirestoreGame(model, setup, hosts, tokens)
-    .then((gameId) => {
-      if (gameId) {
-        currentGameId = gameId;
-      }
-      if (statusEl) {
-        statusEl.textContent = gameId
-          ? `Cloud game ready: ${gameId}`
-          : "Cloud game not created.";
-      }
-      if (gameId && actions && typeof actions.patch === "function") {
-        actions.patch({ gameId });
-      }
-      return gameId;
-    })
-    .catch((err) => {
-      console.error("[LinksScreen] ensureFirestoreGame error", err);
-      if (statusEl) {
-        statusEl.textContent =
-          "Cloud error: " + (err && err.message ? err.message : String(err));
-      }
-      return null;
-    });
-
-  // One row per host
-  const rows = hosts.map((host, index) => {
-    const name  = (host && host.name && host.name.trim()) || `Host ${index + 1}`;
-    const label = index === 0 ? "Organiser link (you)" : "Host link";
-    const safe  = esc(name);
-
-    return `
-      <li class="host-row host-row--links">
-        <div class="host-row-label">Host ${index + 1}</div>
-        <div class="host-row-main">
-          <div class="host-row-name">${safe}</div>
-          <div class="host-row-meta">${label}</div>
-        </div>
-        <button
-          type="button"
-          class="btn btn-secondary host-link-copy"
-          data-host-index="${index}"
-        >
-          Copy ${safe}'s link
-        </button>
-      </li>
-    `;
-  });
-
-  listEl.innerHTML = rows.join("");
-
-  // Copy buttons – we wait for a gameId if needed
-  listEl.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest(".host-link-copy");
-    if (!btn) return;
-
-    const idx = Number(btn.dataset.hostIndex);
-    if (!Number.isInteger(idx) || idx < 0 || idx >= tokens.length) return;
-
-    const token = tokens[idx];
-    if (!token) return;
-
-    let gameId =
-      (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-      currentGameId ||
-      null;
-
-    if (!gameId && gameIdPromise) {
-      gameId = await gameIdPromise;
+  if (!gameId) {
+    if (introEl) {
+      introEl.textContent = "We couldn’t find your game details.";
     }
+    if (listWrap) {
+      listWrap.innerHTML = `
+        <p class="menu-copy">
+          Please go back to the setup screens, create a new Quest and then return here.
+        </p>
+      `;
+    }
+    return;
+  }
 
-    const url = buildInviteUrl(token, gameId);
-    const originalText = btn.textContent;
+  async function loadAndRender() {
+    if (listWrap) {
+      listWrap.innerHTML = `<p class="menu-copy">Loading…</p>`;
+    }
 
     try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        await navigator.clipboard.writeText(url);
-      } else {
-        window.prompt("Copy this invite link", url);
+      const game = await readGame(gameId);
+      if (!game) {
+        if (listWrap) {
+          listWrap.innerHTML = `
+            <p class="menu-copy">
+              We couldn’t load this Quest from the cloud. It may have been deleted
+              or created on another device.
+            </p>
+          `;
+        }
+        if (summaryEl) {
+          summaryEl.textContent = "";
+        }
+        return;
       }
 
-      btn.textContent = "Copied!";
-      btn.disabled = true;
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }, 1500);
-    } catch (err) {
-      window.prompt("Copy this invite link", url);
-    }
-  });
+      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
 
-  // Navigation
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      try {
-        actions.setState && actions.setState("hosts");
-      } catch (_) {}
+      if (!hosts.length) {
+        if (listWrap) {
+          listWrap.innerHTML = `
+            <p class="menu-copy">
+              No hosts found for this Quest yet. Go back and make sure you’ve added everyone.
+            </p>
+          `;
+        }
+        if (summaryEl) {
+          summaryEl.textContent = "";
+        }
+        return;
+      }
+
+      const origin = window.location.origin;
+      const path   = window.location.pathname.replace(/index\.html$/i, "");
+      const base   = `${origin}${path}`;
+
+      let visibleHostCount = 0;
+
+      const rowsHtml = hosts
+        .map((host, index) => {
+          // ⬇️ Skip the organiser (host 0) – they use the app, not a link
+          if (index === 0) return "";
+
+          const name =
+            host && host.name ? String(host.name) : `Host ${index + 1}`;
+          const token =
+            host && typeof host.token === "string" && host.token.trim()
+              ? host.token.trim()
+              : null;
+
+          if (!token) {
+            return `
+              <div class="link-row" style="margin:10px 0;">
+                <div class="menu-copy" style="font-size:13px;">
+                  <strong>${esc(name)}</strong><br>
+                  <span class="muted" style="font-size:11px;">
+                    No invite token generated for this host yet.
+                    Try going back to the host list and saving again.
+                  </span>
+                </div>
+              </div>
+            `;
+          }
+
+          visibleHostCount++;
+
+          const link = `${base}?invite=${encodeURIComponent(
+            token
+          )}&game=${encodeURIComponent(gameId)}`;
+
+          return `
+            <div
+              class="link-row"
+              style="
+                display:flex;
+                align-items:flex-start;
+                justify-content:space-between;
+                gap:12px;
+                margin:10px 0;
+              "
+            >
+              <div class="menu-copy" style="font-size:13px;flex:1;">
+                <strong>${esc(name)}</strong><br>
+                <span style="word-break:break-all;font-size:11px;">
+                  ${esc(link)}
+                </span>
+              </div>
+              <div style="display:flex;align-items:center;">
+                <button
+                  class="btn btn-secondary copy-btn"
+                  data-link="${esc(link)}"
+                  style="font-size:11px;padding:6px 8px;"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      if (listWrap) {
+        listWrap.innerHTML =
+          rowsHtml && rowsHtml.trim()
+            ? `<div class="links-list">${rowsHtml}</div>`
+            : `
+              <p class="menu-copy">
+                You currently only have yourself set up as a host.
+                Add more hosts before sharing any links.
+              </p>
+            `;
+      }
+
+      if (summaryEl) {
+        summaryEl.textContent =
+          `Links ready for ${visibleHostCount} host` +
+          (visibleHostCount === 1 ? "" : "s") +
+          ` · Game ID: ${game.gameId || gameId}`;
+      }
+
+      // Wire up copy buttons
+      const copyButtons = root.querySelectorAll(".copy-btn");
+      copyButtons.forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const link = btn.getAttribute("data-link");
+          if (!link) return;
+
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(link);
+            } else {
+              // Fallback for older browsers
+              const tmp = document.createElement("textarea");
+              tmp.value = link;
+              tmp.style.position = "fixed";
+              tmp.style.opacity = "0";
+              document.body.appendChild(tmp);
+              tmp.select();
+              document.execCommand("copy");
+              document.body.removeChild(tmp);
+            }
+            window.alert("Link copied. Paste it into a message to your host.");
+          } catch (err) {
+            console.warn("[LinksScreen] Failed to copy link", err);
+            window.alert("Sorry, we couldn’t copy that link. You can tap and hold it to copy manually.");
+          }
+        });
+      });
+    } catch (err) {
+      console.error("[LinksScreen] Failed to load links", err);
+      if (listWrap) {
+        listWrap.innerHTML = `
+          <p class="menu-copy">
+            We hit a problem loading your host links.
+            Please check your connection and tap <strong>Refresh host list</strong> to try again.
+          </p>
+        `;
+      }
+      if (summaryEl) {
+        summaryEl.textContent = "";
+      }
+    }
+  }
+
+  // ---- initial load + button handlers ----
+
+  loadAndRender();
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      loadAndRender();
     });
   }
 
-  if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
-      if (model) {
-        model.activeHostIndex = 0; // organiser inside the app
-      }
-      try {
-        actions.setState && actions.setState("invite");
-      } catch (_) {}
+  if (backBtn && actions && typeof actions.setState === "function") {
+    backBtn.addEventListener("click", () => {
+      actions.setState("hosts"); // back to host list/setup
+    });
+  }
+
+  if (rsvpBtn && actions && typeof actions.setState === "function") {
+    rsvpBtn.addEventListener("click", () => {
+      actions.setState("rsvpTracker");
     });
   }
 }
