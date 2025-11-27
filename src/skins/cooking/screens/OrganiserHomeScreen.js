@@ -3,6 +3,22 @@
 
 import { readGame } from "../../../engine/firestore.js";
 
+const LOCAL_KEYS_TO_CLEAR = [
+  "cq_current_game_id_v1", // current game id
+  "cq_setup_v2",           // setup screen config
+  "cq_hosts_v1",           // host names on organiser’s device
+  "cq_host_nights_v1",     // host chosen dates/times
+  "cq_host_tokens_v1"      // invite tokens cache
+];
+
+function clearLocalGameState() {
+  LOCAL_KEYS_TO_CLEAR.forEach((key) => {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (_) {}
+  });
+}
+
 const CURRENT_GAME_KEY = "cq_current_game_id_v1";
 
 function esc(str) {
@@ -168,32 +184,15 @@ export function render(root, model = {}, actions = {}) {
 // Start new Quest → clear current game + local host data and go back into setup flow
 if (startBtn && actions && typeof actions.setState === "function") {
   startBtn.addEventListener("click", () => {
-    try {
-      // Clear all local “current game” data
-      window.localStorage.removeItem(CURRENT_GAME_KEY);
-      window.localStorage.removeItem("cq_hosts_v1");
-      window.localStorage.removeItem("cq_host_nights_v1");
-      window.localStorage.removeItem("cq_host_tokens_v1");
-    } catch (_) {
-      // ignore storage errors
-    }
+    clearLocalGameState();
 
     try {
-      // Reset in-memory model bits
-      if (typeof actions.patch === "function") {
-        actions.patch({
-          gameId: null,
-          hosts: [],
-          hostNights: {},
-          setup: null
-        });
+      if (actions.patch) {
+        actions.patch({ gameId: null, setup: null, hosts: null });
       }
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
 
-    // Back into the usual setup flow
-    actions.setState("intro");
+    actions.setState("intro"); // your usual starting point
   });
 }
   // ---- Load current game summary for "My games" pane ----
@@ -224,17 +223,15 @@ if (startBtn && actions && typeof actions.setState === "function") {
         </div>
       `;
       const paneStart = root.querySelector("#gamesStartFromPane");
-      if (paneStart && actions && typeof actions.setState === "function") {
-        paneStart.addEventListener("click", () => {
-          try {
-            window.localStorage.removeItem(CURRENT_GAME_KEY);
-          } catch (_) {}
-          if (actions.patch) {
-            actions.patch({ gameId: null });
-          }
-          actions.setState("intro");
-        });
-      }
+if (paneStart && actions && typeof actions.setState === "function") {
+  paneStart.addEventListener("click", () => {
+    clearLocalGameState();
+    if (actions.patch) {
+      actions.patch({ gameId: null, setup: null, hosts: null });
+    }
+    actions.setState("intro");
+  });
+}
     }
     return;
   }
@@ -265,12 +262,10 @@ if (startBtn && actions && typeof actions.setState === "function") {
         const freshBtn = root.querySelector("#gamesStartFresh");
         if (freshBtn && actions && typeof actions.setState === "function") {
           freshBtn.addEventListener("click", () => {
-            try {
-              window.localStorage.removeItem(CURRENT_GAME_KEY);
-            } catch (_) {}
-            if (actions.patch) {
-              actions.patch({ gameId: null });
-            }
+            clearLocalGameState();
+    if (actions.patch) {
+      actions.patch({ gameId: null, setup: null, hosts: null });
+    }
             actions.setState("intro");
           });
         }
