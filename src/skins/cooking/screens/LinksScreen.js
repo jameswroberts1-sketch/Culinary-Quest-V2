@@ -1,5 +1,5 @@
 // path: src/skins/cooking/screens/LinksScreen.js
-// Host links – organiser view of per-host invite URLs (Firestore-backed)
+// LinksScreen – organiser view of host invite URLs
 
 import { readGame } from "../../../engine/firestore.js";
 
@@ -14,7 +14,12 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-function scrollToTop() {
+export function render(root, model = {}, actions = {}) {
+  if (!root) {
+    root = document.getElementById("app") || document.body;
+  }
+
+  // Scroll to the top – avoids iOS zoom weirdness
   try {
     const scroller =
       document.scrollingElement ||
@@ -27,15 +32,8 @@ function scrollToTop() {
       scroller.scrollLeft = 0;
     }
   } catch (_) {}
-}
 
-export function render(root, model = {}, actions = {}) {
-  if (!root) {
-    root = document.getElementById("app") || document.body;
-  }
-
-  scrollToTop();
-
+  // Basic shell – host list will be filled in after we load
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -53,12 +51,7 @@ export function render(root, model = {}, actions = {}) {
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">Host invite links</h2>
         <p class="menu-copy" id="linksIntro">
-          Share these links with your <strong>other hosts</strong> so they can
-          accept their invite and choose a hosting date.
-          <br><br>
-          As the organiser, you don’t need a link yourself – you can always
-          get back to your <strong>Organiser home</strong> and Quest dashboard
-          from your app shortcut.
+          Here are the personalised invite links for each host.
         </p>
 
         <div class="menu-actions" style="margin-top:12px;">
@@ -74,41 +67,51 @@ export function render(root, model = {}, actions = {}) {
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">Links for your hosts</h2>
-        <div id="linksListContainer">
-          <p class="menu-copy">Loading…</p>
+        <div id="linksHostList">
+          <p class="menu-copy">
+            Loading host links…
+          </p>
         </div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- FOOTER BUTTONS -->
       <div class="menu-actions">
         <button class="btn btn-secondary" id="linksBack">
           Back to setup
         </button>
-        <button class="btn btn-primary" id="linksRsvp">
+        <button class="btn btn-primary" id="linksTracker">
           View RSVP tracker
         </button>
       </div>
 
-      <p class="muted" id="linksSummary"
-         style="text-align:center;margin-top:8px;font-size:11px;">
-      </p>
-
-      <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
+      <p class="muted" style="text-align:center;margin-top:8px;font-size:11px;">
         LinksScreen – organiser view of host invite URLs
       </p>
     </section>
   `;
 
-  const introEl    = root.querySelector("#linksIntro");
-  const listWrap   = root.querySelector("#linksListContainer");
-  const summaryEl  = root.querySelector("#linksSummary");
-  const backBtn    = root.querySelector("#linksBack");
-  const rsvpBtn    = root.querySelector("#linksRsvp");
-  const refreshBtn = root.querySelector("#linksRefresh");
+  const introEl   = root.querySelector("#linksIntro");
+  const listWrap  = root.querySelector("#linksHostList");
+  const backBtn   = root.querySelector("#linksBack");
+  const trackerBtn= root.querySelector("#linksTracker");
+  const refreshBtn= root.querySelector("#linksRefresh");
 
-  // Work out which game to load
+  // --- navigation buttons: always wired, even in error state ---
+
+  if (backBtn && actions && typeof actions.setState === "function") {
+    backBtn.addEventListener("click", () => {
+      actions.setState("hosts" /* or "setup" if you prefer */);
+    });
+  }
+
+  if (trackerBtn && actions && typeof actions.setState === "function") {
+    trackerBtn.addEventListener("click", () => {
+      actions.setState("rsvpTracker");
+    });
+  }
+
+  // Work out which game id to use
   let gameId =
     (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
@@ -121,209 +124,154 @@ export function render(root, model = {}, actions = {}) {
     } catch (_) {}
   }
 
-  if (!gameId) {
-    if (introEl) {
+  async function loadHostLinks() {
+    if (!introEl || !listWrap) return;
+
+    if (!gameId) {
       introEl.textContent = "We couldn’t find your game details.";
-    }
-    if (listWrap) {
       listWrap.innerHTML = `
         <p class="menu-copy">
           Please go back to the setup screens, create a new Quest and then return here.
         </p>
       `;
+      return;
     }
-    return;
-  }
 
-  async function loadAndRender() {
-    if (listWrap) {
-      listWrap.innerHTML = `<p class="menu-copy">Loading…</p>`;
-    }
+    // Keep the current game id in localStorage for other screens
+    try {
+      window.localStorage.setItem(CURRENT_GAME_KEY, gameId);
+    } catch (_) {}
+
+    introEl.textContent = "Here are the personalised invite links for each host.";
+    listWrap.innerHTML = `
+      <p class="menu-copy">Loading host links…</p>
+    `;
 
     try {
       const game = await readGame(gameId);
       if (!game) {
-        if (listWrap) {
-          listWrap.innerHTML = `
-            <p class="menu-copy">
-              We couldn’t load this Quest from the cloud. It may have been deleted
-              or created on another device.
-            </p>
-          `;
-        }
-        if (summaryEl) {
-          summaryEl.textContent = "";
-        }
+        introEl.textContent = "We couldn’t find your game details.";
+        listWrap.innerHTML = `
+          <p class="menu-copy">
+            This Quest no longer exists in the cloud. You may need to start a new one.
+          </p>
+        `;
         return;
       }
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
-
       if (!hosts.length) {
-        if (listWrap) {
-          listWrap.innerHTML = `
-            <p class="menu-copy">
-              No hosts found for this Quest yet. Go back and make sure you’ve added everyone.
-            </p>
-          `;
-        }
-        if (summaryEl) {
-          summaryEl.textContent = "";
-        }
+        listWrap.innerHTML = `
+          <p class="menu-copy">
+            No hosts found yet. Go back and add your fellow hosts first.
+          </p>
+        `;
         return;
       }
 
-      const origin = window.location.origin;
-      const path   = window.location.pathname.replace(/index\.html$/i, "");
-      const base   = `${origin}${path}`;
-
-      let visibleHostCount = 0;
-
+      const baseUrl = `${window.location.origin}${window.location.pathname}`;
       const rowsHtml = hosts
         .map((host, index) => {
-          // ⬇️ Skip the organiser (host 0) – they use the app, not a link
-          if (index === 0) return "";
-
-          const name =
-            host && host.name ? String(host.name) : `Host ${index + 1}`;
+          const name = host && host.name ? String(host.name) : `Host ${index + 1}`;
           const token =
-            host && typeof host.token === "string" && host.token.trim()
-              ? host.token.trim()
-              : null;
+            host && typeof host.token === "string" ? host.token : null;
 
           if (!token) {
             return `
-              <div class="link-row" style="margin:10px 0;">
-                <div class="menu-copy" style="font-size:13px;">
-                  <strong>${esc(name)}</strong><br>
-                  <span class="muted" style="font-size:11px;">
-                    No invite token generated for this host yet.
-                    Try going back to the host list and saving again.
-                  </span>
-                </div>
+              <div class="menu-copy" style="margin:8px 0;">
+                <strong>${esc(name)}</strong><br>
+                <span class="muted">No invite token yet – please refresh after saving hosts.</span>
               </div>
             `;
           }
 
-          visibleHostCount++;
-
-          const link = `${base}?invite=${encodeURIComponent(
-            token
-          )}&game=${encodeURIComponent(gameId)}`;
+          const url =
+            `${baseUrl}?invite=${encodeURIComponent(token)}` +
+            `&game=${encodeURIComponent(game.gameId || gameId)}`;
 
           return `
             <div
               class="link-row"
+              data-url="${esc(url)}"
               style="
-                display:flex;
-                align-items:flex-start;
-                justify-content:space-between;
-                gap:12px;
-                margin:10px 0;
+                padding:8px 10px;
+                margin:6px 0;
+                border-radius:12px;
+                background:#ffffff;
+                box-shadow:0 1px 2px rgba(0,0,0,0.06);
+                font-size:13px;
+                text-align:left;
               "
             >
-              <div class="menu-copy" style="font-size:13px;flex:1;">
-                <strong>${esc(name)}</strong><br>
-                <span style="word-break:break-all;font-size:11px;">
-                  ${esc(link)}
-                </span>
+              <div style="font-weight:600;margin-bottom:2px;">
+                ${esc(name)}
               </div>
-              <div style="display:flex;align-items:center;">
-                <button
-                  class="btn btn-secondary copy-btn"
-                  data-link="${esc(link)}"
-                  style="font-size:11px;padding:6px 8px;"
-                >
-                  Copy
-                </button>
+              <div class="muted" style="font-size:11px;margin-bottom:4px;">
+                Tap to copy invite link
+              </div>
+              <div
+                class="muted"
+                style="
+                  word-break:break-all;
+                  font-size:10px;
+                  line-height:1.4;
+                "
+              >
+                ${esc(url)}
               </div>
             </div>
           `;
         })
         .join("");
 
-      if (listWrap) {
-        listWrap.innerHTML =
-          rowsHtml && rowsHtml.trim()
-            ? `<div class="links-list">${rowsHtml}</div>`
-            : `
-              <p class="menu-copy">
-                You currently only have yourself set up as a host.
-                Add more hosts before sharing any links.
-              </p>
-            `;
-      }
+      listWrap.innerHTML = `
+        <div class="links-list">
+          ${rowsHtml}
+        </div>
+      `;
 
-      if (summaryEl) {
-        summaryEl.textContent =
-          `Links ready for ${visibleHostCount} host` +
-          (visibleHostCount === 1 ? "" : "s") +
-          ` · Game ID: ${game.gameId || gameId}`;
-      }
+      // Simple “tap to copy” behaviour
+      const linkRows = root.querySelectorAll(".link-row");
+      linkRows.forEach((row) => {
+        row.addEventListener("click", () => {
+          const url = row.getAttribute("data-url");
+          if (!url) return;
 
-      // Wire up copy buttons
-      const copyButtons = root.querySelectorAll(".copy-btn");
-      copyButtons.forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const link = btn.getAttribute("data-link");
-          if (!link) return;
+          const statusEl = row.querySelector(".muted");
 
-          try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              await navigator.clipboard.writeText(link);
-            } else {
-              // Fallback for older browsers
-              const tmp = document.createElement("textarea");
-              tmp.value = link;
-              tmp.style.position = "fixed";
-              tmp.style.opacity = "0";
-              document.body.appendChild(tmp);
-              tmp.select();
-              document.execCommand("copy");
-              document.body.removeChild(tmp);
-            }
-            window.alert("Link copied. Paste it into a message to your host.");
-          } catch (err) {
-            console.warn("[LinksScreen] Failed to copy link", err);
-            window.alert("Sorry, we couldn’t copy that link. You can tap and hold it to copy manually.");
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard
+              .writeText(url)
+              .then(() => {
+                if (statusEl) {
+                  statusEl.textContent = "Link copied to clipboard";
+                }
+              })
+              .catch(() => {
+                window.prompt("Copy this invite link:", url);
+              });
+          } else {
+            window.prompt("Copy this invite link:", url);
           }
         });
       });
     } catch (err) {
-      console.error("[LinksScreen] Failed to load links", err);
-      if (listWrap) {
-        listWrap.innerHTML = `
-          <p class="menu-copy">
-            We hit a problem loading your host links.
-            Please check your connection and tap <strong>Refresh host list</strong> to try again.
-          </p>
-        `;
-      }
-      if (summaryEl) {
-        summaryEl.textContent = "";
-      }
+      console.error("[LinksScreen] Failed to load host links", err);
+      introEl.textContent = "We hit a problem loading your host links.";
+      listWrap.innerHTML = `
+        <p class="menu-copy">
+          Please check your connection and tap <strong>Refresh host list</strong> to try again.
+        </p>
+      `;
     }
   }
 
-  // ---- initial load + button handlers ----
-
-  loadAndRender();
+  // Initial load
+  loadHostLinks();
 
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => {
-      loadAndRender();
-    });
-  }
-
-  if (backBtn && actions && typeof actions.setState === "function") {
-    backBtn.addEventListener("click", () => {
-      actions.setState("hosts"); // back to host list/setup
-    });
-  }
-
-  if (rsvpBtn && actions && typeof actions.setState === "function") {
-    rsvpBtn.addEventListener("click", () => {
-      actions.setState("rsvpTracker");
+      loadHostLinks();
     });
   }
 }
