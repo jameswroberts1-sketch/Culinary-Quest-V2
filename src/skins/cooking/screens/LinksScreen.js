@@ -207,13 +207,14 @@ export function render(root, model = {}, actions = {}) {
 
       let changed = false;
 
-      // Ensure every host has a token
-      for (let i = 0; i < hosts.length; i++) {
-        if (!tokens[i]) {
-          tokens[i] = generateToken();
-          changed = true;
-        }
-      }
+// Ensure every *non-organiser* host has a token
+// We treat hosts[0] as the organiser (no invite link needed)
+for (let i = 1; i < hosts.length; i++) {
+  if (!tokens[i]) {
+    tokens[i] = generateToken();
+    changed = true;
+  }
+}
 
       // Persist any new tokens
       if (changed) {
@@ -230,32 +231,39 @@ export function render(root, model = {}, actions = {}) {
 
       const baseUrl = getBaseUrl();
 
-      const rowsHtml = hosts.map((host, index) => {
-        const hostName = host && host.name ? String(host.name) : `Host ${index + 1}`;
-        const token = tokens[index] || "";
-        let linkText = "No link available";
-        if (token) {
-          const url = `${baseUrl}?invite=${encodeURIComponent(token)}`;
-          linkText = url;
-        }
+    const rowsHtml = hosts
+  // skip organiser (Host 1)
+  .slice(1)
+  .map((host, index) => {
+    const realIndex = index + 1; // because slice(1) shifts indexes down
+    const hostName =
+      host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
 
-        return `
-          <div class="link-row" style="margin:10px 0;">
-            <div style="font-weight:600;margin-bottom:4px;">
-              ${esc(hostName)}
-            </div>
-            <div
-              class="menu-copy"
-              style="font-size:13px;word-wrap:break-word;"
-            >
-              ${token
-                ? `Invite link:<br /><span class="muted">${esc(linkText)}</span>`
-                : "No invite token yet – please refresh after saving hosts."
-              }
-            </div>
-          </div>
-        `;
-      });
+    const token = tokens[realIndex] || "";
+    let linkText = "No link available";
+    if (token) {
+      const url = `${baseUrl}?invite=${encodeURIComponent(token)}`;
+      linkText = url;
+    }
+
+    return `
+      <div class="link-row" style="margin:10px 0;">
+        <div style="font-weight:600;margin-bottom:4px;">
+          ${esc(hostName)}
+        </div>
+        <div
+          class="menu-copy"
+          style="font-size:13px;word-wrap:break-word;"
+        >
+          ${
+            token
+              ? `Invite link:<br /><span class="muted">${esc(linkText)}</span>`
+              : "No invite token yet – please refresh after saving hosts."
+          }
+        </div>
+      </div>
+    `;
+  });
 
       if (listWrap) {
         listWrap.innerHTML = `
@@ -270,10 +278,11 @@ export function render(root, model = {}, actions = {}) {
       }
 
       if (summaryEl) {
-        summaryEl.textContent =
-          `Links loaded for ${game.gameId || gameId} · ` +
-          `${hosts.length} host${hosts.length === 1 ? "" : "s"}`;
-      }
+  const linkedHosts = Math.max(hosts.length - 1, 0); // exclude organiser
+  summaryEl.textContent =
+    `Links loaded for ${game.gameId || gameId} · ` +
+    `${linkedHosts} host${linkedHosts === 1 ? "" : "s"}`;
+}
     } catch (err) {
       console.error("[LinksScreen] Failed to load links", err);
       if (introEl) {
