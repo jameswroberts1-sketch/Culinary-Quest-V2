@@ -1150,15 +1150,41 @@ export function render(root, model = {}, actions = {}) {
       }
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
-      const hostIndex = hosts.findIndex(
-        (h) => h && typeof h.token === "string" && h.token === inviteToken
-      );
 
-      if (hostIndex < 0) {
-        console.warn("[InviteScreen] Token not found in hosts", inviteToken);
-        renderError(root);
-        return;
-      }
+// First, try the new-style token storage on the game doc
+let hostIndex = -1;
+let tokens = [];
+
+if (Array.isArray(game.hostTokens)) {
+  tokens = game.hostTokens;
+} else if (Array.isArray(game.tokens)) {
+  // backwards-compat / older docs
+  tokens = game.tokens;
+}
+
+if (tokens && tokens.length) {
+  hostIndex = tokens.findIndex(
+    (t) => typeof t === "string" && t === inviteToken
+  );
+}
+
+// Fallback for very old games where the token lived on the host object
+if (hostIndex < 0) {
+  hostIndex = hosts.findIndex(
+    (h) => h && typeof h.token === "string" && h.token === inviteToken
+  );
+}
+
+if (hostIndex < 0) {
+  console.warn(
+    "[InviteScreen] Token not found for game",
+    urlGameId,
+    "token:",
+    inviteToken
+  );
+  renderError(root);
+  return;
+}
 
       const hostDoc = hosts[hostIndex] || {};
       const hostName = hostDoc.name || `Host ${hostIndex + 1}`;
