@@ -1,11 +1,13 @@
 // path: src/skins/cooking/screens/HostsScreen.js
 // Hosts screen – organiser + up to 5 additional hosts
 
-import { createGame } from "../../../engine/firestore.js";   // ⬅️ add this
+import { createGame } from "../../../engine/firestore.js";
 
 const HOSTS_STORAGE_KEY = "cq_hosts_v1";
 const MAX_HOSTS = 6; // organiser + up to 5 more
 const MIN_HOSTS = 2;
+
+const CURRENT_GAME_KEY = "cq_current_game_id_v1";
 
 // Basic HTML escaping for host names
 function esc(str) {
@@ -92,9 +94,11 @@ function persistHosts(hosts, actions) {
   }
 }
 
+// ---- NEW: game creation helpers ---------------------------------
+
 function generateGameId() {
   const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // skip I/O for clarity
-  const chars   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
   let prefix = "";
   for (let i = 0; i < 3; i++) {
@@ -115,32 +119,19 @@ function buildGamePayload(model, hosts) {
     (model.organiserName && String(model.organiserName).trim()) ||
     "";
 
-  const setup = (model && typeof model.setup === "object") ? model.setup : null;
+  const setup =
+    model && typeof model.setup === "object" ? model.setup : null;
 
   return {
-    // gameId will be filled in just before we save
     status: "draft",
     createdAt: new Date().toISOString(),
     organiserName,
     hosts: hosts.map((h) => ({ name: h.name || "" })),
-    setup
+    setup,
   };
 }
 
-function buildGamePayload(model, hosts) {
-  const organiserName =
-    (hosts[0] && hosts[0].name && hosts[0].name.trim()) ||
-    model.organiserName ||
-    "";
-
-  const setup = model && typeof model.setup === "object" ? model.setup : null;
-
-  return {
-    organiserName,
-    hosts: hosts.map((h) => ({ name: h.name || "" })),
-    setup
-  };
-}
+// ---- main render ------------------------------------------------
 
 export function render(root, model = {}, actions = {}) {
   if (!root) {
@@ -149,7 +140,6 @@ export function render(root, model = {}, actions = {}) {
 
   // Always start this screen scrolled to the very top
   try {
-    // Hard reset the window scroll (covers iOS Safari quirks)
     window.scrollTo(0, 0);
   } catch (_) {}
 
@@ -345,11 +335,11 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-   if (nextBtn) {
+  if (nextBtn) {
     nextBtn.addEventListener("click", async () => {
       const totalNamed = countNonEmpty();
       if (totalNamed < MIN_HOSTS) {
-        // Button should already be disabled, but double-check.
+        // Belt-and-braces guard; button should be disabled anyway
         return;
       }
 
