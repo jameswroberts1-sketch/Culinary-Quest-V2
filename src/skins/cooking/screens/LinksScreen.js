@@ -210,15 +210,32 @@ export function render(root, model = {}, actions = {}) {
         }
       }
 
-      // Always persist the tokens we actually use for links
-      try {
-        await updateGame(gameId, {
-          hostTokens: tokens,
-          tokens: tokens
-        });
-      } catch (err) {
-        console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
-      }
+         // Always persist the tokens we actually use for links
+   try {
+     await updateGame(gameId, {
+       hostTokens: tokens,
+       tokens: tokens
+     });
+   } catch (err) {
+     console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
+   }
+
+   // NEW: also stamp the token onto each host object
+   try {
+     const updatedHosts = hosts.map((h, idx) => {
+       const baseHost = h && typeof h === "object" ? h : {};
+       const tok = tokens[idx];
+       if (!tok) return baseHost;
+       return { ...baseHost, token: tok };
+     });
+
+     await updateGame(gameId, { hosts: updatedHosts });
+   } catch (err) {
+     console.warn("[LinksScreen] Failed to stamp tokens onto hosts", err);
+   }
+
+   const baseUrl = getBaseUrl();
+   // …then your rowsHtml mapping…
 
       const baseUrl = getBaseUrl();
 
