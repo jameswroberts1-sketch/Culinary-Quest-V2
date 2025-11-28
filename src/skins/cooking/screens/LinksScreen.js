@@ -307,6 +307,33 @@ export function render(root, model = {}, actions = {}) {
   // Initial load
   loadAndRender();
 
+  // Handle "Copy invite link" pill clicks (wired once)
+  if (listWrap) {
+    listWrap.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest(".host-link-pill");
+      if (!btn) return;
+
+      const link = btn.dataset.link;
+      if (!link) return;
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(link);
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 1500);
+        } else {
+          window.prompt("Copy this invite link:", link);
+        }
+      } catch (err) {
+        console.warn("[LinksScreen] clipboard copy failed", err);
+        window.prompt("Copy this invite link:", link);
+      }
+    });
+  }
+
   // Buttons
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => {
