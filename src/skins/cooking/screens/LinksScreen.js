@@ -256,12 +256,11 @@ if (changed) {
             `;
           }
 
-          // ✅ include gameId in the URL as well as the invite token
-          const gid = game.gameId || gameId;
-          const url =
-            `${baseUrl}?game=${encodeURIComponent(gid)}` +
-            `&invite=${encodeURIComponent(token)}`;
-
+// Always use the Firestore document ID for lookups
+const gid = gameId;
+const url =
+  `${baseUrl}?game=${encodeURIComponent(gid)}` +
+  `&invite=${encodeURIComponent(token)}`;
           // ✅ pill text: "<Host>'s link", allow wrapping
           const label = `${hostName}’s link`;
 
