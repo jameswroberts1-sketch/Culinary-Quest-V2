@@ -206,42 +206,15 @@ export function render(root, model = {}, actions = {}) {
       } catch (_) {}
 
       let changed = false;
-  // Handle "Copy invite link" pill clicks
-  if (listWrap) {
-    listWrap.addEventListener("click", async (ev) => {
-      const btn = ev.target.closest(".host-link-pill");
-      if (!btn) return;
 
-      const link = btn.dataset.link;
-      if (!link) return;
-
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(link);
-          const original = btn.textContent;
-          btn.textContent = "Copied!";
-          setTimeout(() => {
-            btn.textContent = original;
-          }, 1500);
-        } else {
-          // Fallback for older browsers
-          window.prompt("Copy this invite link:", link);
+      // Ensure every *non-organiser* host has a token
+      // We treat hosts[0] as the organiser (no invite link needed)
+      for (let i = 1; i < hosts.length; i++) {
+        if (!tokens[i]) {
+          tokens[i] = generateToken();
+          changed = true;
         }
-      } catch (err) {
-        console.warn("[LinksScreen] clipboard copy failed", err);
-        window.prompt("Copy this invite link:", link);
       }
-    });
-  }
-      
-// Ensure every *non-organiser* host has a token
-// We treat hosts[0] as the organiser (no invite link needed)
-for (let i = 1; i < hosts.length; i++) {
-  if (!tokens[i]) {
-    tokens[i] = generateToken();
-    changed = true;
-  }
-}
 
       // Persist any new tokens
       if (changed) {
