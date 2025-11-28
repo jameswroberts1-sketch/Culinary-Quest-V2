@@ -92,6 +92,41 @@ function persistHosts(hosts, actions) {
   }
 }
 
+function generateGameId() {
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // skip I/O for clarity
+  const chars   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  let prefix = "";
+  for (let i = 0; i < 3; i++) {
+    prefix += letters[Math.floor(Math.random() * letters.length)];
+  }
+
+  let suffix = "";
+  for (let i = 0; i < 4; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  return `${prefix}-${suffix}`; // e.g. "NSC-1QU0"
+}
+
+function buildGamePayload(model, hosts) {
+  const organiserName =
+    (hosts[0] && hosts[0].name && hosts[0].name.trim()) ||
+    (model.organiserName && String(model.organiserName).trim()) ||
+    "";
+
+  const setup = (model && typeof model.setup === "object") ? model.setup : null;
+
+  return {
+    // gameId will be filled in just before we save
+    status: "draft",
+    createdAt: new Date().toISOString(),
+    organiserName,
+    hosts: hosts.map((h) => ({ name: h.name || "" })),
+    setup
+  };
+}
+
 function buildGamePayload(model, hosts) {
   const organiserName =
     (hosts[0] && hosts[0].name && hosts[0].name.trim()) ||
@@ -310,7 +345,7 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-    if (nextBtn) {
+   if (nextBtn) {
     nextBtn.addEventListener("click", async () => {
       const totalNamed = countNonEmpty();
       if (totalNamed < MIN_HOSTS) {
@@ -321,19 +356,16 @@ export function render(root, model = {}, actions = {}) {
       // Keep local + model copy of hosts up to date
       persistHosts(hosts, actions);
 
-      // Build payload from current model + hosts
+      // Build game payload from current model + hosts
       const payload = buildGamePayload(model, hosts);
 
-      try {
-        const game = await createGame(payload);
-        const gameId = game && game.gameId ? String(game.gameId) : null;
+      // Generate a new game code and stamp it into the payload
+      const gameId = generateGameId();
+      payload.gameId = gameId;
 
-        if (!gameId) {
-          window.alert(
-            "We tried to create your Quest but couldn’t find its game code. Please try again."
-          );
-          return;
-        }
+      try {
+        // Save to Firestore (creates/merges the game document)
+        await createGame(gameId, payload);
 
         // Remember current game on this device
         try {
@@ -352,7 +384,8 @@ export function render(root, model = {}, actions = {}) {
       } catch (err) {
         console.error("[HostsScreen] Failed to create game", err);
         window.alert(
-          "Sorry, we couldn’t save your Quest details just now. Please check your connection and try again."
+          "Sorry, we couldn’t save your Quest details just now. " +
+          "Please check your connection and try again."
         );
       }
     });
