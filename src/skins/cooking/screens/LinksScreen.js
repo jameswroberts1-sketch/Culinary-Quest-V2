@@ -232,44 +232,52 @@ export function render(root, model = {}, actions = {}) {
       const baseUrl = getBaseUrl();
 
     const rowsHtml = hosts
-  .slice(1) // skip organiser (Host 1)
-  .map((host, index) => {
-    const realIndex = index + 1; // because slice(1) shifts indexes down
-    const hostName =
-      host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
+        .slice(1) // skip organiser (Host 1)
+        .map((host, index) => {
+          const realIndex = index + 1; // because slice(1) shifts indexes down
+          const hostName =
+            host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
 
-    const token = tokens[realIndex] || "";
-    if (!token) {
-      return `
-        <div class="link-row" style="margin:10px 0;">
-          <div style="font-weight:600;margin-bottom:4px;">
-            ${esc(hostName)}
-          </div>
-          <div class="menu-copy" style="font-size:13px;">
-            No invite token yet – please refresh after saving hosts.
-          </div>
-        </div>
-      `;
-    }
+          const token = tokens[realIndex] || "";
+          if (!token) {
+            return `
+              <div class="link-row" style="margin:10px 0;">
+                <div style="font-weight:600;margin-bottom:4px;">
+                  ${esc(hostName)}
+                </div>
+                <div class="menu-copy" style="font-size:13px;">
+                  No invite token yet – please refresh after saving hosts.
+                </div>
+              </div>
+            `;
+          }
 
-    const url = `${baseUrl}?invite=${encodeURIComponent(token)}`;
+          // ✅ include gameId in the URL as well as the invite token
+          const gid = game.gameId || gameId;
+          const url =
+            `${baseUrl}?game=${encodeURIComponent(gid)}` +
+            `&invite=${encodeURIComponent(token)}`;
 
-    return `
-      <div class="link-row" style="margin:10px 0;">
-        <div style="font-weight:600;margin-bottom:4px;">
-          ${esc(hostName)}
-        </div>
-        <button
-          type="button"
-          class="btn btn-primary host-link-pill"
-          data-link="${esc(url)}"
-          style="width:100%;max-width:100%;overflow:hidden;
-                 text-overflow:ellipsis;white-space:nowrap;">
-          Copy invite link
-        </button>
-      </div>
-    `;
-  });
+          // ✅ pill text: "<Host>'s link", allow wrapping
+          const label = `${hostName}’s link`;
+
+          return `
+            <div class="link-row" style="margin:10px 0;">
+              <button
+                type="button"
+                class="btn btn-primary host-link-pill"
+                data-link="${esc(url)}"
+                style="
+                  width:100%;
+                  max-width:100%;
+                  white-space:normal;
+                  line-height:1.3;
+                ">
+                ${esc(label)}
+              </button>
+            </div>
+          `;
+        });
       
       if (listWrap) {
         listWrap.innerHTML = `
