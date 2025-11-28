@@ -180,58 +180,45 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-      // Load any existing tokens from Firestore and/or localStorage
-      let tokens = [];
-      const gameTokens =
-        Array.isArray(game.hostTokens) ? game.hostTokens :
-        Array.isArray(game.tokens) ? game.tokens :
-        null;
+      // Load any existing tokens from Firestore
+      let tokens =
+        Array.isArray(game.hostTokens) ? game.hostTokens.slice() :
+        Array.isArray(game.tokens) ? game.tokens.slice() :
+        [];
 
-      if (gameTokens) {
-        tokens = gameTokens.slice();
+      // Ensure the array is at least as long as the hosts list
+      if (tokens.length < hosts.length) {
+        tokens.length = hosts.length;
       }
-
-      try {
-        const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
-        if (raw) {
-          const saved = JSON.parse(raw);
-          if (Array.isArray(saved) && saved.length) {
-            saved.forEach((tok, idx) => {
-              if (!tokens[idx] && typeof tok === "string" && tok.trim()) {
-                tokens[idx] = tok.trim();
-              }
-            });
-          }
-        }
-      } catch (_) {}
 
       let changed = false;
 
+      // We never show a token / link for the organiser at index 0
+      if (tokens[0]) {
+        tokens[0] = null;
+        changed = true;
+      }
+
       // Ensure every *non-organiser* host has a token
-      // We treat hosts[0] as the organiser (no invite link needed)
       for (let i = 1; i < hosts.length; i++) {
-        if (!tokens[i]) {
+        const t = tokens[i];
+        if (!t || typeof t !== "string" || !t.trim()) {
           tokens[i] = generateToken();
           changed = true;
+        } else {
+          tokens[i] = t.trim();
         }
       }
 
-      // Persist any new tokens
-if (changed) {
-  try {
-    // Write both fields for backwards compatibility
-    await updateGame(gameId, {
-      hostTokens: tokens,
-      tokens: tokens
-    });
-  } catch (err) {
-    console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
-  }
-
-  try {
-    window.localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
-  } catch (_) {}
-}
+      // Always persist the tokens we actually use for links
+      try {
+        await updateGame(gameId, {
+          hostTokens: tokens,
+          tokens: tokens
+        });
+      } catch (err) {
+        console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
+      }
 
       const baseUrl = getBaseUrl();
 
