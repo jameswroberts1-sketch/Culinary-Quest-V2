@@ -217,17 +217,21 @@ export function render(root, model = {}, actions = {}) {
       }
 
       // Persist any new tokens
-      if (changed) {
-        try {
-          await updateGame(gameId, { hostTokens: tokens });
-        } catch (err) {
-          console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
-        }
+if (changed) {
+  try {
+    // Write both fields for backwards compatibility
+    await updateGame(gameId, {
+      hostTokens: tokens,
+      tokens: tokens
+    });
+  } catch (err) {
+    console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
+  }
 
-        try {
-          window.localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
-        } catch (_) {}
-      }
+  try {
+    window.localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
+  } catch (_) {}
+}
 
       const baseUrl = getBaseUrl();
 
