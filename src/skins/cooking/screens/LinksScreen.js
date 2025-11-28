@@ -232,39 +232,45 @@ for (let i = 1; i < hosts.length; i++) {
       const baseUrl = getBaseUrl();
 
     const rowsHtml = hosts
-  // skip organiser (Host 1)
-  .slice(1)
+  .slice(1) // skip organiser (Host 1)
   .map((host, index) => {
     const realIndex = index + 1; // because slice(1) shifts indexes down
     const hostName =
       host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
 
     const token = tokens[realIndex] || "";
-    let linkText = "No link available";
-    if (token) {
-      const url = `${baseUrl}?invite=${encodeURIComponent(token)}`;
-      linkText = url;
+    if (!token) {
+      return `
+        <div class="link-row" style="margin:10px 0;">
+          <div style="font-weight:600;margin-bottom:4px;">
+            ${esc(hostName)}
+          </div>
+          <div class="menu-copy" style="font-size:13px;">
+            No invite token yet – please refresh after saving hosts.
+          </div>
+        </div>
+      `;
     }
+
+    const url = `${baseUrl}?invite=${encodeURIComponent(token)}`;
 
     return `
       <div class="link-row" style="margin:10px 0;">
         <div style="font-weight:600;margin-bottom:4px;">
           ${esc(hostName)}
         </div>
-        <div
-          class="menu-copy"
-          style="font-size:13px;word-wrap:break-word;"
-        >
-          ${
-            token
-              ? `Invite link:<br /><span class="muted">${esc(linkText)}</span>`
-              : "No invite token yet – please refresh after saving hosts."
-          }
-        </div>
+        <button
+          type="button"
+          class="btn btn-primary host-link-pill"
+          data-link="${esc(url)}"
+          style="width:100%;max-width:100%;overflow:hidden;
+                 text-overflow:ellipsis;white-space:nowrap;">
+          Copy invite link
+        </button>
       </div>
     `;
   });
-
+      
       if (listWrap) {
         listWrap.innerHTML = `
           <div class="links-list">
