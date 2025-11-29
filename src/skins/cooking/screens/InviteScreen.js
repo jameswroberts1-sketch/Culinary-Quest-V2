@@ -720,10 +720,10 @@ function renderInviteUI(root, options) {
     allowThemes,
     nights,
     gameId,
-    actions
-    hasGameId
+    actions,
+    hasGameId = false   // default so old calls don’t explode
   } = options;
-
+}
   const safeHost = esc(hostName || `Host ${hostIndex + 1}`);
   const safeOrganiser = esc(organiserName || "the organiser");
 
@@ -1109,7 +1109,7 @@ export function render(root, model = {}, actions = {}) {
       nights,
       hosts,
       gameId,
-      actions
+      actions,
       hasGameId: !!gameId
     });
     return;
@@ -1274,7 +1274,7 @@ if (hostIndex < 0) {
           nights,
           hosts,
           gameId,
-          actions: {}
+          actions: {},
           hasGameId: true
         });
         return;
@@ -1315,20 +1315,20 @@ if (hostIndex < 0) {
       const currentHostName = currentHostDoc.name || `Host ${currentHostIndex + 1}`;
 
       if (!rsvp || !rsvp.date) {
-        // If somehow we have an in-progress game but no date, fall back to RSVP UI
-        renderInviteUI(root, {
-          isOrganiser: false,
-          hostIndex,
-          hostName,
-          organiserName,
-          allowThemes,
-          nights,
-          hosts,
-          gameId,
-          actions: {}
-        });
-        return;
-      }
+  renderInviteUI(root, {
+    isOrganiser: false,
+    hostIndex,
+    hostName,
+    organiserName,
+    allowThemes,
+    nights,
+    hosts,
+    gameId,
+    actions: {},
+    hasGameId: true
+  });
+  return;
+}
 
       if (nowMs <= endMs) {
         // Before or during the event → pre-event view
