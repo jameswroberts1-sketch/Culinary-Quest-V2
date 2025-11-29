@@ -745,12 +745,12 @@ function renderInviteUI(root, options) {
     entreeTitle = "YOUR NIGHT";
     if (allowThemes) {
       entreeBodyHTML = `
-        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on,
+        Okay <strong>${safeOrganiser}</strong>, here's where you choose which date you want to host on,
         set a start time and let everyone know what kind of themed night you're planning.
       `;
     } else {
       entreeBodyHTML = `
-        Okay <strong>${safeHost}</strong>, here's where you choose which date you want to host on
+        Okay <strong>${safeOrganiser}</strong>, here's where you choose which date you want to host on
         and set a start time for your dinner.
       `;
     }
