@@ -430,7 +430,6 @@ function renderInProgressPreEvent(root, opts) {
   }
 
   // ---------- HOST VIEW (current upcoming host) ----------
-  // Unchanged behaviour, but now reuses menuSummaryHTML built above
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -627,6 +626,7 @@ function renderInProgressPreEvent(root, opts) {
     });
   }
 }
+
 // --------------------------------------------------
 // Game in progress: post-event view
 // --------------------------------------------------
@@ -721,9 +721,9 @@ function renderInviteUI(root, options) {
     nights,
     gameId,
     actions,
-    hasGameId = false   // default so old calls don’t explode
+    hasGameId = false
   } = options;
-}
+
   const safeHost = esc(hostName || `Host ${hostIndex + 1}`);
   const safeOrganiser = esc(organiserName || "the organiser");
 
@@ -1038,7 +1038,7 @@ function renderInviteUI(root, options) {
       null  // phone   (only set on pre-event screen)
     );
 
-        if (isOrganiser) {
+    if (isOrganiser) {
       // If there's no game yet, we're still in the pre-setup flow:
       // go on to add hosts. Otherwise, behave as before.
       const nextState = hasGameId ? "rsvpTracker" : "hosts";
@@ -1155,40 +1155,40 @@ export function render(root, model = {}, actions = {}) {
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
 
-// First, try the new-style token storage on the game doc
-let hostIndex = -1;
-let tokens = [];
+      // First, try the new-style token storage on the game doc
+      let hostIndex = -1;
+      let tokens = [];
 
-if (Array.isArray(game.hostTokens)) {
-  tokens = game.hostTokens;
-} else if (Array.isArray(game.tokens)) {
-  // backwards-compat / older docs
-  tokens = game.tokens;
-}
+      if (Array.isArray(game.hostTokens)) {
+        tokens = game.hostTokens;
+      } else if (Array.isArray(game.tokens)) {
+        // backwards-compat / older docs
+        tokens = game.tokens;
+      }
 
-if (tokens && tokens.length) {
-  hostIndex = tokens.findIndex(
-    (t) => typeof t === "string" && t === inviteToken
-  );
-}
+      if (tokens && tokens.length) {
+        hostIndex = tokens.findIndex(
+          (t) => typeof t === "string" && t === inviteToken
+        );
+      }
 
-// Fallback for very old games where the token lived on the host object
-if (hostIndex < 0) {
-  hostIndex = hosts.findIndex(
-    (h) => h && typeof h.token === "string" && h.token === inviteToken
-  );
-}
+      // Fallback for very old games where the token lived on the host object
+      if (hostIndex < 0) {
+        hostIndex = hosts.findIndex(
+          (h) => h && typeof h.token === "string" && h.token === inviteToken
+        );
+      }
 
-if (hostIndex < 0) {
-  console.warn(
-    "[InviteScreen] Token not found for game",
-    urlGameId,
-    "token:",
-    inviteToken
-  );
-  renderError(root);
-  return;
-}
+      if (hostIndex < 0) {
+        console.warn(
+          "[InviteScreen] Token not found for game",
+          urlGameId,
+          "token:",
+          inviteToken
+        );
+        renderError(root);
+        return;
+      }
 
       const hostDoc = hosts[hostIndex] || {};
       const hostName = hostDoc.name || `Host ${hostIndex + 1}`;
@@ -1241,13 +1241,10 @@ if (hostIndex < 0) {
         };
       }
 
-            const gameId = game.gameId || urlGameId;
+      const gameId = game.gameId || urlGameId;
       const gameStatus = game.status || "links";
 
-      // ⬇️ NEW: availability phase redirect
-      // If the organiser has moved the game into the availability phase,
-      // this host's usual invite link should show the availability checklist
-      // rather than the RSVP / in-progress view.
+      // availability phase redirect
       if (
         gameStatus === "availability" &&
         actions &&
@@ -1315,20 +1312,21 @@ if (hostIndex < 0) {
       const currentHostName = currentHostDoc.name || `Host ${currentHostIndex + 1}`;
 
       if (!rsvp || !rsvp.date) {
-  renderInviteUI(root, {
-    isOrganiser: false,
-    hostIndex,
-    hostName,
-    organiserName,
-    allowThemes,
-    nights,
-    hosts,
-    gameId,
-    actions: {},
-    hasGameId: true
-  });
-  return;
-}
+        // If somehow we have an in-progress game but no date, fall back to RSVP UI
+        renderInviteUI(root, {
+          isOrganiser: false,
+          hostIndex,
+          hostName,
+          organiserName,
+          allowThemes,
+          nights,
+          hosts,
+          gameId,
+          actions: {},
+          hasGameId: true
+        });
+        return;
+      }
 
       if (nowMs <= endMs) {
         // Before or during the event → pre-event view
