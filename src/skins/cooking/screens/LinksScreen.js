@@ -1,12 +1,13 @@
 // path: src/skins/cooking/screens/LinksScreen.js
-// Links screen – organiser view of per-host invite URLs
+// Organiser view – generates and displays per-host invite links.
 
 import { readGame, updateGame } from "../../../engine/firestore.js";
 
-const CURRENT_GAME_KEY = "cq_current_game_id_v1";
-const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
+const HOSTS_STORAGE_KEY   = "cq_hosts_v1";
+const CURRENT_GAME_KEY    = "cq_current_game_id_v1";
 
-// Basic HTML escaping
+// ----------------- helpers -----------------
+
 function esc(str) {
   if (str == null) return "";
   return String(str)
@@ -16,23 +17,68 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-// Simple random token generator (URL-safe)
+// Local hosts cache (used during organiser flow)
+function hydrateHostsLocal(model = {}) {
+  let hosts = [];
+
+  if (Array.isArray(model.hosts) && model.hosts.length) {
+    hosts = model.hosts.map((h) => ({
+      name: h && typeof h.name === "string" ? h.name : ""
+    }));
+  }
+
+  try {
+    const raw = window.localStorage.getItem(HOSTS_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved) && saved.length) {
+        saved.forEach((entry, idx) => {
+          if (!hosts[idx]) hosts[idx] = { name: "" };
+          if (entry && typeof entry.name === "string" && entry.name.trim()) {
+            hosts[idx].name = entry.name;
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  if (!hosts[0]) hosts[0] = { name: "" };
+  return hosts;
+}
+
+function scrollToTop() {
+  try {
+    const scroller =
+      document.scrollingElement ||
+      document.documentElement ||
+      document.body;
+    if (scroller && typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } else {
+      scroller.scrollTop = 0;
+      scroller.scrollLeft = 0;
+    }
+  } catch (_) {}
+}
+
+// Simple 10-char upper-case token
 function generateToken() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
   for (let i = 0; i < 10; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const idx = Math.floor(Math.random() * alphabet.length);
+    out += alphabet[idx];
   }
   return out;
 }
 
-// Build a base URL for invite links (works on GitHub Pages too)
-function getBaseUrl() {
+function buildBaseUrl() {
+  // Keeps the current path (important for GitHub Pages)
   const { origin, pathname } = window.location;
-  // strip index.html if present
-  const cleanPath = pathname.replace(/index\.html?$/i, "");
-  return origin + cleanPath;
+  return origin + pathname;
 }
+
+// ----------------- shell -----------------
 
 function renderShell(root) {
   root.innerHTML = `
@@ -50,16 +96,11 @@ function renderShell(root) {
       <!-- ENTREE -->
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">Host invite links</h2>
+        <h2 class="menu-h2">HOST INVITE LINKS</h2>
         <p class="menu-copy" id="linksIntro">
-          Here are the personalised invite links for each host.
+          One last step, then you’re ready to invite your hosts.
+          We’ll generate a private link for each person in your Quest.
         </p>
-
-        <div class="menu-actions" style="margin-top:12px;">
-          <button class="btn btn-primary" id="linksRefresh">
-            Refresh host list
-          </button>
-        </div>
       </section>
 
       <div class="menu-divider" aria-hidden="true"></div>
@@ -67,17 +108,35 @@ function renderShell(root) {
       <!-- MAIN -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">Links for your hosts</h2>
-        <div id="linksListContainer">
-          <p class="menu-copy">Loading…</p>
+        <h2 class="menu-h2">SHARE THESE LINKS</h2>
+        <p class="menu-copy">
+          Send each host <strong>their</strong> link only. Each link is unique to that person.
+        </p>
+
+        <div id="linksList">
+          <p class="menu-copy">Preparing your links…</p>
+        </div>
+
+        <div class="menu-actions" style="margin-top:12px;">
+          <button class="btn btn-primary" id="copyAllBtn">
+            Copy all links
+          </button>
         </div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
+      <!-- FOOTER BUTTONS -->
       <div class="menu-actions">
-        <button class="btn btn-secondary" id="linksBack">Back to setup</button>
-        <button class="btn btn-primary" id="linksRsvp">View RSVP tracker</button>
+        <button class="btn btn-secondary" id="backHomeBtn">
+          Back to organiser home
+        </button>
+      </div>
+
+      <div class="menu-actions" style="margin-top:6px;">
+        <button class="btn btn-primary" id="viewRsvpBtn">
+          View RSVP tracker
+        </button>
       </div>
 
       <p class="muted" id="linksSummary"
@@ -85,345 +144,217 @@ function renderShell(root) {
       </p>
 
       <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
-        LinksScreen – organiser view of host invite URLs
+        LinksScreen – per-host invite URLs
       </p>
     </section>
   `;
 }
+
+// ----------------- main render -----------------
 
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
 
-  // Scroll to top (iOS nicety)
-  try {
-    const scroller =
-      document.scrollingElement ||
-      document.documentElement ||
-      document.body;
-    if (scroller && typeof scroller.scrollTo === "function") {
-      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    } else {
-      scroller.scrollTop = 0;
-      scroller.scrollLeft = 0;
-    }
-  } catch (_) {}
-
+  scrollToTop();
   renderShell(root);
 
-  const introEl    = root.querySelector("#linksIntro");
-  const listWrap   = root.querySelector("#linksListContainer");
-  const summaryEl  = root.querySelector("#linksSummary");
-  const refreshBtn = root.querySelector("#linksRefresh");
-  const backBtn    = root.querySelector("#linksBack");
-  const rsvpBtn    = root.querySelector("#linksRsvp");
+  const introEl   = root.querySelector("#linksIntro");
+  const listEl    = root.querySelector("#linksList");
+  const summaryEl = root.querySelector("#linksSummary");
+  const copyAll   = root.querySelector("#copyAllBtn");
+  const backHome  = root.querySelector("#backHomeBtn");
+  const viewRsvp  = root.querySelector("#viewRsvpBtn");
 
-  // Work out which game to load
+  // Work out gameId
   let gameId =
     (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
 
   if (!gameId) {
     try {
       const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) {
-        gameId = stored.trim();
-      }
+      if (stored && stored.trim()) gameId = stored.trim();
     } catch (_) {}
   }
 
   if (!gameId) {
     if (introEl) {
-      introEl.textContent = "We couldn’t find your game details.";
+      introEl.textContent =
+        "We couldn’t find your game details. Please go back and complete the setup first.";
     }
-    if (listWrap) {
-      listWrap.innerHTML = `
+    if (listEl) {
+      listEl.innerHTML = `
         <p class="menu-copy">
-          Please go back to the setup screens, create a new Quest and then return here.
+          Once you’ve finished setting up your Quest, you’ll see a unique invite link
+          for each host here.
         </p>
       `;
     }
     return;
   }
 
-  async function loadAndRender() {
-    if (introEl) {
-      introEl.textContent = "Loading host links…";
-    }
-    if (listWrap) {
-      listWrap.innerHTML = `<p class="menu-copy">Loading…</p>`;
-    }
-
+  (async () => {
     try {
+      if (introEl) {
+        introEl.textContent = "Loading your game and preparing invite links…";
+      }
+
+      const localHosts = hydrateHostsLocal(model);
       const game = await readGame(gameId);
+
       if (!game) {
-        if (introEl) introEl.textContent = "We couldn’t load this game.";
-        if (listWrap) {
-          listWrap.innerHTML = `
+        console.warn("[LinksScreen] No such game:", gameId);
+        if (introEl) {
+          introEl.textContent = "We couldn’t load this game from the cloud.";
+        }
+        if (listEl) {
+          listEl.innerHTML = `
             <p class="menu-copy">
-              This game no longer exists in the cloud. You may need to start a new one.
+              Please check your connection, then go back and try generating your links again.
             </p>
           `;
         }
         return;
       }
 
-      let hosts = Array.isArray(game.hosts) ? game.hosts : [];
+      const docHosts = Array.isArray(game.hosts) ? game.hosts : [];
+      const hosts = docHosts.length ? docHosts : localHosts;
+      const organiserName =
+        (game.organiserName && String(game.organiserName)) ||
+        (hosts[0] && hosts[0].name) ||
+        (localHosts[0] && localHosts[0].name) ||
+        "the organiser";
+
       if (!hosts.length) {
-        if (listWrap) {
-          listWrap.innerHTML = `
+        if (introEl) {
+          introEl.textContent =
+            "We couldn’t find any hosts for this game.";
+        }
+        if (listEl) {
+          listEl.innerHTML = `
             <p class="menu-copy">
-              No hosts found for this game yet. Go back and make sure you’ve added everyone.
+              Please go back and add your hosts before generating invite links.
             </p>
           `;
         }
         return;
       }
 
-      // Load any existing tokens from Firestore
-      let tokens =
-        Array.isArray(game.hostTokens) ? game.hostTokens.slice() :
-        Array.isArray(game.tokens)     ? game.tokens.slice()     :
-        [];
-
-      // Ensure the array is at least as long as the hosts list
-      if (tokens.length < hosts.length) {
-        tokens.length = hosts.length;
-      }
+      // Build / repair token array
+      let tokens = Array.isArray(game.hostTokens)
+        ? [...game.hostTokens]
+        : Array.isArray(game.tokens)
+        ? [...game.tokens]
+        : [];
 
       let changed = false;
-
-      // We never show a token / link for the organiser at index 0
-      if (tokens[0]) {
-        tokens[0] = null;
-        changed = true;
-      }
-
-      // Ensure every *non-organiser* host has a token
-      for (let i = 1; i < hosts.length; i++) {
-        const t = tokens[i];
-        if (!t || typeof t !== "string" || !t.trim()) {
+      for (let i = 0; i < hosts.length; i++) {
+        if (!tokens[i] || typeof tokens[i] !== "string") {
           tokens[i] = generateToken();
           changed = true;
-        } else {
-          tokens[i] = t.trim();
         }
       }
 
       if (changed) {
-        // Persist the tokens array
-        try {
-          await updateGame(gameId, {
-            hostTokens: tokens,
-            tokens: tokens
-          });
-        } catch (err) {
-          console.warn(
-            "[LinksScreen] Failed to update host tokens in Firestore",
-            err
-          );
-        }
-
-        // Also stamp the token onto each host object
-        try {
-          const updatedHosts = hosts.map((h, idx) => {
-            const baseHost = h && typeof h === "object" ? h : {};
-            const tok = tokens[idx];
-            if (!tok) return baseHost;
-            return { ...baseHost, token: tok };
-          });
-
-          await updateGame(gameId, { hosts: updatedHosts });
-          hosts = updatedHosts;
-        } catch (err) {
-          console.warn(
-            "[LinksScreen] Failed to stamp tokens onto hosts",
-            err
-          );
-        }
-      }
-
-      const baseUrl = getBaseUrl();
-
-      const rowsHtml = hosts
-        .slice(1) // skip organiser (Host 1)
-        .map((host, index) => {
-          const realIndex = index + 1; // because slice(1) shifts indexes down
-          const hostName =
-            host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
-
-          const token = tokens[realIndex] || "";
-          if (!token) {
-            return `
-              <div class="link-row" style="margin:10px 0;">
-                <div style="font-weight:600;margin-bottom:4px;">
-                  ${esc(hostName)}
-                </div>
-                <div class="menu-copy" style="font-size:13px;">
-                  No invite token yet – please refresh after saving hosts.
-                </div>
-              </div>
-            `;
-          }
-
-       // Build links using the Firestore document ID in the URL
-      const baseUrl     = getBaseUrl();
-      const firestoreId = gameId;                     // used by readGame / updateGame
-      const publicCode  = game.gameId || firestoreId; // nice human code for display
-
-      const rowsHtml = hosts
-        .slice(1) // skip organiser (Host 1 in the data)
-        .map((host, index) => {
-          const realIndex = index + 1; // because of slice(1)
-          const hostName =
-            host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
-
-          const token = tokens[realIndex] || "";
-          if (!token) {
-            return `
-              <div class="link-row" style="margin:10px 0;">
-                <div style="font-weight:600;margin-bottom:4px;">
-                  ${esc(hostName)}
-                </div>
-                <div class="menu-copy" style="font-size:13px;">
-                  No invite token yet – please refresh after saving hosts.
-                </div>
-              </div>
-            `;
-          }
-
-          // URL stays opaque: doc ID + token only
-          const url =
-            `${baseUrl}?game=${encodeURIComponent(firestoreId)}` +
-            `&invite=${encodeURIComponent(token)}`;
-
-          const label = `${hostName}’s link`;
-
-          return `
-            <div class="link-row" style="margin:10px 0;">
-              <button
-                type="button"
-                class="btn btn-primary host-link-pill"
-                data-link="${esc(url)}"
-                style="
-                  display:block;
-                  width:100%;
-                  max-width:260px;
-                  margin:0 auto;
-                  white-space:normal;
-                  line-height:1.3;
-                ">
-                ${esc(label)}
-              </button>
-            </div>
-          `;
+        // Store in new field; keep old "tokens" for backwards-compat just in case.
+        await updateGame(gameId, {
+          hostTokens: tokens,
+          tokens: tokens
         });
+      }
 
-      if (listWrap) {
-        listWrap.innerHTML = `
-          <div class="links-list">
-            ${rowsHtml.join("")}
-          </div>
+      const baseUrl = buildBaseUrl();
+      const rows = hosts.map((host, idx) => {
+        const name =
+          host && typeof host.name === "string" && host.name.trim()
+            ? host.name.trim()
+            : `Host ${idx + 1}`;
+        const token = tokens[idx];
+        const link = `${baseUrl}?game=${encodeURIComponent(
+          gameId
+        )}&invite=${encodeURIComponent(token)}`;
+        return { idx, name, link };
+      });
+
+      if (introEl) {
+        introEl.innerHTML = `
+          Okay <strong>${esc(
+            organiserName
+          )}</strong>, here are the private invite links for your Quest.
+          Send each host their own link only – it’s how we keep everyone’s RSVP separate.
         `;
       }
 
-      if (introEl) {
-        introEl.textContent =
-          "Here are the personalised invite links for each host.";
-      }
-
-      if (summaryEl) {
-        const linkedHosts = Math.max(hosts.length - 1, 0); // exclude organiser
-        summaryEl.textContent =
-          `Links loaded for ${publicCode} · ` +
-          `${linkedHosts} host${linkedHosts === 1 ? "" : "s"}`;
-      }
-
-      if (listWrap) {
-        listWrap.innerHTML = `
-          <div class="links-list">
-            ${rowsHtml.join("")}
+      if (listEl) {
+        listEl.innerHTML = rows
+          .map(
+            (row) => `
+          <div class="menu-copy" style="margin-bottom:10px;">
+            <strong>${esc(row.name)}</strong><br />
+            <small style="word-break:break-all;">${esc(row.link)}</small>
           </div>
-        `;
-      }
-
-      if (introEl) {
-        introEl.textContent =
-          "Here are the personalised invite links for each host.";
+        `
+          )
+          .join("");
       }
 
       if (summaryEl) {
-        const linkedHosts = Math.max(hosts.length - 1, 0); // exclude organiser
-        summaryEl.textContent =
-          `Links loaded for ${game.gameId || gameId} · ` +
-          `${linkedHosts} host${linkedHosts === 1 ? "" : "s"}`;
+        summaryEl.textContent = `Links ready for ${rows.length} host${
+          rows.length === 1 ? "" : "s"
+        }.`;
+      }
+
+      // Copy-all handler
+      if (copyAll) {
+        copyAll.addEventListener("click", async () => {
+          const text = rows
+            .map((row) => `${row.name}: ${row.link}`)
+            .join("\n");
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+              window.alert("All links copied. Paste them into your messages or emails.");
+            } else {
+              // Fallback: show in a prompt the organiser can copy from
+              window.prompt(
+                "Copy these links and share them with your hosts:",
+                text
+              );
+            }
+          } catch (err) {
+            console.warn("[LinksScreen] Failed to copy links", err);
+            window.prompt(
+              "We couldn’t copy automatically. Please copy the links below:",
+              text
+            );
+          }
+        });
+      }
+
+      if (backHome && actions && typeof actions.setState === "function") {
+        backHome.addEventListener("click", () => {
+          actions.setState("organiserHome");
+        });
+      }
+
+      if (viewRsvp && actions && typeof actions.setState === "function") {
+        viewRsvp.addEventListener("click", () => {
+          actions.setState("rsvpTracker");
+        });
       }
     } catch (err) {
-      console.error("[LinksScreen] Failed to load links", err);
+      console.error("[LinksScreen] Failed to prepare links", err);
       if (introEl) {
-        introEl.textContent = "We hit a problem loading your host links.";
+        introEl.textContent = "Something went wrong while preparing your links.";
       }
-      if (listWrap) {
-        listWrap.innerHTML = `
+      if (listEl) {
+        listEl.innerHTML = `
           <p class="menu-copy">
-            Please check your connection and tap
-            <strong>Refresh host list</strong> to try again.
+            Please refresh the page or go back and try generating your links again.
           </p>
         `;
       }
     }
-  }
-
-  // Initial load
-  loadAndRender();
-
-  // Handle "Copy invite link" pill clicks (wired once)
-  if (listWrap) {
-    listWrap.addEventListener("click", async (ev) => {
-      const btn = ev.target.closest(".host-link-pill");
-      if (!btn) return;
-
-      const link = btn.dataset.link;
-      if (!link) return;
-
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(link);
-          const original = btn.textContent;
-          btn.textContent = "Copied!";
-          setTimeout(() => {
-            btn.textContent = original;
-          }, 1500);
-        } else {
-          window.prompt("Copy this invite link:", link);
-        }
-      } catch (err) {
-        console.warn("[LinksScreen] clipboard copy failed", err);
-        window.prompt("Copy this invite link:", link);
-      }
-    });
-  }
-
-  // Buttons
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", () => {
-      loadAndRender();
-    });
-  }
-
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      try {
-        actions.setState && actions.setState("hosts");
-      } catch (_) {}
-    });
-  }
-
-  if (rsvpBtn) {
-    rsvpBtn.addEventListener("click", () => {
-      try {
-        actions.setState && actions.setState("rsvpTracker");
-      } catch (_) {}
-    });
-  }
+  })();
 }
