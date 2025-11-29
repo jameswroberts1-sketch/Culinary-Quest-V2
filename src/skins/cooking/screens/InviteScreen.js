@@ -1190,14 +1190,52 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-      const hostDoc = hosts[hostIndex] || {};
-      const hostName = hostDoc.name || `Host ${hostIndex + 1}`;
+      // No invite token → organiser inside the app
+if (!inviteToken) {
+  const hosts = hydrateHostsLocal(model);
+  const nights = loadNights();
 
-      const organiserName =
-        (game.organiserName && String(game.organiserName)) ||
-        (hosts[0] && hosts[0].name) ||
-        "the organiser";
+  const hostIndex = 0; // organiser is always host 0 in this flow
 
+  const organiserName =
+    (model.organiserName && String(model.organiserName)) ||
+    (hosts[0] && hosts[0].name) ||
+    "the organiser";
+
+  // Use organiserName as the "host" label on this screen
+  const hostName = organiserName;
+
+  const allowThemes =
+    model &&
+    model.setup &&
+    typeof model.setup.allowThemes === "boolean"
+      ? model.setup.allowThemes
+      : false;
+
+  let gameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) ||
+    null;
+  if (!gameId) {
+    try {
+      const stored = window.localStorage.getItem("cq_current_game_id_v1");
+      if (stored && stored.trim()) gameId = stored.trim();
+    } catch (_) {}
+  }
+
+  renderInviteUI(root, {
+    isOrganiser: true,
+    hostIndex,
+    hostName,        // now your name, not “Host 1”
+    organiserName,
+    allowThemes,
+    nights,
+    hosts,
+    gameId,
+    actions,
+    hasGameId: !!gameId
+  });
+  return;
+}
       const allowThemes =
         game &&
         game.setup &&
