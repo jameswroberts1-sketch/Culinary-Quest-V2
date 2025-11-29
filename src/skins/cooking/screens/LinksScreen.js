@@ -112,12 +112,12 @@ export function render(root, model = {}, actions = {}) {
 
   renderShell(root);
 
-  const introEl   = root.querySelector("#linksIntro");
-  const listWrap  = root.querySelector("#linksListContainer");
-  const summaryEl = root.querySelector("#linksSummary");
+  const introEl    = root.querySelector("#linksIntro");
+  const listWrap   = root.querySelector("#linksListContainer");
+  const summaryEl  = root.querySelector("#linksSummary");
   const refreshBtn = root.querySelector("#linksRefresh");
-  const backBtn   = root.querySelector("#linksBack");
-  const rsvpBtn   = root.querySelector("#linksRsvp");
+  const backBtn    = root.querySelector("#linksBack");
+  const rsvpBtn    = root.querySelector("#linksRsvp");
 
   // Work out which game to load
   let gameId =
@@ -168,7 +168,7 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+      let hosts = Array.isArray(game.hosts) ? game.hosts : [];
       if (!hosts.length) {
         if (listWrap) {
           listWrap.innerHTML = `
@@ -183,7 +183,7 @@ export function render(root, model = {}, actions = {}) {
       // Load any existing tokens from Firestore
       let tokens =
         Array.isArray(game.hostTokens) ? game.hostTokens.slice() :
-        Array.isArray(game.tokens) ? game.tokens.slice() :
+        Array.isArray(game.tokens)     ? game.tokens.slice()     :
         [];
 
       // Ensure the array is at least as long as the hosts list
@@ -210,36 +210,42 @@ export function render(root, model = {}, actions = {}) {
         }
       }
 
-         // Always persist the tokens we actually use for links
-   try {
-     await updateGame(gameId, {
-       hostTokens: tokens,
-       tokens: tokens
-     });
-   } catch (err) {
-     console.warn("[LinksScreen] Failed to update host tokens in Firestore", err);
-   }
+      if (changed) {
+        // Persist the tokens array
+        try {
+          await updateGame(gameId, {
+            hostTokens: tokens,
+            tokens: tokens
+          });
+        } catch (err) {
+          console.warn(
+            "[LinksScreen] Failed to update host tokens in Firestore",
+            err
+          );
+        }
 
-   // NEW: also stamp the token onto each host object
-   try {
-     const updatedHosts = hosts.map((h, idx) => {
-       const baseHost = h && typeof h === "object" ? h : {};
-       const tok = tokens[idx];
-       if (!tok) return baseHost;
-       return { ...baseHost, token: tok };
-     });
+        // Also stamp the token onto each host object
+        try {
+          const updatedHosts = hosts.map((h, idx) => {
+            const baseHost = h && typeof h === "object" ? h : {};
+            const tok = tokens[idx];
+            if (!tok) return baseHost;
+            return { ...baseHost, token: tok };
+          });
 
-     await updateGame(gameId, { hosts: updatedHosts });
-   } catch (err) {
-     console.warn("[LinksScreen] Failed to stamp tokens onto hosts", err);
-   }
-
-   const baseUrl = getBaseUrl();
-   // …then your rowsHtml mapping…
+          await updateGame(gameId, { hosts: updatedHosts });
+          hosts = updatedHosts;
+        } catch (err) {
+          console.warn(
+            "[LinksScreen] Failed to stamp tokens onto hosts",
+            err
+          );
+        }
+      }
 
       const baseUrl = getBaseUrl();
 
-    const rowsHtml = hosts
+      const rowsHtml = hosts
         .slice(1) // skip organiser (Host 1)
         .map((host, index) => {
           const realIndex = index + 1; // because slice(1) shifts indexes down
@@ -260,12 +266,12 @@ export function render(root, model = {}, actions = {}) {
             `;
           }
 
-// Always use the Firestore document ID for lookups
-const gid = gameId;
-const url =
-  `${baseUrl}?game=${encodeURIComponent(gid)}` +
-  `&invite=${encodeURIComponent(token)}`;
-          // ✅ pill text: "<Host>'s link", allow wrapping
+          // Always use the Firestore document ID for lookups
+          const gid = gameId;
+          const url =
+            `${baseUrl}?game=${encodeURIComponent(gid)}` +
+            `&invite=${encodeURIComponent(token)}`;
+
           const label = `${hostName}’s link`;
 
           return `
@@ -287,7 +293,7 @@ const url =
             </div>
           `;
         });
-      
+
       if (listWrap) {
         listWrap.innerHTML = `
           <div class="links-list">
@@ -297,15 +303,16 @@ const url =
       }
 
       if (introEl) {
-        introEl.textContent = "Here are the personalised invite links for each host.";
+        introEl.textContent =
+          "Here are the personalised invite links for each host.";
       }
 
       if (summaryEl) {
-  const linkedHosts = Math.max(hosts.length - 1, 0); // exclude organiser
-  summaryEl.textContent =
-    `Links loaded for ${game.gameId || gameId} · ` +
-    `${linkedHosts} host${linkedHosts === 1 ? "" : "s"}`;
-}
+        const linkedHosts = Math.max(hosts.length - 1, 0); // exclude organiser
+        summaryEl.textContent =
+          `Links loaded for ${game.gameId || gameId} · ` +
+          `${linkedHosts} host${linkedHosts === 1 ? "" : "s"}`;
+      }
     } catch (err) {
       console.error("[LinksScreen] Failed to load links", err);
       if (introEl) {
@@ -314,7 +321,8 @@ const url =
       if (listWrap) {
         listWrap.innerHTML = `
           <p class="menu-copy">
-            Please check your connection and tap <strong>Refresh host list</strong> to try again.
+            Please check your connection and tap
+            <strong>Refresh host list</strong> to try again.
           </p>
         `;
       }
