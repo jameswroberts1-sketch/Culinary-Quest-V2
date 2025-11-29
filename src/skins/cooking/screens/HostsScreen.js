@@ -122,13 +122,47 @@ function buildGamePayload(model, hosts) {
   const setup =
     model && typeof model.setup === "object" ? model.setup : null;
 
-  return {
+  const hostNights =
+    model && typeof model.hostNights === "object"
+      ? model.hostNights
+      : null;
+
+  const nowIso = new Date().toISOString();
+  const payload = {
     status: "draft",
-    createdAt: new Date().toISOString(),
+    createdAt: nowIso,
     organiserName,
     hosts: hosts.map((h) => ({ name: h.name || "" })),
     setup,
   };
+
+  // Seed RSVPs from any nights we already know about
+  if (hostNights) {
+    const rsvps = {};
+    Object.keys(hostNights).forEach((k) => {
+      const idx = Number(k);
+      if (Number.isNaN(idx)) return;
+      const n = hostNights[k];
+      if (!n) return;
+
+      rsvps[idx] = {
+        hostIndex: idx,
+        status: n.status || (n.date ? "accepted" : null),
+        date: n.date || null,
+        time: n.time || null,
+        theme: n.theme || null,
+        address: null,
+        phone: null,
+        updatedAt: nowIso,
+      };
+    });
+
+    if (Object.keys(rsvps).length) {
+      payload.rsvps = rsvps;
+    }
+  }
+
+  return payload;
 }
 
 // ---- main render ------------------------------------------------
