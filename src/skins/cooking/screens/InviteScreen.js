@@ -721,6 +721,7 @@ function renderInviteUI(root, options) {
     nights,
     gameId,
     actions
+    hasGameId
   } = options;
 
   const safeHost = esc(hostName || `Host ${hostIndex + 1}`);
@@ -1037,10 +1038,12 @@ function renderInviteUI(root, options) {
       null  // phone   (only set on pre-event screen)
     );
 
-    if (isOrganiser) {
-      // Organiser never really "declines", so both paths go to tracker
+        if (isOrganiser) {
+      // If there's no game yet, we're still in the pre-setup flow:
+      // go on to add hosts. Otherwise, behave as before.
+      const nextState = hasGameId ? "rsvpTracker" : "hosts";
       try {
-        actions && actions.setState && actions.setState("rsvpTracker");
+        actions && actions.setState && actions.setState(nextState);
       } catch (_) {}
     } else {
       renderDone(status);
@@ -1107,6 +1110,7 @@ export function render(root, model = {}, actions = {}) {
       hosts,
       gameId,
       actions
+      hasGameId: !!gameId
     });
     return;
   }
@@ -1271,6 +1275,7 @@ if (hostIndex < 0) {
           hosts,
           gameId,
           actions: {}
+          hasGameId: true
         });
         return;
       }
