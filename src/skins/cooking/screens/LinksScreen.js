@@ -275,8 +275,10 @@ const url =
                 class="btn btn-primary host-link-pill"
                 data-link="${esc(url)}"
                 style="
+                  display:block;
                   width:100%;
-                  max-width:100%;
+                  max-width:260px;
+                  margin:0 auto;
                   white-space:normal;
                   line-height:1.3;
                 ">
