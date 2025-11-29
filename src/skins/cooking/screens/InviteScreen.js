@@ -1070,18 +1070,20 @@ export function render(root, model = {}, actions = {}) {
   const inviteToken = params.get("invite");
   const urlGameId   = params.get("game");
 
-  // No invite token → organiser inside the app
-  if (!inviteToken) {
-    const hosts = hydrateHostsLocal(model);
-    const nights = loadNights();
+// No invite token → organiser inside the app
+if (!inviteToken) {
+  const hosts = hydrateHostsLocal(model);
+  const nights = loadNights();
 
-    const hostIndex = 0; // organiser is always host 0 in this flow
-    const hostName  = hosts[0] && hosts[0].name ? hosts[0].name : "Host 1";
+  const hostIndex = 0; // organiser is always host 0 in this flow
 
-    const organiserName =
-      (model.organiserName && String(model.organiserName)) ||
-      hostName ||
-      "the organiser";
+  const organiserName =
+    (model.organiserName && String(model.organiserName)) ||
+    (hosts[0] && hosts[0].name) ||
+    "the organiser";
+
+  // Use organiserName as the “host” label on this screen
+  const hostName = organiserName;
 
     const allowThemes =
       model &&
