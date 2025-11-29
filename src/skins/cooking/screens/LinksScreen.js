@@ -266,10 +266,35 @@ export function render(root, model = {}, actions = {}) {
             `;
           }
 
-          // Always use the Firestore document ID for lookups
-          const gid = gameId;
+       // Build links using the Firestore document ID in the URL
+      const baseUrl     = getBaseUrl();
+      const firestoreId = gameId;                     // used by readGame / updateGame
+      const publicCode  = game.gameId || firestoreId; // nice human code for display
+
+      const rowsHtml = hosts
+        .slice(1) // skip organiser (Host 1 in the data)
+        .map((host, index) => {
+          const realIndex = index + 1; // because of slice(1)
+          const hostName =
+            host && host.name ? String(host.name) : `Host ${realIndex + 1}`;
+
+          const token = tokens[realIndex] || "";
+          if (!token) {
+            return `
+              <div class="link-row" style="margin:10px 0;">
+                <div style="font-weight:600;margin-bottom:4px;">
+                  ${esc(hostName)}
+                </div>
+                <div class="menu-copy" style="font-size:13px;">
+                  No invite token yet – please refresh after saving hosts.
+                </div>
+              </div>
+            `;
+          }
+
+          // URL stays opaque: doc ID + token only
           const url =
-            `${baseUrl}?game=${encodeURIComponent(gid)}` +
+            `${baseUrl}?game=${encodeURIComponent(firestoreId)}` +
             `&invite=${encodeURIComponent(token)}`;
 
           const label = `${hostName}’s link`;
@@ -293,6 +318,26 @@ export function render(root, model = {}, actions = {}) {
             </div>
           `;
         });
+
+      if (listWrap) {
+        listWrap.innerHTML = `
+          <div class="links-list">
+            ${rowsHtml.join("")}
+          </div>
+        `;
+      }
+
+      if (introEl) {
+        introEl.textContent =
+          "Here are the personalised invite links for each host.";
+      }
+
+      if (summaryEl) {
+        const linkedHosts = Math.max(hosts.length - 1, 0); // exclude organiser
+        summaryEl.textContent =
+          `Links loaded for ${publicCode} · ` +
+          `${linkedHosts} host${linkedHosts === 1 ? "" : "s"}`;
+      }
 
       if (listWrap) {
         listWrap.innerHTML = `
