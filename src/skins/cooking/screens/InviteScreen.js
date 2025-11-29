@@ -1195,6 +1195,14 @@ if (hostIndex < 0 && hosts.length) {
         return;
       }
 
+      const hostDoc = hosts[hostIndex] || {};
+      const hostName = hostDoc.name || `Host ${hostIndex + 1}`;
+
+      const organiserName =
+        (game.organiserName && String(game.organiserName)) ||
+        (hosts[0] && hosts[0].name) ||
+        "the organiser";
+
       // No invite token → organiser inside the app
 if (!inviteToken) {
   const hosts = hydrateHostsLocal(model);
