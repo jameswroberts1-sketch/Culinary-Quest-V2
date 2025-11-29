@@ -286,19 +286,59 @@ export function render(root, model = {}, actions = {}) {
         `;
       }
 
-      if (listEl) {
-        listEl.innerHTML = rows
-          .map(
-            (row) => `
-          <div class="menu-copy" style="margin-bottom:10px;">
-            <strong>${esc(row.name)}</strong><br />
-            <small style="word-break:break-all;">${esc(row.link)}</small>
-          </div>
-        `
-          )
-          .join("");
+if (listEl) {
+  listEl.innerHTML = `
+    <div class="link-pill-list">
+      ${rows
+        .map(
+          (row) => `
+        <button
+          class="link-pill"
+          type="button"
+          data-link="${esc(row.link)}"
+          data-name="${esc(row.name)}"
+        >
+          <span class="link-pill-name">${esc(row.name)}</span>
+          <span class="link-pill-hint">Tap to copy their link</span>
+        </button>
+      `
+        )
+        .join("")}
+    </div>
+    <p class="menu-copy" style="margin-top:8px;font-size:12px;">
+      Tap a name to copy just that host’s link, or use <strong>Copy all links</strong> below.
+    </p>
+  `;
+}
+// Per-host pill copy handler
+if (listEl) {
+  const pillButtons = listEl.querySelectorAll(".link-pill");
+  pillButtons.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const link = btn.getAttribute("data-link");
+      const name = btn.getAttribute("data-name") || "this host";
+      if (!link) return;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(link);
+          window.alert(`Link for ${name} copied. Paste it into your message.`);
+        } else {
+          window.prompt(
+            `Copy the link for ${name}:`,
+            link
+          );
+        }
+      } catch (err) {
+        console.warn("[LinksScreen] Failed to copy single link", err);
+        window.prompt(
+          `We couldn’t copy automatically. Please copy the link for ${name}:`,
+          link
+        );
       }
-
+    });
+  });
+}
+      
       if (summaryEl) {
         summaryEl.textContent = `Links ready for ${rows.length} host${
           rows.length === 1 ? "" : "s"
