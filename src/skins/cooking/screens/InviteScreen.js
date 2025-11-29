@@ -1246,9 +1246,9 @@ if (hostIndex < 0 && hosts.length) {
         };
       }
 
-      const gameId = game.gameId || urlGameId;
+      const gameId = urlGameId;            // Firestore doc ID
       const gameStatus = game.status || "links";
-
+      
       // availability phase redirect
       if (
         gameStatus === "availability" &&
