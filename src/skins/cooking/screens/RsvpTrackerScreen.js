@@ -365,24 +365,32 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-  if (confirmBtn) {
-    confirmBtn.addEventListener("click", async () => {
-      if (!gameId) return;
-      try {
-        await updateGame(gameId, { status: "availability" });
+if (confirmBtn) {
+  confirmBtn.addEventListener("click", async () => {
+    if (!gameId) return;
 
-        window.alert(
-          "Schedule shared with hosts.\n\n" +
-          "Ask everyone to open their usual invite link to confirm which nights they can’t attend."
-        );
-        // Organiser stays on this screen.
-      } catch (err) {
-        console.warn("[RsvpTracker] failed to enter availability phase", err);
-        window.alert("Sorry, we couldn’t share the schedule just now. Please try again.");
+    try {
+      await updateGame(gameId, { status: "availability" });
+
+      window.alert(
+        "Your schedule has been shared with all hosts.\n\n" +
+        "When they open their invite links, they'll now see the availability " +
+        "checklist and can confirm whether they can still make their night."
+      );
+
+      // You can either stay on the tracker or send them home.
+      // If you prefer to stay here, just delete this block.
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("organiserHome");
       }
-    });
-  }
-
+    } catch (err) {
+      console.warn("[RsvpTracker] failed to confirm schedule", err);
+      window.alert(
+        "Sorry, we couldn’t share the schedule just now. Please try again."
+      );
+    }
+  });
+}
   if (cancelBtn) {
     cancelBtn.addEventListener("click", async () => {
       if (!gameId) return;
@@ -406,24 +414,26 @@ export function render(root, model = {}, actions = {}) {
     });
   }
 
-  if (beginBtn) {
-    beginBtn.addEventListener("click", async () => {
-      if (!gameId) return;
-      try {
-        await updateGame(gameId, { status: "inProgress" });
+if (beginBtn) {
+  beginBtn.addEventListener("click", async () => {
+    if (!gameId) return;
+    try {
+      await updateGame(gameId, { status: "inProgress" });
 
-        window.alert(
-          "Your game has started.\n\n" +
-          "From now on, host links will show the live event view for each dinner."
-        );
+      window.alert(
+        "Your game has started.\n\n" +
+        "From now on, host links will show the live event view for each dinner."
+      );
 
-        if (actions && typeof actions.setState === "function") {
-          actions.setState("organiserHome");
-        }
-      } catch (err) {
-        console.warn("[RsvpTracker] failed to start game", err);
-        window.alert("Sorry, we couldn’t start the game just now. Please try again.");
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("organiserHome");   // or "hub" if that’s your home state
       }
-    });
-  }
+    } catch (err) {
+      console.warn("[RsvpTracker] failed to start game", err);
+      window.alert(
+        "Sorry, we couldn’t start the game just now. Please try again."
+      );
+    }
+  });
+}
 }
