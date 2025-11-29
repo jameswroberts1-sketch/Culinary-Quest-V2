@@ -1155,30 +1155,35 @@ export function render(root, model = {}, actions = {}) {
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
 
-      // First, try the new-style token storage on the game doc
-      let hostIndex = -1;
-      let tokens = [];
+// Normalise the invite token from the URL
+const inviteRaw = inviteToken || "";
+const needle = inviteRaw.trim().toUpperCase();
 
-      if (Array.isArray(game.hostTokens)) {
-        tokens = game.hostTokens;
-      } else if (Array.isArray(game.tokens)) {
-        // backwards-compat / older docs
-        tokens = game.tokens;
-      }
+// First, try the new-style token arrays on the game doc
+let hostIndex = -1;
+let tokens = [];
 
-      if (tokens && tokens.length) {
-        hostIndex = tokens.findIndex(
-          (t) => typeof t === "string" && t === inviteToken
-        );
-      }
+if (Array.isArray(game.hostTokens)) {
+  tokens = game.hostTokens;
+} else if (Array.isArray(game.tokens)) {
+  // backwards-compat / older docs
+  tokens = game.tokens;
+}
 
-      // Fallback for very old games where the token lived on the host object
-      if (hostIndex < 0) {
-        hostIndex = hosts.findIndex(
-          (h) => h && typeof h.token === "string" && h.token === inviteToken
-        );
-      }
+if (tokens && tokens.length) {
+  const normalisedTokens = tokens.map((t) =>
+    t == null ? null : String(t).trim().toUpperCase()
+  );
+  hostIndex = normalisedTokens.findIndex((t) => t === needle);
+}
 
+// Fallback for docs where the token is stamped onto the host object
+if (hostIndex < 0 && hosts.length) {
+  hostIndex = hosts.findIndex((h) => {
+    if (!h || typeof h.token !== "string") return false;
+    return h.token.trim().toUpperCase() === needle;
+  });
+}
       if (hostIndex < 0) {
         console.warn(
           "[InviteScreen] Token not found for game",
