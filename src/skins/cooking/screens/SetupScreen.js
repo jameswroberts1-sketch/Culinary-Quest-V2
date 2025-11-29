@@ -469,7 +469,7 @@ export function render(root, model = {}, actions = {}) {
       ensureInvariants();
       persistSetup(setup, actions);
       try {
-        actions.setState && actions.setState("hosts"); // next step: add other hosts
+        actions.setState && actions.setState("invite"); // next step: add other hosts
       } catch (_) {}
       return;
     }
