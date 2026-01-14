@@ -111,6 +111,149 @@ function buildSchedule(game) {
   return out;
 }
 
+function renderOrganiserAvailability(root, game, gameId, actions) {
+  const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+  const organiserName =
+    (game.organiserName && String(game.organiserName)) ||
+    (hosts[0] && hosts[0].name) ||
+    "the organiser";
+
+  const schedule = buildSchedule(game);
+  const availability =
+    (game.availability && typeof game.availability === "object")
+      ? game.availability
+      : {};
+
+  // Build a friendly map of who can't attend each hostIndex dinner
+  function cannotAttendList(hostIdx) {
+    const out = [];
+    for (let viewerIdx = 0; viewerIdx < hosts.length; viewerIdx++) {
+      if (viewerIdx === hostIdx) continue; // host is always attending their own night
+      const viewerMap =
+        availability[viewerIdx] || availability[String(viewerIdx)] || null;
+      if (!viewerMap) continue;
+
+      if (viewerMap[hostIdx] === true || viewerMap[String(hostIdx)] === true) {
+        const nm = (hosts[viewerIdx] && hosts[viewerIdx].name) || `Host ${viewerIdx + 1}`;
+        out.push(nm);
+      }
+    }
+    return out;
+  }
+
+  // Track who hasn't submitted availability at all
+  function awaitingResponses(hostIdx) {
+    const out = [];
+    for (let viewerIdx = 0; viewerIdx < hosts.length; viewerIdx++) {
+      if (viewerIdx === hostIdx) continue;
+      const viewerMap =
+        availability[viewerIdx] || availability[String(viewerIdx)] || null;
+      if (!viewerMap) {
+        const nm = (hosts[viewerIdx] && hosts[viewerIdx].name) || `Host ${viewerIdx + 1}`;
+        out.push(nm);
+      }
+    }
+    return out;
+  }
+
+  if (!schedule.length) {
+    renderError(
+      root,
+      "No confirmed hosting dates yet. Ask hosts to RSVP first, then confirm the schedule."
+    );
+    return;
+  }
+
+  root.innerHTML = `
+    <section class="menu-card">
+      <div class="menu-hero">
+        <img
+          class="menu-logo"
+          src="./src/skins/cooking/assets/cq-logo.png"
+          alt="Culinary Quest"
+        />
+      </div>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+
+      <section class="menu-section">
+        <div class="menu-course">ENTRÉE</div>
+        <h2 class="menu-h2">SCHEDULE &amp; AVAILABILITY</h2>
+        <p class="menu-copy">
+          Okay <strong>${esc(organiserName)}</strong> — here’s the full schedule, plus any clashes reported by hosts.
+        </p>
+      </section>
+
+      <div class="menu-divider" aria-hidden="true"></div>
+
+      <section class="menu-section">
+        <div class="menu-course">MAIN</div>
+        <h2 class="menu-h2">CLASHES</h2>
+
+        <div class="menu-copy" style="text-align:left;font-size:13px;">
+          ${schedule
+            .map((item) => {
+              const dateStr = formatShortDate(item.date);
+              const timeStr = formatShortTime(item.time || "");
+              const hostName = esc(item.hostName || `Host ${item.hostIndex + 1}`);
+
+              const cant = cannotAttendList(item.hostIndex);
+              const awaiting = awaitingResponses(item.hostIndex);
+
+              const cantHtml = cant.length
+                ? `<div style="margin-top:6px;color:#b00020;">
+                     <strong>Can’t attend:</strong> ${cant.map(esc).join(", ")}
+                   </div>`
+                : `<div style="margin-top:6px;color:#1c7c33;">
+                     <strong>Everyone can attend</strong>
+                   </div>`;
+
+              const awaitingHtml = awaiting.length
+                ? `<div style="margin-top:4px;color:#6b7280;">
+                     <strong>Awaiting:</strong> ${awaiting.map(esc).join(", ")}
+                   </div>`
+                : "";
+
+              return `
+                <div style="margin-bottom:10px;padding:10px;border:1px solid rgba(0,0,0,0.08);border-radius:12px;background:#fff;">
+                  <div>
+                    <strong>${dateStr}</strong>${timeStr ? " at " + timeStr : ""}<br>
+                    Hosted by <strong>${hostName}</strong>
+                  </div>
+                  ${cantHtml}
+                  ${awaitingHtml}
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
+
+        <div class="menu-actions" style="margin-top:12px;">
+          <button class="btn btn-secondary" id="orgAvailBack">Back to organiser home</button>
+          <button class="btn btn-primary" id="orgAvailRefresh">Refresh</button>
+        </div>
+      </section>
+
+      <div class="menu-ornament" aria-hidden="true"></div>
+      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+        AvailabilityScreen – organiser summary view
+      </p>
+    </section>
+  `;
+
+  const backBtn = root.querySelector("#orgAvailBack");
+  const refreshBtn = root.querySelector("#orgAvailRefresh");
+
+  if (backBtn && actions && typeof actions.setState === "function") {
+    backBtn.addEventListener("click", () => actions.setState("organiserHome"));
+  }
+
+  // Re-render this screen (calling setState to the same state is fine in your app)
+  if (refreshBtn && actions && typeof actions.setState === "function") {
+    refreshBtn.addEventListener("click", () => actions.setState("availability"));
+  }
+}
+
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
@@ -119,13 +262,31 @@ export function render(root, model = {}, actions = {}) {
   scrollToTop();
 
   const params = new URLSearchParams(window.location.search);
-  const inviteToken = params.get("invite");
-  const urlGameId   = params.get("game");
+const inviteToken = params.get("invite");
+const urlGameId   = params.get("game");
 
-  if (!inviteToken || !urlGameId) {
-    renderError(root, "Missing invite details in the link.");
+// If invite details are missing, assume organiser opened this from inside the app.
+const isOrganiserInApp = !inviteToken || !urlGameId;
+
+// We'll read the game using either the URL (host links) or localStorage/model (organiser)
+let effectiveGameId = urlGameId;
+
+if (isOrganiserInApp) {
+  effectiveGameId =
+    (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
+
+  if (!effectiveGameId) {
+    try {
+      const stored = window.localStorage.getItem("cq_current_game_id_v1");
+      if (stored && stored.trim()) effectiveGameId = stored.trim();
+    } catch (_) {}
+  }
+
+  if (!effectiveGameId) {
+    renderError(root, "We couldn't find your game details. Please return to organiser home and try again.");
     return;
   }
+}
 
   // Lightweight loading state
   root.innerHTML = `
@@ -152,11 +313,16 @@ export function render(root, model = {}, actions = {}) {
 
   (async () => {
     try {
-      const game = await readGame(urlGameId);
+      const game = await readGame(effectiveGameId);
       if (!game) {
         renderError(root, "We couldn't find this Culinary Quest.");
         return;
       }
+
+      if (isOrganiserInApp) {
+  renderOrganiserAvailability(root, game, effectiveGameId, actions);
+  return;
+}
 
       const hosts = Array.isArray(game.hosts) ? game.hosts : [];
 
@@ -418,7 +584,7 @@ if (viewerIndex < 0) {
               updatePayload[rsvpField] = updatedRsvp;
             }
 
-            await updateGame(urlGameId, updatePayload);
+            await updateGame(effectiveGameId, updatePayload);
 
             root.innerHTML = `
               <section class="menu-card">
