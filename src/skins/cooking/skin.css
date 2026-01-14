@@ -39,6 +39,23 @@ html {
 
 body {
   margin: 0;
+  background: #f4f4f4; /* neutral fallback if wrapper doesn't cover something */
+}
+
+
+/* Root app container */
+#app {
+  min-height: 100vh;
+}
+
+
+/* Wrapper class for the cooking skin if used by the router */
+.skin-cooking {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  padding: 4px clamp(16px, 5vw, 28px);
+
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   color: #222;
@@ -52,23 +69,12 @@ body {
   background-position: center;
 }
 
-/* Root app container */
-#app {
-  min-height: 100vh;
-  padding: 4px clamp(16px, 5vw, 28px);   /* was 12 / 3vw / 24 */
-}
-
-/* Wrapper class for the cooking skin if used by the router */
-.skin-cooking {
-  min-height: 100vh;
-}
-
 /* -----------------------------------------
    LEGACY LAYOUT & COMPONENTS
    (still used elsewhere in the app)
    ----------------------------------------- */
 
-.paper--menu {
+.skin-cooking .paper--menu {
   width: min(760px, 92vw);
   margin: 24px auto;
   padding: 24px 24px 28px;
@@ -79,31 +85,31 @@ body {
   box-shadow: none;
 }
 
-.brand {
+.skin-cooking .brand {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 12px;
 }
 
-.brand__logo {
+.skin-cooking .brand__logo {
   height: 56px;
   width: auto;
   display: block;
 }
 
-.brand__title {
+.skin-cooking .brand__title {
   font-size: 1.75rem;
   margin: 0;
   letter-spacing: 0.3px;
 }
 
-.brand__tag {
+.skin-cooking .brand__tag {
   color: #3a3a3a;
   margin: 2px 0 16px 72px;
 }
 
-.card {
+.skin-cooking .card {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
@@ -112,44 +118,44 @@ body {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 }
 
-.list {
+.skin-cooking .list {
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.list li {
+.skin-cooking .list li {
   padding: 6px 0;
   border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
 }
 
-.row {
+.skin-cooking .row {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 8px 12px;
   align-items: center;
 }
 
-.grid {
+.skin-cooking .grid {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px 12px;
   align-items: center;
 }
 
-.wrap {
+.skin-cooking .wrap {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
 
-.muted {
+.skin-cooking .muted {
   color: #6b7280;
   font-size: 0.9rem;
 }
 
-.chip {
+.skin-cooking .chip {
   display: inline-block;
   padding: 4px 8px;
   border-radius: 999px;
@@ -157,7 +163,7 @@ body {
 }
 
 /* Buttons */
-.btn {
+.skin-cooking .btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -169,20 +175,20 @@ body {
   touch-action: manipulation; /* better tap UX on iOS */
 }
 
-.btn-primary {
+.skin-cooking .btn-primary {
   background: #f59e0b;
   color: #fff;
 }
 
-.btn-secondary {
+.skin-cooking .btn-secondary {
   background: #1f2937;
   color: #fff;
 }
 
 /* Legacy inputs (for other screens later) */
-input[type="date"],
-input[type="time"],
-input[type="number"] {
+.skin-cooking input[type="date"],
+.skin-cooking input[type="time"],
+.skin-cooking input[type="number"] {
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
