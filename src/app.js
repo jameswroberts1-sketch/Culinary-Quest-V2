@@ -7,6 +7,24 @@ import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
 
 const root = document.getElementById("app") || document.body;
 
+function scrollToTop() {
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  } catch (_) {
+    window.scrollTo(0, 0);
+  }
+
+  // Belt-and-braces for different scroll roots
+  if (document.documentElement) document.documentElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+
+  // If your app container itself scrolls
+  if (root) root.scrollTop = 0;
+  const app = document.getElementById("app");
+  if (app) app.scrollTop = 0;
+}
+
+
 function showError(msg) {
   const safeMsg = String(msg || "Unknown error");
   root.innerHTML = `
@@ -117,11 +135,12 @@ const actions = {
   },
 
   setState(next) {
-    if (typeof next === "string" && next.trim()) {
-      model.state = next.trim();
-      notifyWatchers();
-    }
-  },
+  if (typeof next === "string" && next.trim()) {
+    model.state = next.trim();
+    scrollToTop();
+    notifyWatchers();
+  }
+},
 
   // Let screens stash extra data (setup, hosts, gameId, etc.)
   // without forcing an immediate re-render.
@@ -191,6 +210,7 @@ async function renderOnce() {
     }
 
     // Call the new screen renderer; if it returns a cleanup function, keep it
+    scrollToTop();
     const maybeCleanup = renderer(root, model, actions);
     if (typeof maybeCleanup === "function") {
       currentCleanup = maybeCleanup;
@@ -204,6 +224,10 @@ async function renderOnce() {
 /* ------------ main bootstrap ------------ */
 
 async function main() {
+   // Prevent the browser from restoring the previous scroll position
+  if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+  }
   try {
     await loadSkin();
     skin.apply(root);
