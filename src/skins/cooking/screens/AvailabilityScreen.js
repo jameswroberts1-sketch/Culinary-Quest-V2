@@ -158,10 +158,16 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
-      const viewerIndex = hosts.findIndex(
-        (h) => h && typeof h.token === "string" && h.token === inviteToken
-      );
+            const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+
+      // Tokens are stored separately (hostTokens), not on hosts[i].token
+      const tokenList = Array.isArray(game.hostTokens)
+        ? game.hostTokens
+        : Array.isArray(game.tokens)
+        ? game.tokens
+        : [];
+
+      const viewerIndex = tokenList.indexOf(inviteToken);
 
       if (viewerIndex < 0) {
         renderError(root, "This invite link doesn't match any host in the game.");
