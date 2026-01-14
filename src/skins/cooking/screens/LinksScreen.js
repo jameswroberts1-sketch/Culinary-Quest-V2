@@ -116,12 +116,6 @@ function renderShell(root) {
         <div id="linksList">
           <p class="menu-copy">Preparing your links…</p>
         </div>
-
-        <div class="menu-actions" style="margin-top:12px;">
-          <button class="btn btn-primary" id="copyAllBtn">
-            Copy all links
-          </button>
-        </div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -163,7 +157,6 @@ export function render(root, model = {}, actions = {}) {
   const introEl   = root.querySelector("#linksIntro");
   const listEl    = root.querySelector("#linksList");
   const summaryEl = root.querySelector("#linksSummary");
-  const copyAll   = root.querySelector("#copyAllBtn");
   const backHome  = root.querySelector("#backHomeBtn");
   const viewRsvp  = root.querySelector("#viewRsvpBtn");
 
@@ -265,17 +258,28 @@ export function render(root, model = {}, actions = {}) {
       }
 
       const baseUrl = buildBaseUrl();
-      const rows = hosts.map((host, idx) => {
-        const name =
+
+      // Build rows for all hosts, then EXCLUDE organiser (index 0) from visible invite links.
+      const allRows = hosts.map((host, idx) => {
+        const rawName =
           host && typeof host.name === "string" && host.name.trim()
             ? host.name.trim()
-            : `Host ${idx + 1}`;
+            : "";
         const token = tokens[idx];
         const link = `${baseUrl}?game=${encodeURIComponent(
           gameId
         )}&invite=${encodeURIComponent(token)}`;
-        return { idx, name, link };
+        return { idx, name: rawName, link };
       });
+
+      // IMPORTANT: organiser (idx 0) uses the hub and does not need an invite link.
+      const rows = allRows
+        .filter((row) => row.idx !== 0)
+        .map((row, i) => ({
+          ...row,
+          name: row.name || `Host ${i + 1}` // renumber fallbacks so first guest host is "Host 1"
+        }));
+
 
       if (introEl) {
         introEl.innerHTML = `
@@ -287,29 +291,35 @@ export function render(root, model = {}, actions = {}) {
       }
 
 if (listEl) {
-  listEl.innerHTML = `
-    <div class="link-pill-list">
-      ${rows
-        .map(
-          (row) => `
-        <button
-          class="link-pill"
-          type="button"
-          data-link="${esc(row.link)}"
-          data-name="${esc(row.name)}"
-        >
-          <span class="link-pill-name">${esc(row.name)}</span>
-          <span class="link-pill-hint">Tap to copy their link</span>
-        </button>
-      `
-        )
-        .join("")}
-    </div>
-    <p class="menu-copy" style="margin-top:8px;font-size:12px;">
-      Tap a name to copy just that host’s link, or use <strong>Copy all links</strong> below.
-    </p>
-  `;
+  if (!rows.length) {
+    listEl.innerHTML = `
+      <p class="menu-copy">
+        You don’t have any host links to share yet. Go back and add at least one host.
+      </p>
+    `;
+  } else {
+    listEl.innerHTML = `
+      <div class="link-pill-list">
+        ${rows
+          .map(
+            (row) => `
+          <button
+            class="link-pill"
+            type="button"
+            data-link="${esc(row.link)}"
+            data-name="${esc(row.name)}"
+          >
+            <span class="link-pill-name">${esc(row.name)}</span>
+            <span class="link-pill-hint">Tap to copy their link</span>
+          </button>
+        `
+          )
+          .join("")}
+      </div>
+    `;
+  }
 }
+
 // Per-host pill copy handler
 if (listEl) {
   const pillButtons = listEl.querySelectorAll(".link-pill");
@@ -343,33 +353,6 @@ if (listEl) {
         summaryEl.textContent = `Links ready for ${rows.length} host${
           rows.length === 1 ? "" : "s"
         }.`;
-      }
-
-      // Copy-all handler
-      if (copyAll) {
-        copyAll.addEventListener("click", async () => {
-          const text = rows
-            .map((row) => `${row.name}: ${row.link}`)
-            .join("\n");
-          try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              await navigator.clipboard.writeText(text);
-              window.alert("All links copied. Paste them into your messages or emails.");
-            } else {
-              // Fallback: show in a prompt the organiser can copy from
-              window.prompt(
-                "Copy these links and share them with your hosts:",
-                text
-              );
-            }
-          } catch (err) {
-            console.warn("[LinksScreen] Failed to copy links", err);
-            window.prompt(
-              "We couldn’t copy automatically. Please copy the links below:",
-              text
-            );
-          }
-        });
       }
 
       if (backHome && actions && typeof actions.setState === "function") {
