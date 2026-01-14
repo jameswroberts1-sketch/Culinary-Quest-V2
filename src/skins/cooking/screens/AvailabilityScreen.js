@@ -158,21 +158,26 @@ export function render(root, model = {}, actions = {}) {
         return;
       }
 
-            const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
 
-      // Tokens are stored separately (hostTokens), not on hosts[i].token
-      const tokenList = Array.isArray(game.hostTokens)
-        ? game.hostTokens
-        : Array.isArray(game.tokens)
-        ? game.tokens
-        : [];
+// Tokens are stored separately (hostTokens), not on hosts[i].token
+const tokenList = Array.isArray(game.hostTokens)
+  ? game.hostTokens
+  : Array.isArray(game.tokens)
+  ? game.tokens
+  : [];
 
-      const viewerIndex = tokenList.indexOf(inviteToken);
+const needle = String(inviteToken || "").trim().toUpperCase();
+const normalisedTokens = tokenList.map((t) =>
+  t == null ? "" : String(t).trim().toUpperCase()
+);
+const viewerIndex = normalisedTokens.indexOf(needle);
 
-      if (viewerIndex < 0) {
-        renderError(root, "This invite link doesn't match any host in the game.");
-        return;
-      }
+if (viewerIndex < 0) {
+  renderError(root, "This invite link doesn't match any host in the game.");
+  return;
+}
+
 
       const viewerHost = hosts[viewerIndex] || {};
       const viewerName = viewerHost.name || `Host ${viewerIndex + 1}`;
