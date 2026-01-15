@@ -5,11 +5,18 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getFirestore,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
   doc,
   getDoc,
   setDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
 import {
   getAuth,
   signInAnonymously
@@ -122,4 +129,26 @@ export async function updateGame(gameId, patch) {
   const { db } = await ensureFirebase();
   const ref = doc(db, "games", gameId.trim());
   await updateDoc(ref, patch);
+}
+/**
+ * List games owned by the current anonymous user that are still "open".
+ * Returns [{ id, ...data }] newest first.
+ */
+export async function listMyOpenGames(maxCount = 25) {
+  const { db, uid } = await ensureFirebase();
+  if (!uid) return [];
+
+  const OPEN_STATUSES = ["draft", "links", "availability", "inProgress", "started"];
+
+  // Firestore "in" allows up to 10 values, so we're fine.
+  const q = query(
+    collection(db, "games"),
+    where("ownerUid", "==", uid),
+    where("status", "in", OPEN_STATUSES),
+    orderBy("createdAt", "desc"),
+    limit(Math.max(1, Math.min(50, Number(maxCount) || 25)))
+  );
+
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
