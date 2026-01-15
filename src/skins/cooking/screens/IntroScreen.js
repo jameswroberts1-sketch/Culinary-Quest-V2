@@ -121,7 +121,7 @@ export function render(root, model = {}, actions = {}) {
 
       <div class="menu-actions">
         <button class="btn btn-primary" id="begin" type="button">Begin Planning</button>
-        <button class="btn btn-secondary" id="cancel" type="button">Cancel</button>
+        <button type="button" class="btn btn-secondary" id="introCancel">Cancel</button>
       </div>
 
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
@@ -147,6 +147,19 @@ export function render(root, model = {}, actions = {}) {
       nameInput.focus({ preventScroll: true });
       return;
     }
+
+  const cancelBtn = root.querySelector("#introCancel");
+
+    if (cancelBtn) {
+    cancelBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (actions && typeof actions.setState === "function") {
+      actions.setState("organiserHome");
+    }
+  });
+}
+
 
     // Remember locally on this device
     try {
