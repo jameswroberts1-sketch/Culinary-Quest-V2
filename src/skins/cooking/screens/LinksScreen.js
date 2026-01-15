@@ -310,7 +310,7 @@ if (listEl) {
             data-name="${esc(row.name)}"
           >
             <span class="link-pill-name">${esc(row.name)}</span>
-            <span class="link-pill-hint">Tap to copy their link</span>
+            <span class="link-pill-hint">Tap to send</span>
           </button>
         `
           )
@@ -320,7 +320,7 @@ if (listEl) {
   }
 }
 
-// Per-host pill copy handler
+// Per-host pill handler: iOS Share Sheet if available, else copy
 if (listEl) {
   const pillButtons = listEl.querySelectorAll(".link-pill");
   pillButtons.forEach((btn) => {
@@ -328,26 +328,36 @@ if (listEl) {
       const link = btn.getAttribute("data-link");
       const name = btn.getAttribute("data-name") || "this host";
       if (!link) return;
+
+      // 1) Try Share Sheet (best on iPhone)
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "Culinary Quest invite",
+            text: `Hi ${name} — here’s your Culinary Quest link:`,
+            url: link
+          });
+          return; // shared successfully (or user completed flow)
+        }
+      } catch (_) {
+        // user cancelled or share failed — fall back to copy
+      }
+
+      // 2) Fallback: copy to clipboard (keeps it usable if share isn't supported)
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(link);
           window.alert(`Link for ${name} copied. Paste it into your message.`);
         } else {
-          window.prompt(
-            `Copy the link for ${name}:`,
-            link
-          );
+          window.prompt(`Copy the link for ${name}:`, link);
         }
-      } catch (err) {
-        console.warn("[LinksScreen] Failed to copy single link", err);
-        window.prompt(
-          `We couldn’t copy automatically. Please copy the link for ${name}:`,
-          link
-        );
+      } catch (_) {
+        window.prompt(`Please copy the link for ${name}:`, link);
       }
     });
   });
 }
+
       
       if (summaryEl) {
         summaryEl.textContent = `Links ready for ${rows.length} host${
