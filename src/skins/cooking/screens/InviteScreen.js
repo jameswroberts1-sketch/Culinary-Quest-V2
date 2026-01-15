@@ -311,6 +311,27 @@ function getPrepPepTalk(order, total) {
   };
 }
 
+function getScoringConfig(setup) {
+  const s = setup && typeof setup === "object" ? setup : {};
+
+  // Try a few likely category fields (use whichever your SetupScreen writes)
+  const rawCats =
+    (Array.isArray(s.scoringCategories) && s.scoringCategories) ||
+    (Array.isArray(s.scoreCategories) && s.scoreCategories) ||
+    (Array.isArray(s.categories) && s.categories) ||
+    (Array.isArray(s.voteCategories) && s.voteCategories) ||
+    [];
+
+  const categories = rawCats
+    .map((c) => (c == null ? "" : String(c).trim()))
+    .filter(Boolean);
+
+  // If there are categories, assume category voting; otherwise single score.
+  const mode = categories.length ? "categories" : "single";
+
+  return { mode, categories };
+}
+
 
 // --------------------------------------------------
 // Game in progress: pre-event view
@@ -335,13 +356,11 @@ function renderInProgressPreEvent(root, opts) {
   const safeViewer = esc(viewerName || `Host ${viewerIndex + 1}`);
   const safeHost = esc(currentHostName || `Host ${currentHostIndex + 1}`);
   const safeOrganiser = esc(organiserName || "the organiser");
-
   const dateStr = rsvp && rsvp.date ? formatShortDate(rsvp.date) : "";
   const timeStr = rsvp && rsvp.time ? formatShortTime(rsvp.time) : "";
   const theme = rsvp && rsvp.theme ? rsvp.theme : "";
   const address = rsvp && rsvp.address ? rsvp.address : "";
   const phone = rsvp && rsvp.phone ? rsvp.phone : "";
-
   const menu = rsvp && rsvp.menu ? rsvp.menu : {};
   const entreeName = menu.entreeName || "";
   const entreeDesc = menu.entreeDesc || "";
@@ -1406,7 +1425,8 @@ if (hostIndex < 0 && hosts.length) {
           gameId,
           orderInSchedule,
           totalEvents,
-          scoringModel
+          scoringModel,
+          setup: game.setup
         });
       } else {
         // After the 6-hour window → post-event view
