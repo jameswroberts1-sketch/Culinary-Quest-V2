@@ -299,14 +299,17 @@ selectTab("games"); // default to My games when returning
         actions.setState("gameDashboard");
       });
     });
-  } catch (err) {
-    console.error("[OrganiserHome] Failed to load open games", err);
-    gamesShell.innerHTML = `
-      <p class="menu-copy">
-        We hit a problem loading your open Quests.
-        Please check your connection and try again.
-      </p>
-    `;
-  }
+ } catch (err) {
+  console.error("[OrganiserHome] Failed to load open games", err);
+  gamesShell.innerHTML = `
+    <p class="menu-copy">
+      We hit a problem loading your open Quests.
+    </p>
+    <p class="muted" style="text-align:center;margin-top:6px;font-size:11px;">
+      ${esc(err && err.message ? err.message : String(err))}
+    </p>
+  `;
+}
+
 })();
 }
