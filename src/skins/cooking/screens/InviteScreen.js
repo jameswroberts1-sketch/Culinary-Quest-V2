@@ -245,6 +245,73 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+function getScoringModelFromGame(game) {
+  const setup =
+    game && game.setup && typeof game.setup === "object" ? game.setup : {};
+
+  const scoring =
+    setup.scoring && typeof setup.scoring === "object" ? setup.scoring : {};
+
+  const rawCats =
+    scoring.categories ||
+    setup.voteCategories ||
+    setup.categories ||
+    setup.scoringCategories ||
+    [];
+
+  const categories = Array.isArray(rawCats)
+    ? rawCats
+        .map((c) => (c == null ? "" : String(c).trim()))
+        .filter(Boolean)
+    : [];
+
+  const rawMode =
+    scoring.mode ||
+    setup.scoringMode ||
+    setup.voteMode ||
+    setup.scoringType ||
+    "";
+
+  const mode = String(rawMode || "").toLowerCase();
+  const byCategory = mode.includes("categor") || categories.length > 0;
+
+  return { byCategory, categories };
+}
+
+function getPrepPepTalk(order, total) {
+  const o = Number(order) || 1;
+  const t = Number(total) || 1;
+
+  if (o === 1) {
+    return {
+      heading: "You’re up first.",
+      body:
+        "You set the bar everyone else will be measured against — so go hard.\n" +
+        "Make it memorable… but don’t overthink it.\n\n" +
+        "Best cheat-code: stay relaxed. If you’re enjoying yourself, your guests will too."
+    };
+  }
+
+  if (o === t) {
+    return {
+      heading: "Final host. Big finish.",
+      body:
+        "You’re closing the Quest — it’s your job to leave everyone talking.\n" +
+        "A strong final night can swing the whole scoreboard.\n\n" +
+        "Keep it simple, hit your timing, and focus on atmosphere."
+    };
+  }
+
+  return {
+    heading: `You’re the ${ordinal(o)} host of ${t}.`,
+    body:
+      "The table already has a benchmark — now you get to raise it.\n" +
+      "A small twist (theme, presentation, or one standout dish) goes a long way.\n\n" +
+      "Don’t chase perfection. Chase a great night."
+  };
+}
+
+
 // --------------------------------------------------
 // Game in progress: pre-event view
 // --------------------------------------------------
@@ -259,30 +326,31 @@ function renderInProgressPreEvent(root, opts) {
     currentHostName,
     organiserName,
     rsvp,
-    gameId
+    gameId,
+    orderInSchedule,
+    totalEvents,
+    scoringModel
   } = opts;
 
   const safeViewer = esc(viewerName || `Host ${viewerIndex + 1}`);
-  const safeHost   = esc(currentHostName || `Host ${currentHostIndex + 1}`);
+  const safeHost = esc(currentHostName || `Host ${currentHostIndex + 1}`);
   const safeOrganiser = esc(organiserName || "the organiser");
 
   const dateStr = rsvp && rsvp.date ? formatShortDate(rsvp.date) : "";
   const timeStr = rsvp && rsvp.time ? formatShortTime(rsvp.time) : "";
-  const theme   = rsvp && rsvp.theme ? rsvp.theme : "";
+  const theme = rsvp && rsvp.theme ? rsvp.theme : "";
   const address = rsvp && rsvp.address ? rsvp.address : "";
-  const phone   = rsvp && rsvp.phone ? rsvp.phone : "";
+  const phone = rsvp && rsvp.phone ? rsvp.phone : "";
 
-  const menu    = rsvp && rsvp.menu ? rsvp.menu : {};
-  const entreeName   = menu.entreeName   || "";
-  const entreeDesc   = menu.entreeDesc   || "";
-  const mainName     = menu.mainName     || "";
-  const mainDesc     = menu.mainDesc     || "";
-  const dessertName  = menu.dessertName  || "";
-  const dessertDesc  = menu.dessertDesc  || "";
+  const menu = rsvp && rsvp.menu ? rsvp.menu : {};
+  const entreeName = menu.entreeName || "";
+  const entreeDesc = menu.entreeDesc || "";
+  const mainName = menu.mainName || "";
+  const mainDesc = menu.mainDesc || "";
+  const dessertName = menu.dessertName || "";
+  const dessertDesc = menu.dessertDesc || "";
 
-  // Lines of menu text we can reuse in both views
-  let menuLinesHTML = "";
-  if (entreeName || mainName || dessertName) {
+  function menuLinesHTML() {
     const lines = [];
     if (entreeName) {
       lines.push(
@@ -305,151 +373,145 @@ function renderInProgressPreEvent(root, opts) {
         }`
       );
     }
-    menuLinesHTML = lines.join("<br><br>");
+    return lines.join("<br><br>");
   }
 
-  // Host-only summary block we append at the bottom of their card
-  const menuSummaryHTML = menuLinesHTML
-    ? `
-      <div class="menu-divider" aria-hidden="true"></div>
-      <section class="menu-section">
-        <div class="menu-course">DESSERT</div>
-        <h2 class="menu-h2">ON THE MENU</h2>
-        <p class="menu-copy">
-          ${menuLinesHTML}
-        </p>
-      </section>
-    `
-    : "";
+  const pep = getPrepPepTalk(orderInSchedule, totalEvents);
 
-  // ---------- GUEST VIEW (not the current host) ----------
-  if (!isCurrentHost) {
-    const hasTime    = !!timeStr;
-    const hasAddress = !!address;
-    const hasPhone   = !!phone;
+  const votingHTML = (() => {
+    const byCat = scoringModel && scoringModel.byCategory;
+    const cats = scoringModel && Array.isArray(scoringModel.categories)
+      ? scoringModel.categories
+      : [];
 
-    // “John is hosting you on…” + details or “hasn’t provided…yet”
-    let detailsCopy;
-    if (hasTime || hasAddress || hasPhone) {
-      detailsCopy = `
-        <br><br>${safeHost} is hosting you on<br>
-        <strong>${dateStr || "a date to be confirmed"}</strong>
-        ${hasTime ? "<br>at <strong>" + timeStr + "</strong>" : ""}
+    if (byCat) {
+      const list = cats.length
+        ? cats.map((c) => `• ${esc(c)}`).join("<br>")
+        : "• (categories not set in setup)";
+
+      return `
+        You’ll score <strong>${safeHost}</strong> out of 10 for each category:<br><br>
+        ${list}
         <br><br>
-        The details for ${safeHost}'s event are:<br>
-        ${hasAddress ? "<strong>Address:</strong> " + esc(address) + "<br>" : ""}
-        ${hasPhone ? "<strong>Contact:</strong> " + esc(phone) + "<br>" : ""}
-      `;
-    } else {
-      const missingBits = [];
-      if (!hasTime)    missingBits.push("a start time");
-      if (!hasAddress) missingBits.push("an address");
-      if (!hasPhone)   missingBits.push("a contact number");
-      const missingText = missingBits.join(", ").replace(/, ([^,]*)$/, " and $1");
-
-      detailsCopy = `
-        <br><br>${safeHost} is hosting you on<br>
-        <strong>${dateStr || "a date to be confirmed"}</strong>
-        <br><br>
-        ${safeHost} hasn’t provided ${missingText} yet, so please get in touch with
-        ${safeOrganiser} if you need these details.
+        You can also leave a comment. Your comments are shared with everyone at the end,
+        when final scores are revealed.
       `;
     }
 
-    const entreeBody = `
-      Hi <strong>${safeViewer}</strong> – I hope you’re looking forward to enjoying
-      <strong>${safeHost}</strong>’s culinary skills.
-      ${detailsCopy}
+    return `
+      You’ll give <strong>${safeHost}</strong> one overall score out of 10 for the night.
+      <br><br>
+      You can also leave a comment. Your comments are shared with everyone at the end,
+      when final scores are revealed.
+    `;
+  })();
+
+  // ---------------------------
+  // GUEST VIEW (not the upcoming host)
+  // ---------------------------
+  if (!isCurrentHost) {
+    const hasTime = !!timeStr;
+    const hasAddress = !!address;
+    const hasPhone = !!phone;
+
+    const detailsBlock = `
+      <div style="margin-top:8px;">
+        <div><strong>Date:</strong> ${esc(dateStr || "To be confirmed")}</div>
+        ${hasTime ? `<div><strong>Time:</strong> ${esc(timeStr)}</div>` : ""}
+        ${theme ? `<div style="margin-top:6px;"><strong>Theme:</strong> ${esc(theme)}</div>` : ""}
+        ${
+          hasAddress
+            ? `<div style="margin-top:6px;"><strong>Address:</strong><br>${esc(address)}</div>`
+            : `<div style="margin-top:6px;"><strong>Address:</strong> Not shared yet</div>`
+        }
+        ${
+          hasPhone
+            ? `<div style="margin-top:6px;"><strong>Contact:</strong> ${esc(phone)}</div>`
+            : `<div style="margin-top:6px;"><strong>Contact:</strong> Not shared yet</div>`
+        }
+      </div>
     `;
 
-    // MAIN: menu (or “John hasn’t provided a menu…”)
-    const mainBody = menuLinesHTML
-      ? menuLinesHTML
-      : `${safeHost} hasn’t provided a menu for this Quest yet. Maybe ${safeHost.split(" ")[0] || "they"} just likes surprises!`;
-
-    // DESSERT: scoring + theme reminder
-    const scoringLine = `
-      So bring your ‘A’ game. You’ll be scoring <strong>${safeHost}</strong> out of 10
-      for their efforts to impress.
-    `;
-    const themeLine = theme
-      ? `<br><br><strong>Theme:</strong> ${esc(theme)}`
-      : `<br><br>${safeHost} hasn’t chosen a theme yet – unless you hear otherwise, just come as you are.`;
+    const menuBlock = menuLinesHTML()
+      ? menuLinesHTML()
+      : `${safeHost} hasn’t shared a menu yet. (Either they love surprises… or they’re still deciding.)`;
 
     root.innerHTML = `
       <section class="menu-card">
         <div class="menu-hero">
-          <img
-            class="menu-logo"
-            src="./src/skins/cooking/assets/cq-logo.png"
-            alt="Culinary Quest"
-          />
+          <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
         </div>
 
         <div class="menu-ornament" aria-hidden="true"></div>
 
-        <!-- ENTRÉE -->
         <section class="menu-section">
           <div class="menu-course">ENTRÉE</div>
-          <h2 class="menu-h2">NEXT DINNER IN THE QUEST</h2>
+          <h2 class="menu-h2">GET READY</h2>
           <p class="menu-copy">
-            ${entreeBody}
+            Hi <strong>${safeViewer}</strong> — the next dinner in this Quest is hosted by
+            <strong>${safeHost}</strong>.
+            ${detailsBlock}
+            <br><br>
+            If anything critical is missing, message <strong>${safeOrganiser}</strong>.
           </p>
         </section>
 
         <div class="menu-divider" aria-hidden="true"></div>
 
-        <!-- MAIN: menu -->
         <section class="menu-section">
           <div class="menu-course">MAIN</div>
           <h2 class="menu-h2">ON THE MENU</h2>
           <p class="menu-copy">
-            ${mainBody}
+            ${menuBlock}
           </p>
         </section>
 
         <div class="menu-divider" aria-hidden="true"></div>
 
-        <!-- DESSERT: scoring + theme -->
         <section class="menu-section">
           <div class="menu-course">DESSERT</div>
-          <h2 class="menu-h2">SCORING</h2>
+          <h2 class="menu-h2">HOW VOTING WORKS</h2>
           <p class="menu-copy">
-            ${scoringLine}
-            ${themeLine}
+            Voting will open <strong>after the dinner</strong>, once the organiser opens the round.
+            <br><br>
+            ${votingHTML}
           </p>
         </section>
 
         <div class="menu-ornament" aria-hidden="true"></div>
         <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-          InviteScreen – game in progress (pre-event view)
+          Preparation view – guest
         </p>
       </section>
     `;
     return;
   }
 
-  // ---------- HOST VIEW (current upcoming host) ----------
+  // ---------------------------
+  // UPCOMING HOST VIEW
+  // ---------------------------
+  const fixedDate = rsvp && rsvp.date ? rsvp.date : null;
+
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
-        <img
-          class="menu-logo"
-          src="./src/skins/cooking/assets/cq-logo.png"
-          alt="Culinary Quest"
-        />
+        <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
       </div>
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <section class="menu-section">
         <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">YOUR NIGHT IS UP NEXT</h2>
+        <h2 class="menu-h2">YOUR PREP SCREEN</h2>
         <p class="menu-copy">
-          Okay <strong>${safeViewer}</strong>, things are getting exciting – your dinner is next in the line-up.
+          Okay <strong>${safeViewer}</strong> — your night is next.
           <br><br>
-          Confirm your start time, where you're hosting, and what you're serving so your guests know what to expect.
-          If you chose a theme earlier, we'll remind everyone about it too.
+          <strong>${esc(pep.heading)}</strong><br>
+          ${esc(pep.body).replace(/\n/g, "<br>")}
+          <br><br>
+          <strong>Your slot:</strong> ${esc(dateStr || "Date missing")}
+          ${timeStr ? " at " + esc(timeStr) : ""}
+          ${theme ? "<br><strong>Theme:</strong> " + esc(theme) : ""}
         </p>
       </section>
 
@@ -457,46 +519,36 @@ function renderInProgressPreEvent(root, opts) {
 
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">EVENT DETAILS</h2>
+        <h2 class="menu-h2">DETAILS YOUR GUESTS WILL SEE</h2>
 
         <p class="menu-copy">
-          Update your start time, address and menu details. These are only shared with your fellow guests.
+          Add the practical bits (address, optional contact and timing), plus what you’re serving.
         </p>
 
-        <label class="menu-copy" for="preEventDate" style="text-align:left;margin-top:8px;">
-          <strong>Hosting date</strong>
-        </label>
-        <input
-          id="preEventDate"
-          class="menu-input"
-          type="date"
-          value="${rsvp && rsvp.date ? esc(rsvp.date) : ""}"
-        />
-
-        <label class="menu-copy" for="preEventTime" style="text-align:left;margin-top:10px;">
+        <label class="menu-copy" for="prepTime" style="text-align:left;margin-top:10px;">
           <strong>Start time</strong> <span class="muted">(optional)</span>
         </label>
         <input
-          id="preEventTime"
+          id="prepTime"
           class="menu-input"
           type="time"
           value="${rsvp && rsvp.time ? esc(rsvp.time) : ""}"
         />
 
-        <label class="menu-copy" for="preEventAddress" style="text-align:left;margin-top:10px;">
+        <label class="menu-copy" for="prepAddress" style="text-align:left;margin-top:10px;">
           <strong>Address</strong> <span class="muted">(only shared with guests)</span>
         </label>
         <textarea
-          id="preEventAddress"
+          id="prepAddress"
           class="menu-input"
           rows="2"
         >${address ? esc(address) : ""}</textarea>
 
-        <label class="menu-copy" for="preEventPhone" style="text-align:left;margin-top:10px;">
-          <strong>Contact phone</strong> <span class="muted">(only shared with guests)</span>
+        <label class="menu-copy" for="prepPhone" style="text-align:left;margin-top:10px;">
+          <strong>Contact phone</strong> <span class="muted">(optional)</span>
         </label>
         <input
-          id="preEventPhone"
+          id="prepPhone"
           class="menu-input"
           type="tel"
           value="${phone ? esc(phone) : ""}"
@@ -504,13 +556,13 @@ function renderInProgressPreEvent(root, opts) {
 
         <div class="menu-divider" aria-hidden="true"></div>
 
-        <h2 class="menu-h2" style="margin-top:16px;">MENU DETAILS</h2>
+        <h2 class="menu-h2" style="margin-top:16px;">MENU</h2>
 
-        <label class="menu-copy" for="preEventEntreeName" style="text-align:left;margin-top:8px;">
+        <label class="menu-copy" for="prepEntreeName" style="text-align:left;margin-top:8px;">
           <strong>Entrée</strong>
         </label>
         <input
-          id="preEventEntreeName"
+          id="prepEntreeName"
           class="menu-input"
           type="text"
           maxlength="80"
@@ -518,35 +570,35 @@ function renderInProgressPreEvent(root, opts) {
           value="${entreeName ? esc(entreeName) : ""}"
         />
         <textarea
-          id="preEventEntreeDesc"
+          id="prepEntreeDesc"
           class="menu-input"
           rows="2"
           placeholder="Short description of your entrée"
         >${entreeDesc ? esc(entreeDesc) : ""}</textarea>
 
-        <label class="menu-copy" for="preEventMainName" style="text-align:left;margin-top:10px;">
+        <label class="menu-copy" for="prepMainName" style="text-align:left;margin-top:10px;">
           <strong>Main</strong>
         </label>
         <input
-          id="preEventMainName"
+          id="prepMainName"
           class="menu-input"
           type="text"
           maxlength="80"
-          placeholder="e.g. Lamb sausages with roasted vegetables"
+          placeholder="e.g. Slow-cooked lamb with roast veg"
           value="${mainName ? esc(mainName) : ""}"
         />
         <textarea
-          id="preEventMainDesc"
+          id="prepMainDesc"
           class="menu-input"
           rows="2"
           placeholder="Short description of your main"
         >${mainDesc ? esc(mainDesc) : ""}</textarea>
 
-        <label class="menu-copy" for="preEventDessertName" style="text-align:left;margin-top:10px;">
+        <label class="menu-copy" for="prepDessertName" style="text-align:left;margin-top:10px;">
           <strong>Dessert</strong>
         </label>
         <input
-          id="preEventDessertName"
+          id="prepDessertName"
           class="menu-input"
           type="text"
           maxlength="80"
@@ -554,67 +606,66 @@ function renderInProgressPreEvent(root, opts) {
           value="${dessertName ? esc(dessertName) : ""}"
         />
         <textarea
-          id="preEventDessertDesc"
+          id="prepDessertDesc"
           class="menu-input"
           rows="2"
           placeholder="Short description of your dessert"
         >${dessertDesc ? esc(dessertDesc) : ""}</textarea>
 
         <div class="menu-actions" style="margin-top:16px;">
-          <button class="btn btn-primary" id="preEventSave">
+          <button class="btn btn-primary" id="prepSave">
             Save details
           </button>
         </div>
-      </section>
 
-      ${menuSummaryHTML}
+        <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+          Tip: save as soon as you know the address — you can update the menu later.
+        </p>
+      </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
       <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        InviteScreen – game in progress (pre-event view)
+        Preparation view – upcoming host
       </p>
     </section>
   `;
 
-  // Host save handler
-  const dateEl    = root.querySelector("#preEventDate");
-  const timeEl    = root.querySelector("#preEventTime");
-  const addrEl    = root.querySelector("#preEventAddress");
-  const phoneEl   = root.querySelector("#preEventPhone");
-  const entreeNameEl = root.querySelector("#preEventEntreeName");
-  const entreeDescEl = root.querySelector("#preEventEntreeDesc");
-  const mainNameEl   = root.querySelector("#preEventMainName");
-  const mainDescEl   = root.querySelector("#preEventMainDesc");
-  const dessertNameEl = root.querySelector("#preEventDessertName");
-  const dessertDescEl = root.querySelector("#preEventDessertDesc");
-  const saveBtn   = root.querySelector("#preEventSave");
+  const timeEl = root.querySelector("#prepTime");
+  const addrEl = root.querySelector("#prepAddress");
+  const phoneEl = root.querySelector("#prepPhone");
+  const entreeNameEl = root.querySelector("#prepEntreeName");
+  const entreeDescEl = root.querySelector("#prepEntreeDesc");
+  const mainNameEl = root.querySelector("#prepMainName");
+  const mainDescEl = root.querySelector("#prepMainDesc");
+  const dessertNameEl = root.querySelector("#prepDessertName");
+  const dessertDescEl = root.querySelector("#prepDessertDesc");
+  const saveBtn = root.querySelector("#prepSave");
 
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      const newDate  = dateEl && dateEl.value ? dateEl.value.trim() : rsvp.date || null;
-      const newTime  = timeEl && timeEl.value ? timeEl.value.trim() : rsvp.time || null;
-      const newAddr  = addrEl && addrEl.value ? addrEl.value.trim() : null;
+      if (!fixedDate) {
+        window.alert("Your hosting date isn’t set yet. Please contact the organiser.");
+        return;
+      }
+
+      const newTime = timeEl && timeEl.value ? timeEl.value.trim() : (rsvp.time || null);
+      const newAddr = addrEl && addrEl.value ? addrEl.value.trim() : null;
       const newPhone = phoneEl && phoneEl.value ? phoneEl.value.trim() : null;
 
       const menuObj = {
-        entreeName:  entreeNameEl && entreeNameEl.value ? entreeNameEl.value.trim() : "",
-        entreeDesc:  entreeDescEl && entreeDescEl.value ? entreeDescEl.value.trim() : "",
-        mainName:    mainNameEl && mainNameEl.value ? mainNameEl.value.trim() : "",
-        mainDesc:    mainDescEl && mainDescEl.value ? mainDescEl.value.trim() : "",
+        entreeName: entreeNameEl && entreeNameEl.value ? entreeNameEl.value.trim() : "",
+        entreeDesc: entreeDescEl && entreeDescEl.value ? entreeDescEl.value.trim() : "",
+        mainName: mainNameEl && mainNameEl.value ? mainNameEl.value.trim() : "",
+        mainDesc: mainDescEl && mainDescEl.value ? mainDescEl.value.trim() : "",
         dessertName: dessertNameEl && dessertNameEl.value ? dessertNameEl.value.trim() : "",
         dessertDesc: dessertDescEl && dessertDescEl.value ? dessertDescEl.value.trim() : ""
       };
-
-      if (!newDate) {
-        window.alert("Please make sure your hosting date is set.");
-        return;
-      }
 
       await saveRsvpToFirestore(
         gameId,
         currentHostIndex,
         rsvp.status || "accepted",
-        newDate,
+        fixedDate,
         newTime,
         rsvp.theme || null,
         newAddr,
@@ -622,7 +673,7 @@ function renderInProgressPreEvent(root, opts) {
         { menu: menuObj }
       );
 
-      window.alert("Your event details have been saved.");
+      window.alert("Saved. Your guests will see the updated details when they open their link.");
     });
   }
 }
@@ -1315,6 +1366,13 @@ if (hostIndex < 0 && hosts.length) {
       const { currentHostIndex, startMs, endMs } = timing;
       const rsvp = nights[currentHostIndex] || {};
       const isCurrentHost = hostIndex === currentHostIndex;
+      const schedule = buildSchedule(game);
+      const orderInSchedule = Math.max(
+        1,
+        schedule.findIndex((ev) => ev.hostIndex === currentHostIndex) + 1
+      );
+      const totalEvents = schedule.length || (Array.isArray(hosts) ? hosts.length : 0);
+      const scoringModel = getScoringModelFromGame(game);
       const currentHostDoc  = hosts[currentHostIndex] || {};
       const currentHostName = currentHostDoc.name || `Host ${currentHostIndex + 1}`;
 
@@ -1345,7 +1403,10 @@ if (hostIndex < 0 && hosts.length) {
           currentHostName,
           organiserName,
           rsvp,
-          gameId
+          gameId,
+          orderInSchedule,
+          totalEvents,
+          scoringModel
         });
       } else {
         // After the 6-hour window → post-event view
