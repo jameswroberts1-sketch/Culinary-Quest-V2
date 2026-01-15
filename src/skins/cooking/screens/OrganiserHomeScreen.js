@@ -1,7 +1,7 @@
 // path: src/skins/cooking/screens/OrganiserHomeScreen.js
 // Organiser home – simple hub with Home / My games tabs
 
-import { readGame } from "../../../engine/firestore.js";
+import { readGame, listMyOpenGames } from "../../../engine/firestore.js";
 
 const LOCAL_KEYS_TO_CLEAR = [
   "cq_current_game_id_v1", // current game id
@@ -198,147 +198,114 @@ if (startBtn && actions && typeof actions.setState === "function") {
     actions.setState("intro"); // your usual starting point
   });
 }
-  // ---- Load current game summary for "My games" pane ----
-  selectTab("games");  // default to My games when returning, feels natural
+// ---- Load "My games" from Firestore (open games only) ----
+selectTab("games"); // default to My games when returning
 
-  let gameId =
-    (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
+(async () => {
+  if (!gamesShell) return;
 
-  if (!gameId) {
-    try {
-      const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
-      if (stored && stored.trim()) {
-        gameId = stored.trim();
-      }
-    } catch (_) {}
-  }
+  gamesShell.innerHTML = `<p class="menu-copy">Loading your open Quests…</p>`;
 
-  if (!gameId) {
-    if (gamesShell) {
+  try {
+    const games = await listMyOpenGames(25);
+
+    if (!games.length) {
       gamesShell.innerHTML = `
         <p class="menu-copy">
-          You don’t have an active Quest yet.
+          You don’t have any open Quests right now.
         </p>
         <div class="menu-actions" style="margin-top:10px;">
           <button class="btn btn-primary" id="gamesStartFromPane">
-            Start your first Culinary Quest
+            Start a new Culinary Quest
           </button>
         </div>
       `;
+
       const paneStart = root.querySelector("#gamesStartFromPane");
-if (paneStart && actions && typeof actions.setState === "function") {
-  paneStart.addEventListener("click", () => {
-    clearLocalGameState();
-    if (actions.patch) {
-  actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
-}
-    actions.setState("intro");
-  });
-}
-    }
-    return;
-  }
-
-  // We have a gameId – fetch summary and show an "Open dashboard" button
-  (async () => {
-    if (!gamesShell) return;
-
-    gamesShell.innerHTML = `
-      <p class="menu-copy">Loading your current Quest…</p>
-    `;
-
-    try {
-      const game = await readGame(gameId);
-
-      if (!game) {
-        gamesShell.innerHTML = `
-          <p class="menu-copy">
-            We couldn’t find this Quest in the cloud. It may have been deleted
-            or created on another device.
-          </p>
-          <div class="menu-actions" style="margin-top:10px;">
-            <button class="btn btn-primary" id="gamesStartFresh">
-              Start a new Culinary Quest
-            </button>
-          </div>
-        `;
-        const freshBtn = root.querySelector("#gamesStartFresh");
-        if (freshBtn && actions && typeof actions.setState === "function") {
-          freshBtn.addEventListener("click", () => {
-            clearLocalGameState();
-    if (actions.patch) {
-  actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
-}
-
-            actions.setState("intro");
-          });
-        }
-        return;
-      }
-
-      const name =
-        (game.name && String(game.name)) ||
-        (game.setup && game.setup.title) ||
-        "Untitled Culinary Quest";
-
-      const code   = game.gameId || gameId;
-      const status = (game.status && String(game.status)) || "draft";
-      const hosts  = Array.isArray(game.hosts) ? game.hosts.length : 0;
-
-      gamesShell.innerHTML = `
-        <div
-          class="menu-copy"
-          style="
-            text-align:left;
-            font-size:13px;
-            padding:10px 12px;
-            border-radius:16px;
-            background:#ffffff;
-            box-shadow:0 1px 3px rgba(0,0,0,0.08);
-          "
-        >
-          <div style="font-weight:600;margin-bottom:4px;">
-            ${esc(name)}
-          </div>
-          <div style="margin-bottom:2px;">
-            <strong>Game code:</strong> ${esc(code)}
-          </div>
-          <div style="margin-bottom:2px;">
-            <strong>Hosts:</strong> ${hosts || 0}
-          </div>
-          <div>
-            <strong>Status:</strong> ${esc(status)}
-          </div>
-        </div>
-
-        <div class="menu-actions" style="margin-top:12px;">
-          <button class="btn btn-primary" id="gamesOpenDashboard">
-            Open Quest dashboard
-          </button>
-        </div>
-      `;
-
-      const openBtn = root.querySelector("#gamesOpenDashboard");
-      if (openBtn && actions && typeof actions.setState === "function") {
-        openBtn.addEventListener("click", () => {
-          // Remember this as the current game in the model and localStorage
-          try {
-            window.localStorage.setItem(CURRENT_GAME_KEY, code);
-          } catch (_) {}
+      if (paneStart && actions && typeof actions.setState === "function") {
+        paneStart.addEventListener("click", () => {
+          clearLocalGameState();
           if (actions.patch) {
-            actions.patch({ gameId: code });
+            actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
           }
-          actions.setState("gameDashboard");
+          actions.setState("intro");
         });
       }
-    } catch (err) {
-      console.error("[OrganiserHome] Failed to load game summary", err);
-      gamesShell.innerHTML = `
-        <p class="menu-copy">
-          We hit a problem loading your current Quest.
-          Please check your connection and try again in a moment.
-        </p>
-      `;
+      return;
     }
-  })();
-}
+
+    gamesShell.innerHTML = `
+      <div class="menu-copy" style="text-align:left;font-size:13px;">
+        ${games
+          .map((g) => {
+            const name =
+              (g.name && String(g.name)) ||
+              (g.setup && g.setup.title) ||
+              "Untitled Culinary Quest";
+
+            const code = g.gameId || g.id;
+            const status = (g.status && String(g.status)) || "draft";
+            const hostCount = Array.isArray(g.hosts) ? g.hosts.length : 0;
+
+            return `
+              <div
+                class="game-card"
+                style="
+                  margin:10px 0;
+                  padding:10px 12px;
+                  border-radius:16px;
+                  background:#ffffff;
+                  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+                "
+              >
+                <div style="font-weight:600;margin-bottom:4px;">
+                  ${esc(name)}
+                </div>
+                <div style="margin-bottom:2px;">
+                  <strong>Game code:</strong> ${esc(code)}
+                </div>
+                <div style="margin-bottom:2px;">
+                  <strong>Hosts:</strong> ${hostCount || 0}
+                </div>
+                <div style="margin-bottom:10px;">
+                  <strong>Status:</strong> ${esc(status)}
+                </div>
+
+                <div class="menu-actions" style="margin-top:6px;">
+                  <button class="btn btn-primary open-game-btn" data-game-id="${esc(code)}">
+                    Open Quest dashboard
+                  </button>
+                </div>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+    `;
+
+    // Wire up open buttons
+    const openBtns = gamesShell.querySelectorAll(".open-game-btn");
+    openBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-game-id");
+        if (!id) return;
+
+        // Optionally remember "last opened" (handy UX; safe)
+        try {
+          window.localStorage.setItem(CURRENT_GAME_KEY, id);
+        } catch (_) {}
+
+        if (actions.patch) actions.patch({ gameId: id });
+        actions.setState("gameDashboard");
+      });
+    });
+  } catch (err) {
+    console.error("[OrganiserHome] Failed to load open games", err);
+    gamesShell.innerHTML = `
+      <p class="menu-copy">
+        We hit a problem loading your open Quests.
+        Please check your connection and try again.
+      </p>
+    `;
+  }
+})();
