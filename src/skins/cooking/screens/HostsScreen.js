@@ -1,7 +1,7 @@
 // path: src/skins/cooking/screens/HostsScreen.js
 // Hosts screen – organiser + up to 5 additional hosts
 
-import { createGame } from "../../../engine/firestore.js";
+import { createGame, getUid } from "../../../engine/firestore.js";
 
 const HOSTS_STORAGE_KEY = "cq_hosts_v1";
 const MAX_HOSTS = 6; // organiser + up to 5 more
@@ -389,6 +389,8 @@ export function render(root, model = {}, actions = {}) {
 
       try {
         // Save to Firestore (creates/merges the game document)
+        const uid = await getUid();
+        if (uid) payload.ownerUid = uid;
         await createGame(gameId, payload);
 
         // Remember current game on this device
