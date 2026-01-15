@@ -29,6 +29,11 @@ function scrollToTop() {
   } catch (_) {}
 }
 
+function buildBaseUrl() {
+  const { origin, pathname } = window.location;
+  return origin + pathname;
+}
+
 function normaliseGameStatus(raw) {
   const s = (raw || "").toLowerCase();
 
@@ -465,9 +470,45 @@ export function render(root, model = {}, actions = {}) {
           } else if (nav === "availability") {
             actions.setState("availability");
           } else if (nav === "liveEvent") {
-            // Use the existing InviteScreen logic to show the live view
-            actions.setState("invite");
-          } else if (nav === "results") {
+  (async () => {
+    try {
+      const g = await readGame(gameId);
+      if (!g) {
+        window.alert("Sorry — we couldn’t load this game right now.");
+        return;
+      }
+
+      const tokens = Array.isArray(g.hostTokens)
+        ? g.hostTokens
+        : Array.isArray(g.tokens)
+        ? g.tokens
+        : [];
+
+      const organiserToken = tokens[0];
+      if (!organiserToken) {
+        window.alert(
+          "Host invite tokens aren’t set up for this game yet. Open ‘Hosts & links’ once to generate them."
+        );
+        actions.setState("links");
+        return;
+      }
+
+      const baseUrl = buildBaseUrl();
+      const gid = g.gameId || gameId;
+
+      const url =
+        `${baseUrl}?game=${encodeURIComponent(gid)}` +
+        `&invite=${encodeURIComponent(organiserToken)}` +
+        `&from=organiser`;
+
+      // Same tab (simple on iPhone). Use window.open(url, "_blank") if you prefer.
+      window.location.assign(url);
+    } catch (err) {
+      console.warn("[GameDashboardScreen] Live event open failed", err);
+      window.alert("Sorry — we couldn’t open the live event view just now.");
+    }
+  })();
+} else if (nav === "results") {
             // For now, this can go to the existing "finished" stub
             actions.setState("finished");
           }
