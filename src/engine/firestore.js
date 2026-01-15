@@ -94,10 +94,18 @@ export async function createGame(gameId, data) {
   if (!gameId || typeof gameId !== "string") {
     throw new Error("createGame: invalid gameId");
   }
-  const { db } = await ensureFirebase();
+  const { db, uid } = await ensureFirebase();
   const ref = doc(db, "games", gameId.trim());
 
-  await setDoc(ref, data || {}, { merge: true });
+  const nowIso = new Date().toISOString();
+  const payload = {
+  ...(data || {}),
+  organiserUid: (data && data.organiserUid) || uid,
+  createdAt: (data && data.createdAt) || nowIso,
+  updatedAt: nowIso
+};
+
+await setDoc(ref, payload || {}, { merge: true });
 }
 
 /**
@@ -128,27 +136,35 @@ export async function updateGame(gameId, patch) {
 
   const { db } = await ensureFirebase();
   const ref = doc(db, "games", gameId.trim());
-  await updateDoc(ref, patch);
-}
-/**
- * List games owned by the current anonymous user that are still "open".
- * Returns [{ id, ...data }] newest first.
- */
-export async function listMyOpenGames(maxCount = 25) {
+  await updateDoc(ref, { ...patch, updatedAt: new Date().toISOString() });
+  }
+
+export async function listMyOpenGames(maxResults = 25) {
   const { db, uid } = await ensureFirebase();
-  if (!uid) return [];
+  if (!uid) throw new Error("Not signed in (no uid)");
 
-  const OPEN_STATUSES = ["draft", "links", "availability", "inProgress", "started"];
+  const OPEN = new Set(["draft", "links", "availability", "inProgress", "started"]);
 
-  // Firestore "in" allows up to 10 values, so we're fine.
+  // Single where() only -> avoids composite index requirement
   const q = query(
     collection(db, "games"),
-    where("ownerUid", "==", uid),
-    where("status", "in", OPEN_STATUSES),
-    orderBy("createdAt", "desc"),
-    limit(Math.max(1, Math.min(50, Number(maxCount) || 25)))
+    where("organiserUid", "==", uid),
+    limit(Math.max(50, maxResults * 4))
   );
 
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Filter statuses locally
+  const openOnly = all.filter(g => OPEN.has(String(g.status || "draft")));
+
+  // Sort locally (newest first)
+  openOnly.sort((a, b) => {
+    const ak = String(a.updatedAt || a.createdAt || "");
+    const bk = String(b.updatedAt || b.createdAt || "");
+    return bk.localeCompare(ak);
+  });
+
+  return openOnly.slice(0, maxResults);
 }
+
