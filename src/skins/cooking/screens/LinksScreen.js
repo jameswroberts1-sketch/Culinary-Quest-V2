@@ -298,6 +298,8 @@ if (listEl) {
       </p>
     `;
   } else {
+    const hint = navigator.share ? "Tap to send" : "Tap to copy";
+    
     listEl.innerHTML = `
       <div class="link-pill-list">
         ${rows
@@ -310,7 +312,7 @@ if (listEl) {
             data-name="${esc(row.name)}"
           >
             <span class="link-pill-name">${esc(row.name)}</span>
-            <span class="link-pill-hint">Tap to send</span>
+            <span class="link-pill-hint">${hint}</span>
           </button>
         `
           )
