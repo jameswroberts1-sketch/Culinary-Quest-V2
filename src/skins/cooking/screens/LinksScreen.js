@@ -320,29 +320,37 @@ if (listEl) {
   }
 }
 
-// Per-host pill handler: iOS Share Sheet if available, else copy
+// Per-host pill handler: Share Sheet if available, else copy
 if (listEl) {
   const pillButtons = listEl.querySelectorAll(".link-pill");
+
   pillButtons.forEach((btn) => {
     btn.addEventListener("click", async () => {
       const link = btn.getAttribute("data-link");
       const name = btn.getAttribute("data-name") || "this host";
       if (!link) return;
 
-      // 1) Try Share Sheet (best on iPhone)
-     try {
-      if (navigator.share) {
-      await navigator.share({ title: "Culinary Quest invite", text: `Hi ${name} — here’s your Culinary Quest link:\n${link}` });
-      return;
-    }
-  } catch (err) {
-  // If user cancelled, don't fall back to clipboard
-  if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) return;
-  // otherwise continue to fallback
-  }
+      // 1) Try Share Sheet (best on mobile)
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "Culinary Quest invite",
+            text: `Hi ${name} — here’s your Culinary Quest link:\n${link}`
+          });
+          return;
+        }
+      } catch (err) {
+        // If user cancelled, do nothing (don't fall back to copy)
+        if (
+          err &&
+          (err.name === "AbortError" || err.name === "NotAllowedError")
+        ) {
+          return;
+        }
+        // otherwise fall through to clipboard
+      }
 
-
-      // 2) Fallback: copy to clipboard (keeps it usable if share isn't supported)
+      // 2) Fallback: copy to clipboard
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(link);
@@ -356,6 +364,7 @@ if (listEl) {
     });
   });
 }
+
 
       
       if (summaryEl) {
