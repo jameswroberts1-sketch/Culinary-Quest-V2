@@ -1,7 +1,7 @@
 // path: src/skins/cooking/screens/OrganiserHomeScreen.js
 // Organiser home – simple hub with Home / My games tabs
 
-import { readGame, listMyOpenGames } from "../../../engine/firestore.js";
+import { listMyOpenGames } from "../../../engine/firestore.js";
 
 const LOCAL_KEYS_TO_CLEAR = [
   "cq_current_game_id_v1", // current game id
@@ -309,3 +309,4 @@ selectTab("games"); // default to My games when returning
     `;
   }
 })();
+}
