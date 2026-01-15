@@ -330,18 +330,17 @@ if (listEl) {
       if (!link) return;
 
       // 1) Try Share Sheet (best on iPhone)
-      try {
-        if (navigator.share) {
-          await navigator.share({
-            title: "Culinary Quest invite",
-            text: `Hi ${name} — here’s your Culinary Quest link:`,
-            url: link
-          });
-          return; // shared successfully (or user completed flow)
-        }
-      } catch (_) {
-        // user cancelled or share failed — fall back to copy
-      }
+     try {
+      if (navigator.share) {
+      await navigator.share({ title: "Culinary Quest invite", text: `Hi ${name} — here’s your Culinary Quest link:\n${link}` });
+      return;
+    }
+  } catch (err) {
+  // If user cancelled, don't fall back to clipboard
+  if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) return;
+  // otherwise continue to fallback
+  }
+
 
       // 2) Fallback: copy to clipboard (keeps it usable if share isn't supported)
       try {
