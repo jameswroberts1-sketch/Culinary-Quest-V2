@@ -880,14 +880,17 @@ function renderInviteUI(root, options) {
     }
   }
 
-  const buttonsHTML = isOrganiser
-    ? `
+  const organiserCta = hasGameId ? "Save &amp; view RSVPs" : "Save &amp; add competitors";
+
+const buttonsHTML = isOrganiser
+  ? `
       <div class="menu-actions">
         <button class="btn btn-primary" id="inviteSave">
-          Save &amp; view RSVPs
+          ${organiserCta}
         </button>
       </div>
     `
+
     : `
       <div class="menu-actions">
         <button class="btn btn-secondary" id="inviteDecline">
@@ -926,8 +929,14 @@ function renderInviteUI(root, options) {
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">YOUR EVENT</h2>
+        const organiserNextHint = hasGameId
+          ? "Choose the date for your hosting event, then continue to the RSVP tracker."
+          : "Choose the date for your hosting event, then add your competitors.";
+
+        ...
+
         <p class="menu-copy">
-          Choose the date for your hosting event, then continue to the RSVP tracker.
+          ${isOrganiser ? organiserNextHint : "Choose the date for your hosting event, then continue below."}
         </p>
 
         <label class="menu-copy" for="inviteDate" style="text-align:left;margin-top:8px;">
@@ -1191,15 +1200,19 @@ if (!inviteToken) {
         ? model.setup.allowThemes
         : false;
 
-    let gameId =
-      (model && typeof model.gameId === "string" && model.gameId.trim()) ||
-      null;
-    if (!gameId) {
-      try {
-        const stored = window.localStorage.getItem("cq_current_game_id_v1");
-        if (stored && stored.trim()) gameId = stored.trim();
-      } catch (_) {}
-    }
+      let gameId =
+        (model && typeof model.gameId === "string" && model.gameId.trim()) || null;
+
+      // If we are setting up a NEW game (we have setup, but no gameId yet),
+      // do NOT reuse an old gameId from localStorage.
+      const inNewGameWizard = !!(model && model.setup && !gameId);
+
+      if (!gameId && !inNewGameWizard) {
+        try {
+          const stored = window.localStorage.getItem("cq_current_game_id_v1");
+          if (stored && stored.trim()) gameId = stored.trim();
+        } catch (_) {}
+      }
 
     renderInviteUI(root, {
       isOrganiser: true,
