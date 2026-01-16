@@ -646,7 +646,7 @@ root.innerHTML = `
 
       <p class="menu-copy" style="margin-top:14px;">
         <strong>${esc(pep.heading)}</strong><br>
-        ${esc(pep.body).replace(/\\n/g, "<br>")}
+        ${esc(pep.body).replace(/\n/g, "<br>")}
       </p>
     </section>
 
@@ -758,14 +758,17 @@ root.innerHTML = `
         <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
           Tip: save as soon as you know the address — you can update the menu later.
         </p>
-      </section>
+            </section>
 
-      <div class="menu-ornament" aria-hidden="true"></div>
+    </div>
+
+    <div class="menu-ornament" aria-hidden="true"></div>
     <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
       Preparation view – upcoming host
     </p>
   </section>
 `;
+
 
   const timeEl = root.querySelector("#prepTime");
   const addrEl = root.querySelector("#prepAddress");
