@@ -30,9 +30,9 @@ function loadNights() {
   }
 }
 
-function saves(s) {
+function saveNights(nights) {
   try {
-    window.localStorage.setItem(NIGHTS_STORAGE_KEY, JSON.stringify(nights));
+    window.localStorage.setItem(NIGHTS_STORAGE_KEY, JSON.stringify(nights || {}));
   } catch (_) {}
 }
 
@@ -270,6 +270,7 @@ function getScoringModelFromGame(game) {
   const rawMode =
     scoring.mode ||
     scoring.style ||
+    setup.mode ||          // <-- add this line
     setup.scoringMode ||
     setup.scoringStyle ||
     setup.voteMode ||
@@ -837,6 +838,12 @@ function renderInviteUI(root, options) {
       night.date
   );
 
+  const organiserCta = hasGameId ? "Save & view RSVPs" : "Save & add competitors";
+  const organiserNextHint = hasGameId
+    ? "Choose the date for your hosting event, then continue to the RSVP tracker."
+    : "Choose the date for your hosting event, then add your competitors.";
+
+
   let entreeTitle;
   let entreeBodyHTML;
 
@@ -929,12 +936,6 @@ const buttonsHTML = isOrganiser
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
         <h2 class="menu-h2">YOUR EVENT</h2>
-        const organiserNextHint = hasGameId
-          ? "Choose the date for your hosting event, then continue to the RSVP tracker."
-          : "Choose the date for your hosting event, then add your competitors.";
-
-        ...
-
         <p class="menu-copy">
           ${isOrganiser ? organiserNextHint : "Choose the date for your hosting event, then continue below."}
         </p>
