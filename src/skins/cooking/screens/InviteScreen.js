@@ -574,35 +574,83 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
   // ---------------------------
   const fixedDate = rsvp && rsvp.date ? rsvp.date : null;
 
-  root.innerHTML = `
-    <section class="menu-card">
-      <div class="menu-hero">
-        <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
+  const allowThemes = !!(opts && opts.setup && opts.setup.allowThemes);
+const themeText = allowThemes ? (theme ? theme : "Come as you like") : "";
+const showTime = !!timeStr;
+
+// These only show after save if values exist
+const showAddress = !!address;
+const showPhone = !!phone;
+const menuHtml = menuLinesHTML();
+const showMenu = !!menuHtml;
+
+root.innerHTML = `
+  <section class="menu-card">
+    <div class="menu-hero">
+      <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
+    </div>
+
+    <div class="menu-ornament" aria-hidden="true"></div>
+
+    <section class="menu-section">
+      <div class="menu-course">ENTRÉE</div>
+      <h2 class="menu-h2">YOUR PREP SCREEN</h2>
+
+      <p class="menu-copy">
+        Okay <strong>${safeViewer}</strong> — your hosting event is next.
+      </p>
+
+      <p class="menu-copy" style="margin-top:10px;">
+        <strong>This is what you’ve shared with your guests:</strong>
+      </p>
+
+      <div class="menu-copy" style="text-align:left;padding-left:56px;margin-top:6px;">
+        <div style="margin:4px 0;"><strong>Date:</strong> <span id="sumDate">${esc(dateStr || "To be confirmed")}</span></div>
+
+        <div id="sumTimeRow" style="margin:4px 0;${showTime ? "" : "display:none;"}">
+          <strong>Time:</strong> <span id="sumTime">${esc(timeStr || "")}</span>
+        </div>
+
+        ${
+          allowThemes
+            ? `<div style="margin:4px 0;"><strong>Theme:</strong> <span id="sumTheme">${esc(themeText)}</span></div>`
+            : ""
+        }
+
+        <div id="sumAddressRow" style="margin:4px 0;${showAddress ? "" : "display:none;"}">
+          <strong>Address:</strong> <span id="sumAddress">${showAddress ? esc(address) : ""}</span>
+        </div>
+
+        <div id="sumPhoneRow" style="margin:4px 0;${showPhone ? "" : "display:none;"}">
+          <strong>Contact:</strong> <span id="sumPhone">${showPhone ? esc(phone) : ""}</span>
+        </div>
+
+        <div id="sumMenuRow" style="margin:8px 0 0;${showMenu ? "" : "display:none;"}">
+          <strong>Menu:</strong><br>
+          <span id="sumMenu">${showMenu ? menuHtml : ""}</span>
+        </div>
       </div>
 
-      <div class="menu-ornament" aria-hidden="true"></div>
+      <div class="menu-copy" style="text-align:left;padding-left:56px;margin-top:12px;">
+        <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
+        <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
+      </div>
 
-      <section class="menu-section">
-  <div class="menu-course">ENTRÉE</div>
-  <h2 class="menu-h2">YOUR PREP SCREEN</h2>
+      <p class="menu-copy" style="margin-top:14px;">
+        Now let’s give your guests a little more detail:
+      </p>
 
-  <p class="menu-copy">
-    Okay <strong>${safeViewer}</strong> — your hosting event is next.
-    <br><br>
-    <strong>${esc(pep.heading)}</strong><br>
-    ${esc(pep.body).replace(/\n/g, "<br>")}
-    <br><br>
-    <strong>Your slot:</strong> ${esc(dateStr || "Date missing")}
-    ${timeStr ? " at " + esc(timeStr) : ""}
-    ${theme ? "<br><strong>Theme:</strong> " + esc(theme) : ""}
-  </p>
+      <div class="menu-actions" style="margin-top:10px;">
+        <button class="btn btn-secondary" id="prepToggleDetails">Details</button>
+      </div>
 
-  <div class="menu-copy" style="text-align:left;padding-left:48px;margin-top:12px;">
-    <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
-    <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
-  </div>
-</section>
+      <p class="menu-copy" style="margin-top:14px;">
+        <strong>${esc(pep.heading)}</strong><br>
+        ${esc(pep.body).replace(/\\n/g, "<br>")}
+      </p>
+    </section>
 
+    <div id="prepDetailsBlock" style="display:none;">
 
       <div class="menu-divider" aria-hidden="true"></div>
 
@@ -713,11 +761,11 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
-      <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
-        Preparation view – upcoming host
-      </p>
-    </section>
-  `;
+    <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+      Preparation view – upcoming host
+    </p>
+  </section>
+`;
 
   const timeEl = root.querySelector("#prepTime");
   const addrEl = root.querySelector("#prepAddress");
@@ -729,6 +777,22 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
   const dessertNameEl = root.querySelector("#prepDessertName");
   const dessertDescEl = root.querySelector("#prepDessertDesc");
   const saveBtn = root.querySelector("#prepSave");
+  const toggleBtn = root.querySelector("#prepToggleDetails");
+  const detailsBlock = root.querySelector("#prepDetailsBlock");
+
+function setDetailsOpen(open) {
+  if (!detailsBlock || !toggleBtn) return;
+  detailsBlock.style.display = open ? "block" : "none";
+  toggleBtn.textContent = open ? "Hide" : "Details";
+}
+
+if (toggleBtn && detailsBlock) {
+  toggleBtn.addEventListener("click", () => {
+    const isOpen = detailsBlock.style.display === "block";
+    setDetailsOpen(!isOpen);
+  });
+}
+
 
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
@@ -761,6 +825,48 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
         newPhone,
         { menu: menuObj }
       );
+
+      // Update the summary UI
+const sumTimeRow = root.querySelector("#sumTimeRow");
+const sumTime = root.querySelector("#sumTime");
+const sumAddressRow = root.querySelector("#sumAddressRow");
+const sumAddress = root.querySelector("#sumAddress");
+const sumPhoneRow = root.querySelector("#sumPhoneRow");
+const sumPhone = root.querySelector("#sumPhone");
+const sumMenuRow = root.querySelector("#sumMenuRow");
+const sumMenu = root.querySelector("#sumMenu");
+
+if (newTime) {
+  if (sumTime) sumTime.textContent = newTime;
+  if (sumTimeRow) sumTimeRow.style.display = "block";
+}
+
+if (newAddr) {
+  if (sumAddress) sumAddress.textContent = newAddr;
+  if (sumAddressRow) sumAddressRow.style.display = "block";
+}
+
+if (newPhone) {
+  if (sumPhone) sumPhone.textContent = newPhone;
+  if (sumPhoneRow) sumPhoneRow.style.display = "block";
+}
+
+const newMenuHtml = (() => {
+  const lines = [];
+  if (menuObj.entreeName) lines.push(`<strong>Entrée:</strong> ${esc(menuObj.entreeName)}`);
+  if (menuObj.mainName) lines.push(`<strong>Main:</strong> ${esc(menuObj.mainName)}`);
+  if (menuObj.dessertName) lines.push(`<strong>Dessert:</strong> ${esc(menuObj.dessertName)}`);
+  return lines.join("<br>");
+})();
+
+if (newMenuHtml) {
+  if (sumMenu) sumMenu.innerHTML = newMenuHtml;
+  if (sumMenuRow) sumMenuRow.style.display = "block";
+}
+
+// Collapse form
+setDetailsOpen(false);
+
 
       window.alert("Saved. Your guests will see the updated details when they open their link.");
     });
