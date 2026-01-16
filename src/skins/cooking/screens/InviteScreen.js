@@ -373,7 +373,9 @@ function renderInProgressPreEvent(root, opts) {
     gameId,
     orderInSchedule,
     totalEvents,
-    scoringModel
+    scoringModel,
+    hosts = [],
+    nights = {}
   } = opts;
 
   const safeViewer = esc(viewerName || `Host ${viewerIndex + 1}`);
@@ -382,6 +384,7 @@ function renderInProgressPreEvent(root, opts) {
   const dateStr = rsvp && rsvp.date ? formatShortDate(rsvp.date) : "";
   const timeStr = rsvp && rsvp.time ? formatShortTime(rsvp.time) : "";
   const theme = rsvp && rsvp.theme ? rsvp.theme : "";
+  const themeLabel = String(theme || "").trim() ? theme : "Come as you like";
   const address = rsvp && rsvp.address ? rsvp.address : "";
   const phone = rsvp && rsvp.phone ? rsvp.phone : "";
   const menu = rsvp && rsvp.menu ? rsvp.menu : {};
@@ -391,6 +394,27 @@ function renderInProgressPreEvent(root, opts) {
   const mainDesc = menu.mainDesc || "";
   const dessertName = menu.dessertName || "";
   const dessertDesc = menu.dessertDesc || "";
+  const invitedNames = (Array.isArray(hosts) ? hosts : [])
+  .map((h, idx) => {
+    if (idx === viewerIndex) return null; // don't include the host themselves
+    const name = h && h.name ? String(h.name).trim() : `Host ${idx + 1}`;
+    return name || `Host ${idx + 1}`;
+  })
+  .filter(Boolean);
+
+const acceptedNames = (Array.isArray(hosts) ? hosts : [])
+  .map((h, idx) => {
+    if (idx === viewerIndex) return null;
+    const r = nights && nights[idx] ? nights[idx] : {};
+    const st = String(r.status || "").toLowerCase();
+    if (st !== "accepted") return null;
+    const name = h && h.name ? String(h.name).trim() : `Host ${idx + 1}`;
+    return name || `Host ${idx + 1}`;
+  })
+  .filter(Boolean);
+
+const invitedLine = invitedNames.length ? invitedNames.map(esc).join(", ") : "No guests listed yet.";
+const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : "No-one yet.";
 
   function menuLinesHTML() {
     const lines = [];
@@ -468,16 +492,11 @@ function renderInProgressPreEvent(root, opts) {
     style="
       margin-top:10px;
       text-align:left;
-      padding-left:34px;   /* increase indent */
+      padding-left:34px;
     "
   >
     <div style="margin:4px 0;"><strong>Date:</strong> ${esc(dateStr || "To be confirmed")}</div>
     ${hasTime ? `<div style="margin:4px 0;"><strong>Time:</strong> ${esc(timeStr)}</div>` : ""}
-    ${
-      theme
-        ? `<div style="margin:4px 0;"><strong>Theme:</strong> ${esc(theme)}</div>`
-        : ""
-    }
     ${
       hasAddress
         ? `<div style="margin:4px 0;"><strong>Address:</strong> ${esc(address)}</div>`
@@ -488,8 +507,10 @@ function renderInProgressPreEvent(root, opts) {
         ? `<div style="margin:4px 0;"><strong>Contact:</strong> ${esc(phone)}</div>`
         : `<div style="margin:4px 0;"><strong>Contact:</strong> Not shared yet</div>`
     }
+    <div style="margin:4px 0;"><strong>Theme:</strong> ${esc(themeLabel)}</div>
   </div>
 `;
+
 
 
 
@@ -571,6 +592,11 @@ function renderInProgressPreEvent(root, opts) {
           ${esc(pep.body).replace(/\n/g, "<br>")}
           <br><br>
           <strong>Your slot:</strong> ${esc(dateStr || "Date missing")}
+          <br><br>
+          <div style="text-align:left;padding-left:34px;">
+            <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
+            <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
+          </div>
           ${timeStr ? " at " + esc(timeStr) : ""}
           ${theme ? "<br><strong>Theme:</strong> " + esc(theme) : ""}
         </p>
@@ -1481,7 +1507,9 @@ if (hostIndex < 0 && hosts.length) {
           orderInSchedule,
           totalEvents,
           scoringModel,
-          setup: game.setup
+          setup: game.setup,
+          hosts,
+          nights
         });
       } else {
         // After the 6-hour window → post-event view
