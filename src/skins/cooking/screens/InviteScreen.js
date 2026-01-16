@@ -643,17 +643,17 @@ root.innerHTML = `
       </div>
 
       <p class="menu-copy" style="margin-top:14px;">
+        <strong>${esc(pep.heading)}</strong><br>
+        ${esc(pep.body).replace(/\n/g, "<br>")}
+      </p>
+
+      <p class="menu-copy" style="margin-top:14px;">
         Now let’s give your guests a little more detail:
       </p>
 
       <div class="menu-actions" style="margin-top:10px;">
         <button class="btn btn-secondary" id="prepToggleDetails">Details</button>
       </div>
-
-      <p class="menu-copy" style="margin-top:14px;">
-        <strong>${esc(pep.heading)}</strong><br>
-        ${esc(pep.body).replace(/\n/g, "<br>")}
-      </p>
     </section>
 
     <div id="prepDetailsBlock" style="display:none;">
