@@ -518,6 +518,12 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
       ? menuLinesHTML()
       : `${safeHost} hasn’t shared a menu yet. (Either they love surprises… or they’re still deciding.)`;
 
+    const isViewerOrganiser = viewerIndex === 0; // organiser is host 0 in this game
+    const missingInfoLine = isViewerOrganiser
+      ? `If anything critical is missing, for the benefit of all guests please prompt <strong>${safeHost}</strong> to complete the details.`
+      : `If anything critical is missing, message <strong>${safeOrganiser}</strong>.`;
+
+
     root.innerHTML = `
       <section class="menu-card">
         <div class="menu-hero">
@@ -534,7 +540,7 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
             <strong>${safeHost}</strong>.
             ${detailsBlock}
             <br><br>
-            If anything critical is missing, message <strong>${safeOrganiser}</strong>.
+            ${missingInfoLine}
           </p>
         </section>
 
