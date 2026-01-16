@@ -631,7 +631,7 @@ root.innerHTML = `
           <strong>Contact:</strong> <span id="sumPhone">${showPhone ? esc(phone) : ""}</span>
         </div>
 
-        <div id="sumMenuRow" style="margin:8px 0 0;${showMenu ? "" : "display:none;"}">
+<div id="sumMenuRow" style="margin:8px 0 0;${showMenu ? "" : "display:none;"}">
           <strong>Menu:</strong><br>
           <span id="sumMenu">${showMenu ? menuHtml : ""}</span>
         </div>
@@ -641,13 +641,7 @@ root.innerHTML = `
         <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
         <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
       </div>
-      </section>
 
-      <div id="prepDetailsBlock" style="display:none;">
-      <div class="menu-divider" aria-hidden="true"></div>
-
-      <section class="menu-section">
-        <div class="menu-course">MAIN</div>
       <p class="menu-copy" style="margin-top:14px;">
         <strong>${esc(pep.heading)}</strong><br>
         ${esc(pep.body).replace(/\n/g, "<br>")}
@@ -663,7 +657,6 @@ root.innerHTML = `
     </section>
 
     <div id="prepDetailsBlock" style="display:none;">
-
       <div class="menu-divider" aria-hidden="true"></div>
 
       <section class="menu-section">
