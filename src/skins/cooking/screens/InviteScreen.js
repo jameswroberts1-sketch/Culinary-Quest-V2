@@ -583,24 +583,26 @@ const acceptedLine = acceptedNames.length ? acceptedNames.map(esc).join(", ") : 
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <section class="menu-section">
-        <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">YOUR PREP SCREEN</h2>
-        <p class="menu-copy">
-          Okay <strong>${safeViewer}</strong> — your hosting event is next.
-          <br><br>
-          <strong>${esc(pep.heading)}</strong><br>
-          ${esc(pep.body).replace(/\n/g, "<br>")}
-          <br><br>
-          <strong>Your slot:</strong> ${esc(dateStr || "Date missing")}
-          <br><br>
-          <div style="text-align:left;padding-left:34px;">
-            <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
-            <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
-          </div>
-          ${timeStr ? " at " + esc(timeStr) : ""}
-          ${theme ? "<br><strong>Theme:</strong> " + esc(theme) : ""}
-        </p>
-      </section>
+  <div class="menu-course">ENTRÉE</div>
+  <h2 class="menu-h2">YOUR PREP SCREEN</h2>
+
+  <p class="menu-copy">
+    Okay <strong>${safeViewer}</strong> — your hosting event is next.
+    <br><br>
+    <strong>${esc(pep.heading)}</strong><br>
+    ${esc(pep.body).replace(/\n/g, "<br>")}
+    <br><br>
+    <strong>Your slot:</strong> ${esc(dateStr || "Date missing")}
+    ${timeStr ? " at " + esc(timeStr) : ""}
+    ${theme ? "<br><strong>Theme:</strong> " + esc(theme) : ""}
+  </p>
+
+  <div class="menu-copy" style="text-align:left;padding-left:48px;margin-top:12px;">
+    <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
+    <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
+  </div>
+</section>
+
 
       <div class="menu-divider" aria-hidden="true"></div>
 
