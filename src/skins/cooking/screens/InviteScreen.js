@@ -252,30 +252,52 @@ function getScoringModelFromGame(game) {
   const scoring =
     setup.scoring && typeof setup.scoring === "object" ? setup.scoring : {};
 
+  // Try a few likely category fields (use whichever your SetupScreen writes)
   const rawCats =
+    scoring.selectedCategories ||
+    scoring.scoringCategories ||
     scoring.categories ||
+    setup.scoringCategories ||
     setup.voteCategories ||
     setup.categories ||
-    setup.scoringCategories ||
     [];
 
   const categories = Array.isArray(rawCats)
-    ? rawCats
-        .map((c) => (c == null ? "" : String(c).trim()))
-        .filter(Boolean)
+    ? rawCats.map((c) => (c == null ? "" : String(c).trim())).filter(Boolean)
     : [];
 
+  // Try a few likely mode fields
   const rawMode =
     scoring.mode ||
+    scoring.style ||
     setup.scoringMode ||
+    setup.scoringStyle ||
     setup.voteMode ||
     setup.scoringType ||
     "";
 
   const mode = String(rawMode || "").toLowerCase();
-  const byCategory = mode.includes("categor") || categories.length > 0;
 
-  return { byCategory, categories };
+  // Explicit booleans (if you ever store them) should win
+  if (typeof scoring.byCategory === "boolean") {
+    return { byCategory: scoring.byCategory, categories };
+  }
+  if (typeof setup.byCategory === "boolean") {
+    return { byCategory: setup.byCategory, categories };
+  }
+
+  // If mode is explicitly single/overall -> NOT by category, even if categories exist
+  if (mode.includes("single") || mode.includes("overall") || mode.includes("total")) {
+    return { byCategory: false, categories: [] }; // categories irrelevant in single-score mode
+  }
+
+  // If mode explicitly category -> by category
+  if (mode.includes("categor")) {
+    return { byCategory: true, categories };
+  }
+
+  // Fallback: if categories exist, assume category scoring
+  return { byCategory: categories.length > 0, categories };
 }
 
 function getPrepPepTalk(order, total) {
@@ -398,32 +420,39 @@ function renderInProgressPreEvent(root, opts) {
   const pep = getPrepPepTalk(orderInSchedule, totalEvents);
 
   const votingHTML = (() => {
-    const byCat = scoringModel && scoringModel.byCategory;
-    const cats = scoringModel && Array.isArray(scoringModel.categories)
+  const byCat = !!(scoringModel && scoringModel.byCategory);
+  const cats =
+    scoringModel && Array.isArray(scoringModel.categories)
       ? scoringModel.categories
       : [];
 
-    if (byCat) {
-      const list = cats.length
-        ? cats.map((c) => `• ${esc(c)}`).join("<br>")
-        : "• (categories not set in setup)";
+  const commentLine =
+    "Add comments if you like — they’ll be shared with everyone once the final scoreboard is revealed.";
 
-      return `
-        You’ll score <strong>${safeHost}</strong> out of 10 for each category:<br><br>
-        ${list}
-        <br><br>
-        You can also leave a comment. Your comments are shared with everyone at the end,
-        when final scores are revealed.
-      `;
-    }
+  if (byCat) {
+    const list = cats.length
+      ? cats.map((c) => `• ${esc(c)}`).join("<br>")
+      : "• (categories not set in setup)";
 
     return `
-      You’ll give <strong>${safeHost}</strong> one overall score out of 10 for the night.
+      You’ll score <strong>${safeHost}</strong> out of 10 for each category.
+      Each category is out of 10 — we’ll total it for the night.
       <br><br>
-      You can also leave a comment. Your comments are shared with everyone at the end,
-      when final scores are revealed.
+      ${list}
+      <br><br>
+      ${commentLine}
     `;
-  })();
+  }
+
+  return `
+    You’ll give <strong>${safeHost}</strong> one overall score out of 10 for the night —
+    think of it as an <em>overall experience</em> score.
+    <br><br>
+    Try to score comparatively across nights, not in isolation.
+    <br><br>
+    ${commentLine}
+  `;
+})();
 
   // ---------------------------
   // GUEST VIEW (not the upcoming host)
