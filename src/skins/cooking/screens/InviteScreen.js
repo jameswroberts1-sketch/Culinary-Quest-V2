@@ -521,7 +521,7 @@ function renderInProgressPreEvent(root, opts) {
           <div class="menu-course">DESSERT</div>
           <h2 class="menu-h2">HOW VOTING WORKS</h2>
           <p class="menu-copy">
-            Voting will open <strong>after the dinner</strong>, once ${safeOrganiser} closes ${safeHost}'s event.
+            Voting will open <strong>after the dinner</strong>, once <strong>${safeOrganiser}</strong> closes <strong>${safeHost}'s</strong> event.
             <br><br>
             ${votingHTML}
           </p>
