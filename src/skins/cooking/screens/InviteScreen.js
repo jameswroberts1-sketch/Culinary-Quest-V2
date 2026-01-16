@@ -298,7 +298,7 @@ return {
   byCategory,
   categories: byCategory ? categories : [] // IMPORTANT: hide categories in single-score mode
 };
-
+}
 
 function getPrepPepTalk(order, total) {
   const o = Number(order) || 1;
