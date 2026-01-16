@@ -464,22 +464,34 @@ function renderInProgressPreEvent(root, opts) {
     const hasPhone = !!phone;
 
     const detailsBlock = `
-      <div style="margin-top:8px;">
-        <div><strong>Date:</strong> ${esc(dateStr || "To be confirmed")}</div>
-        ${hasTime ? `<div><strong>Time:</strong> ${esc(timeStr)}</div>` : ""}
-        ${theme ? `<div style="margin-top:6px;"><strong>Theme:</strong> ${esc(theme)}</div>` : ""}
-        ${
-          hasAddress
-            ? `<div style="margin-top:6px;"><strong>Address:</strong><br>${esc(address)}</div>`
-            : `<div style="margin-top:6px;"><strong>Address:</strong> Not shared yet</div>`
-        }
-        ${
-          hasPhone
-            ? `<div style="margin-top:6px;"><strong>Contact:</strong> ${esc(phone)}</div>`
-            : `<div style="margin-top:6px;"><strong>Contact:</strong> Not shared yet</div>`
-        }
-      </div>
-    `;
+  <div
+    style="
+      margin-top:10px;
+      text-align:left;
+      padding-left:14px;
+      border-left:3px solid rgba(0,0,0,0.10);
+    "
+  >
+    <div style="margin:4px 0;"><strong>Date:</strong> ${esc(dateStr || "To be confirmed")}</div>
+    ${hasTime ? `<div style="margin:4px 0;"><strong>Time:</strong> ${esc(timeStr)}</div>` : ""}
+    ${
+      theme
+        ? `<div style="margin:4px 0;"><strong>Theme:</strong> ${esc(theme)}</div>`
+        : ""
+    }
+    ${
+      hasAddress
+        ? `<div style="margin:4px 0;"><strong>Address:</strong> ${esc(address)}</div>`
+        : `<div style="margin:4px 0;"><strong>Address:</strong> Not shared yet</div>`
+    }
+    ${
+      hasPhone
+        ? `<div style="margin:4px 0;"><strong>Contact:</strong> ${esc(phone)}</div>`
+        : `<div style="margin:4px 0;"><strong>Contact:</strong> Not shared yet</div>`
+    }
+  </div>
+`;
+
 
     const menuBlock = menuLinesHTML()
       ? menuLinesHTML()
