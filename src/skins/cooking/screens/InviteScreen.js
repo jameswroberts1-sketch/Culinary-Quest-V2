@@ -30,7 +30,7 @@ function loadNights() {
   }
 }
 
-function saveNights(nights) {
+function saves(s) {
   try {
     window.localStorage.setItem(NIGHTS_STORAGE_KEY, JSON.stringify(nights));
   } catch (_) {}
@@ -319,7 +319,7 @@ function getPrepPepTalk(order, total) {
       heading: "Final host. Big finish.",
       body:
         "You’re closing the Quest — it’s your job to leave everyone talking.\n" +
-        "A strong final night can swing the whole scoreboard.\n\n" +
+        "A strong finale can swing the whole scoreboard.\n\n" +
         "Keep it simple, hit your timing, and focus on atmosphere."
     };
   }
@@ -329,7 +329,7 @@ function getPrepPepTalk(order, total) {
     body:
       "The table already has a benchmark — now you get to raise it.\n" +
       "A small twist (theme, presentation, or one standout dish) goes a long way.\n\n" +
-      "Don’t chase perfection. Chase a great night."
+      "Don’t chase perfection, your quest is to deliver a great event!"
   };
 }
 
@@ -436,7 +436,7 @@ function renderInProgressPreEvent(root, opts) {
 
     return `
       You’ll score <strong>${safeHost}</strong> out of 10 for each category.
-      Each category is out of 10 — we’ll total it for the night.
+      Each category is out of 10 — we’ll total it for the event.
       <br><br>
       ${list}
       <br><br>
@@ -445,10 +445,10 @@ function renderInProgressPreEvent(root, opts) {
   }
 
   return `
-    You’ll give <strong>${safeHost}</strong> one overall score out of 10 for the night —
+    You’ll give <strong>${safeHost}</strong> one overall score out of 10 for their event —
     think of it as an <em>overall experience</em> score.
     <br><br>
-    Try to score comparatively across nights, not in isolation.
+    Try to score comparatively across all events, not in isolation.
     <br><br>
     ${commentLine}
   `;
@@ -552,7 +552,7 @@ function renderInProgressPreEvent(root, opts) {
         <div class="menu-course">ENTRÉE</div>
         <h2 class="menu-h2">YOUR PREP SCREEN</h2>
         <p class="menu-copy">
-          Okay <strong>${safeViewer}</strong> — your night is next.
+          Okay <strong>${safeViewer}</strong> — your hosting event is next.
           <br><br>
           <strong>${esc(pep.heading)}</strong><br>
           ${esc(pep.body).replace(/\n/g, "<br>")}
@@ -797,7 +797,7 @@ function renderInProgressPostEvent(root, opts) {
           <h2 class="menu-h2">SCORING COMING SOON</h2>
           <p class="menu-copy">
             This version of the app doesn't include the scoring form yet,
-            but this is where you'll rate their night out of 10
+            but this is where you'll rate their event out of 10
             (or by category, if your organiser chose that option).
           </p>
         </section>
@@ -841,11 +841,11 @@ function renderInviteUI(root, options) {
   let entreeBodyHTML;
 
   if (isOrganiser) {
-    entreeTitle = "YOUR NIGHT";
+    entreeTitle = "YOUR EVENT";
     if (allowThemes) {
       entreeBodyHTML = `
         Okay <strong>${safeOrganiser}</strong>, here's where you choose which date you want to host on,
-        set a start time and let everyone know what kind of themed night you're planning.
+        set a start time and let everyone know what kind of themed event you're planning.
       `;
     } else {
       entreeBodyHTML = `
@@ -925,9 +925,9 @@ function renderInviteUI(root, options) {
       <!-- MAIN -->
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">YOUR NIGHT</h2>
+        <h2 class="menu-h2">YOUR EVENT</h2>
         <p class="menu-copy">
-          Choose the date for your hosting night, then continue to the RSVP tracker.
+          Choose the date for your hosting event, then continue to the RSVP tracker.
         </p>
 
         <label class="menu-copy" for="inviteDate" style="text-align:left;margin-top:8px;">
@@ -954,7 +954,7 @@ function renderInviteUI(root, options) {
           allowThemes
             ? `
         <label class="menu-copy" for="inviteTheme" style="text-align:left;margin-top:10px;">
-          <strong>Theme for your night</strong> <span class="muted">(optional)</span>
+          <strong>Theme for your event</strong> <span class="muted">(optional)</span>
         </label>
         <input
           id="inviteTheme"
@@ -1014,7 +1014,7 @@ function renderInviteUI(root, options) {
     let bodyHTML;
     if (isOrganiser) {
       bodyHTML = `
-        Thanks, <strong>${safeHost}</strong> — we've saved your hosting night and
+        Thanks, <strong>${safeHost}</strong> — we've saved your hosting event and
         added it to the line-up. You can close this tab now and continue planning
         from your organiser screen.
       `;
@@ -1028,7 +1028,7 @@ function renderInviteUI(root, options) {
       bodyHTML = `
         Thanks, <strong>${safeHost}</strong> — you're in!
         We'll let <strong>${safeOrganiser}</strong> know you've accepted and added
-        your night to the line-up. You can close this tab now.
+        your event to the line-up. You can close this tab now.
       `;
     }
 
@@ -1081,7 +1081,7 @@ function renderInviteUI(root, options) {
 
         window.alert(
           `${clashNight.date} is already booked by ${clashHost}. ` +
-          "Please choose a different date so each dinner has its own night."
+          "Please choose a different date so that no two meals are on the same day."
         );
         dateInput.value = "";
       }
@@ -1106,7 +1106,7 @@ function renderInviteUI(root, options) {
       const clash = enforceDateUnique(dateVal);
       if (clash) {
         window.alert(
-          "That date is already taken by another host. Please choose a different date so each dinner has its own night."
+          "That date is already taken by another host. Please choose a different date so that no two dinners are on the same day."
         );
         return;
       }
