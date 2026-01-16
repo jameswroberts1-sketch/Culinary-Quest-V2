@@ -468,8 +468,7 @@ function renderInProgressPreEvent(root, opts) {
     style="
       margin-top:10px;
       text-align:left;
-      padding-left:14px;
-      border-left:3px solid rgba(0,0,0,0.10);
+      padding-left:34px;   /* increase indent */
     "
   >
     <div style="margin:4px 0;"><strong>Date:</strong> ${esc(dateStr || "To be confirmed")}</div>
@@ -491,6 +490,7 @@ function renderInProgressPreEvent(root, opts) {
     }
   </div>
 `;
+
 
 
     const menuBlock = menuLinesHTML()
