@@ -278,27 +278,27 @@ function getScoringModelFromGame(game) {
 
   const mode = String(rawMode || "").toLowerCase();
 
-  // Explicit booleans (if you ever store them) should win
-  if (typeof scoring.byCategory === "boolean") {
-    return { byCategory: scoring.byCategory, categories };
-  }
-  if (typeof setup.byCategory === "boolean") {
-    return { byCategory: setup.byCategory, categories };
-  }
+// Decide byCategory ONLY from an explicit flag/mode.
+// (Do NOT infer from categories.length because Food may always exist.)
+let byCategory = false;
 
-  // If mode is explicitly single/overall -> NOT by category, even if categories exist
-  if (mode.includes("single") || mode.includes("overall") || mode.includes("total")) {
-    return { byCategory: false, categories: [] }; // categories irrelevant in single-score mode
-  }
-
-  // If mode explicitly category -> by category
-  if (mode.includes("categor")) {
-    return { byCategory: true, categories };
-  }
-
-  // Fallback: if categories exist, assume category scoring
-  return { byCategory: categories.length > 0, categories };
+if (typeof scoring.byCategory === "boolean") {
+  byCategory = scoring.byCategory;
+} else if (typeof setup.byCategory === "boolean") {
+  byCategory = setup.byCategory;
+} else if (mode.includes("categor")) {
+  byCategory = true;
+} else if (mode.includes("single") || mode.includes("overall") || mode.includes("total")) {
+  byCategory = false;
+} else {
+  byCategory = false; // safe default
 }
+
+return {
+  byCategory,
+  categories: byCategory ? categories : [] // IMPORTANT: hide categories in single-score mode
+};
+
 
 function getPrepPepTalk(order, total) {
   const o = Number(order) || 1;
