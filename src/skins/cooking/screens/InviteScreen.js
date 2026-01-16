@@ -838,11 +838,13 @@ function renderInviteUI(root, options) {
       night.date
   );
 
-  const organiserCta = hasGameId ? "Save & view RSVPs" : "Save & add competitors";
-  const organiserNextHint = hasGameId
-    ? "Choose the date for your hosting event, then continue to the RSVP tracker."
-    : "Choose the date for your hosting event, then add your competitors.";
+const organiserCtaText = hasGameId
+  ? "Save & view RSVPs"
+  : "Save & add competitors";
 
+const organiserNextHint = hasGameId
+  ? "Choose the date for your hosting event, then continue to the RSVP tracker."
+  : "Choose the date for your hosting event, then add your competitors.";
 
   let entreeTitle;
   let entreeBodyHTML;
@@ -887,13 +889,11 @@ function renderInviteUI(root, options) {
     }
   }
 
-  const organiserCta = hasGameId ? "Save &amp; view RSVPs" : "Save &amp; add competitors";
-
 const buttonsHTML = isOrganiser
   ? `
       <div class="menu-actions">
         <button class="btn btn-primary" id="inviteSave">
-          ${organiserCta}
+          ${esc(organiserCtaText)}
         </button>
       </div>
     `
