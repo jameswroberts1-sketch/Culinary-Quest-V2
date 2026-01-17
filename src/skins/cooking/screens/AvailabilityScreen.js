@@ -237,9 +237,9 @@ if (cant.length) {
         </div>
 
         <div class="menu-actions" style="margin-top:12px;">
-  <button class="btn btn-secondary" id="orgAvailHub">Back to Games Hub</button>
-  <button class="btn btn-secondary" id="orgAvailBack">Back to organiser home</button>
-</div>
+          <button class="btn btn-secondary" id="orgAvailHub">Back to Games Hub</button>
+          <button class="btn btn-primary" id="orgAvailRefresh">Refresh</button>
+        </div>
 
 <div class="menu-actions" style="margin-top:6px;">
   <button class="btn btn-secondary" id="orgAvailRefresh">Refresh</button>
