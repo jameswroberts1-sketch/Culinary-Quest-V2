@@ -598,6 +598,7 @@ root.innerHTML = `
 
     <div class="menu-ornament" aria-hidden="true"></div>
 
+    <!-- ENTRÉE: Summary -->
     <section class="menu-section">
       <div class="menu-course">ENTRÉE</div>
       <h2 class="menu-h2">YOUR PREP SCREEN</h2>
@@ -611,10 +612,22 @@ root.innerHTML = `
       </p>
 
       <div class="menu-copy" style="text-align:left;padding-left:56px;margin-top:6px;">
-        <div style="margin:4px 0;"><strong>Date:</strong> <span id="sumDate">${esc(dateStr || "To be confirmed")}</span></div>
+        <div style="margin:4px 0;">
+          <strong>Date:</strong> <span id="sumDate">${esc(dateStr || "To be confirmed")}</span>
+        </div>
 
         <div id="sumTimeRow" style="margin:4px 0;${showTime ? "" : "display:none;"}">
           <strong>Time:</strong> <span id="sumTime">${esc(timeStr || "")}</span>
+        </div>
+
+        <div id="sumAddressRow" style="margin:4px 0;">
+          <strong>Address:</strong>
+          <span id="sumAddress">${showAddress ? esc(address) : "Not shared yet"}</span>
+        </div>
+
+        <div id="sumPhoneRow" style="margin:4px 0;">
+          <strong>Contact:</strong>
+          <span id="sumPhone">${showPhone ? esc(phone) : "Not shared yet"}</span>
         </div>
 
         ${
@@ -622,29 +635,37 @@ root.innerHTML = `
             ? `<div style="margin:4px 0;"><strong>Theme:</strong> <span id="sumTheme">${esc(themeText)}</span></div>`
             : ""
         }
-
-        <div id="sumAddressRow" style="margin:4px 0;${showAddress ? "" : "display:none;"}">
-          <strong>Address:</strong> <span id="sumAddress">${showAddress ? esc(address) : ""}</span>
-        </div>
-
-        <div id="sumPhoneRow" style="margin:4px 0;${showPhone ? "" : "display:none;"}">
-          <strong>Contact:</strong> <span id="sumPhone">${showPhone ? esc(phone) : ""}</span>
-        </div>
-
-<div id="sumMenuRow" style="margin:8px 0 0;${showMenu ? "" : "display:none;"}">
-          <strong>Menu:</strong><br>
-          <span id="sumMenu">${showMenu ? menuHtml : ""}</span>
-        </div>
       </div>
+    </section>
 
-      <div class="menu-copy" style="text-align:left;padding-left:56px;margin-top:12px;">
-        <div style="margin:4px 0;"><strong>Guests invited:</strong> ${invitedLine}</div>
+    <div class="menu-divider" aria-hidden="true"></div>
+
+    <!-- MAIN: Menu + guest list -->
+    <section class="menu-section">
+      <div class="menu-course">MAIN</div>
+      <h2 class="menu-h2">MENU &amp; GUESTS</h2>
+
+      <div class="menu-copy" style="text-align:left;padding-left:56px;margin-top:6px;">
+        <div id="sumMenuRow" style="margin:8px 0 0;">
+          <strong>Menu:</strong><br><br>
+          <span id="sumMenu">${showMenu ? menuHtml : "Not shared yet"}</span>
+        </div>
+
+        <div style="margin:12px 0 4px;"><strong>Guests invited:</strong> ${invitedLine}</div>
         <div style="margin:4px 0;"><strong>Guests who have accepted your invitation are:</strong> ${acceptedLine}</div>
       </div>
+    </section>
 
-      <p class="menu-copy" style="margin-top:14px;">
+    <div class="menu-divider" aria-hidden="true"></div>
+
+    <!-- DESSERT: Pep talk + Details CTA -->
+    <section class="menu-section">
+      <div class="menu-course">DESSERT</div>
+      <h2 class="menu-h2">PEP TALK</h2>
+
+      <p class="menu-copy" style="margin-top:10px;">
         <strong>${esc(pep.heading)}</strong><br>
-        ${esc(pep.body).replace(/\n/g, "<br>")}
+        ${esc(pep.body).replace(/\\n/g, "<br>")}
       </p>
 
       <p class="menu-copy" style="margin-top:14px;">
@@ -656,6 +677,7 @@ root.innerHTML = `
       </div>
     </section>
 
+    <!-- Hidden details form -->
     <div id="prepDetailsBlock" style="display:none;">
       <div class="menu-divider" aria-hidden="true"></div>
 
@@ -763,8 +785,7 @@ root.innerHTML = `
         <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
           Tip: save as soon as you know the address — you can update the menu later.
         </p>
-            </section>
-
+      </section>
     </div>
 
     <div class="menu-ornament" aria-hidden="true"></div>
@@ -861,11 +882,18 @@ if (newPhone) {
 
 const newMenuHtml = (() => {
   const lines = [];
-  if (menuObj.entreeName) lines.push(`<strong>Entrée:</strong> ${esc(menuObj.entreeName)}`);
-  if (menuObj.mainName) lines.push(`<strong>Main:</strong> ${esc(menuObj.mainName)}`);
-  if (menuObj.dessertName) lines.push(`<strong>Dessert:</strong> ${esc(menuObj.dessertName)}`);
-  return lines.join("<br>");
+  if (menuObj.entreeName) {
+    lines.push(`<strong>Entrée:</strong> ${esc(menuObj.entreeName)}${menuObj.entreeDesc ? " – " + esc(menuObj.entreeDesc) : ""}`);
+  }
+  if (menuObj.mainName) {
+    lines.push(`<strong>Main:</strong> ${esc(menuObj.mainName)}${menuObj.mainDesc ? " – " + esc(menuObj.mainDesc) : ""}`);
+  }
+  if (menuObj.dessertName) {
+    lines.push(`<strong>Dessert:</strong> ${esc(menuObj.dessertName)}${menuObj.dessertDesc ? " – " + esc(menuObj.dessertDesc) : ""}`);
+  }
+  return lines.join("<br><br>");
 })();
+
 
 if (newMenuHtml) {
   if (sumMenu) sumMenu.innerHTML = newMenuHtml;
