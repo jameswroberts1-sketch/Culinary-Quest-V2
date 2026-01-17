@@ -200,13 +200,21 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
               const cant = cannotAttendList(item.hostIndex);
               const awaiting = awaitingResponses(item.hostIndex);
 
-              const cantHtml = cant.length
-                ? `<div style="margin-top:6px;color:#b00020;">
-                     <strong>Can’t attend:</strong> ${cant.map(esc).join(", ")}
-                   </div>`
-                : `<div style="margin-top:6px;color:#1c7c33;">
-                     <strong>Everyone can attend</strong>
-                   </div>`;
+              let cantHtml = "";
+
+if (cant.length) {
+  cantHtml = `<div style="margin-top:6px;color:#b00020;">
+                <strong>Can’t attend:</strong> ${cant.map(esc).join(", ")}
+              </div>`;
+} else if (awaiting.length) {
+  cantHtml = `<div style="margin-top:6px;color:#6b7280;">
+                <strong>Awaiting confirmation</strong>
+              </div>`;
+} else {
+  cantHtml = `<div style="margin-top:6px;color:#1c7c33;">
+                <strong>Everyone can attend</strong>
+              </div>`;
+}
 
               const awaitingHtml = awaiting.length
                 ? `<div style="margin-top:4px;color:#6b7280;">
@@ -229,9 +237,14 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
         </div>
 
         <div class="menu-actions" style="margin-top:12px;">
-          <button class="btn btn-secondary" id="orgAvailBack">Back to organiser home</button>
-          <button class="btn btn-primary" id="orgAvailRefresh">Refresh</button>
-        </div>
+  <button class="btn btn-secondary" id="orgAvailHub">Back to Games Hub</button>
+  <button class="btn btn-secondary" id="orgAvailBack">Back to organiser home</button>
+</div>
+
+<div class="menu-actions" style="margin-top:6px;">
+  <button class="btn btn-secondary" id="orgAvailRefresh">Refresh</button>
+  <button class="btn btn-primary" id="orgAvailBegin">Let the games begin</button>
+</div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -243,6 +256,8 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
 
   const backBtn = root.querySelector("#orgAvailBack");
   const refreshBtn = root.querySelector("#orgAvailRefresh");
+  const hubBtn = root.querySelector("#orgAvailHub");
+  const beginBtn = root.querySelector("#orgAvailBegin");
 
   if (backBtn && actions && typeof actions.setState === "function") {
     backBtn.addEventListener("click", () => actions.setState("organiserHome"));
@@ -252,6 +267,29 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
   if (refreshBtn && actions && typeof actions.setState === "function") {
     refreshBtn.addEventListener("click", () => actions.setState("availability"));
   }
+  
+  // NOTE: set this to whatever your router uses for the per-game organiser hub screen.
+const HUB_STATE = "gameDashboard";
+
+if (hubBtn && actions && typeof actions.setState === "function") {
+  hubBtn.addEventListener("click", () => actions.setState(HUB_STATE));
+}
+
+if (beginBtn) {
+  beginBtn.addEventListener("click", async () => {
+    try {
+      await updateGame(gameId, { status: "inProgress" });
+      window.alert("Your game has started.");
+      if (actions && typeof actions.setState === "function") {
+        actions.setState(HUB_STATE);
+      }
+    } catch (err) {
+      console.warn("[AvailabilityScreen] Start game failed", err);
+      window.alert("Sorry — we couldn’t start the game just now. Please try again.");
+    }
+  });
+}
+
 }
 
 export function render(root, model = {}, actions = {}) {
@@ -354,6 +392,52 @@ if (viewerIndex < 0) {
         "the organiser";
 
       const schedule = buildSchedule(game);
+      const allAvailability =
+  (game.availability && typeof game.availability === "object") ? game.availability : {};
+
+function getViewerMap(idx) {
+  return allAvailability[idx] || allAvailability[String(idx)] || null;
+}
+
+function joinNamesSafe(names) {
+  const safe = names.map(esc);
+  if (safe.length <= 1) return safe[0] || "";
+  if (safe.length === 2) return `${safe[0]} and ${safe[1]}`;
+  return `${safe.slice(0, -1).join(", ")}, and ${safe[safe.length - 1]}`;
+}
+
+function cantAttendMyNightNames() {
+  const out = [];
+  for (let viewerIdx = 0; viewerIdx < hosts.length; viewerIdx++) {
+    if (viewerIdx === viewerIndex) continue;
+    const vm = getViewerMap(viewerIdx);
+    if (!vm) continue;
+    if (vm[viewerIndex] === true || vm[String(viewerIndex)] === true) {
+      const nm = (hosts[viewerIdx] && hosts[viewerIdx].name) || `Host ${viewerIdx + 1}`;
+      out.push(nm);
+    }
+  }
+  return out;
+}
+
+const cantForMine = canEditOwnNight ? cantAttendMyNightNames() : [];
+const cantForMineText = cantForMine.length ? joinNamesSafe(cantForMine) : "";
+const cantForMineVerb = cantForMine.length === 1 ? "is" : "are";
+
+const takenDates = schedule
+  .filter((it) => it.hostIndex !== viewerIndex)
+  .map((it) => {
+    const d = formatShortDate(it.date);
+    const t = formatShortTime(it.time || "");
+    const nm = esc(it.hostName || `Host ${it.hostIndex + 1}`);
+    return `${d}${t ? " at " + t : ""} (${nm})`;
+  });
+
+const takenDatesHtml = takenDates.length
+  ? `<div class="muted" style="font-size:11px;margin-top:6px;line-height:1.45;">
+       <strong>Dates already chosen:</strong> ${takenDates.join(", ")}
+     </div>`
+  : "";
 
       if (!schedule.length) {
         renderError(
@@ -365,7 +449,10 @@ if (viewerIndex < 0) {
 
       // Existing availability record for this viewer (if any)
       const availabilityForViewer =
-        (game.availability && game.availability[viewerIndex]) || {};
+  (game.availability &&
+    (game.availability[viewerIndex] || game.availability[String(viewerIndex)])) ||
+  {};
+
       // Optional reschedule flags (set by organiser in tracker)
       const rescheduleMap =
         (game.reschedule && typeof game.reschedule === "object")
@@ -448,6 +535,18 @@ if (viewerIndex < 0) {
                           <strong>Your hosting night</strong><br>
                           Hosted by <strong>${hostName}</strong> (that’s you)
                         </div>
+                        ${
+  cantForMine.length
+    ? `<div style="margin-top:6px;font-size:12px;color:#b00020;line-height:1.45;">
+         <strong>${safeOrganiser}</strong> has asked if you can choose an alternative hosting date,
+         as ${cantForMineText} ${cantForMineVerb} unable to make your current date.
+       </div>`
+    : `<div style="margin-top:6px;font-size:12px;color:#6b7280;line-height:1.45;">
+         <strong>${safeOrganiser}</strong> has asked if you can choose an alternative hosting date.
+       </div>`
+}
+${takenDatesHtml}
+
                         <label style="display:block;font-size:12px;margin-top:4px;">
                           <strong>Hosting date</strong><br>
                           <input
