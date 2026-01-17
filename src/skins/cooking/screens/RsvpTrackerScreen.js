@@ -191,6 +191,32 @@ export function render(root, model = {}, actions = {}) {
           ? game.reschedule
           : {};
       const inAvailabilityPhase = status === "availability";
+      const availability =
+  (game.availability && typeof game.availability === "object") ? game.availability : {};
+
+function getViewerMap(idx) {
+  return availability[idx] || availability[String(idx)] || null;
+}
+
+function nightStats(hostIdx) {
+  let cantCount = 0;
+  let awaitingCount = 0;
+
+  for (let viewerIdx = 0; viewerIdx < hosts.length; viewerIdx++) {
+    if (viewerIdx === hostIdx) continue;
+
+    const vm = getViewerMap(viewerIdx);
+    if (!vm) {
+      awaitingCount++;
+      continue;
+    }
+    if (vm[hostIdx] === true || vm[String(hostIdx)] === true) {
+      cantCount++;
+    }
+  }
+
+  return { cantCount, awaitingCount };
+}
 
       if (introEl) {
         introEl.textContent = "Here’s your current line-up of hosts and dates.";
@@ -237,6 +263,21 @@ export function render(root, model = {}, actions = {}) {
         }
 
         const allowResched = !!rescheduleMap[index];
+        let clashHintHtml = "";
+if (inAvailabilityPhase && normalised.key === "accepted" && rsvp.date) {
+  const stats = nightStats(index);
+
+  if (stats.cantCount > 0) {
+    clashHintHtml = `<div style="margin-top:4px;color:#b00020;font-size:12px;font-weight:700;">
+      ${stats.cantCount === 1 ? "1 person can’t attend" : `${stats.cantCount} people can’t attend`}
+    </div>`;
+  } else if (stats.awaitingCount > 0) {
+    clashHintHtml = `<div class="muted" style="margin-top:4px;font-size:12px;">
+      Awaiting confirmation
+    </div>`;
+  }
+}
+
 
         return `
           <div
@@ -267,7 +308,10 @@ export function render(root, model = {}, actions = {}) {
                   class="rsvp-row-date"
                   style="font-size:13px;color:#555;"
                 >
-                  ${esc(dateText)}
+                ${esc(dateText)}
+                </div>
+                ${clashHintHtml}
+
                 </div>
               </div>
             </div>
