@@ -389,30 +389,34 @@ export function render(root, model = {}, actions = {}) {
               </button>
 
               ${
-                statusInfo.key === "inProgress"
-                  ? `
-              <!-- Live event -->
-              <button
-                class="dashboard-tile"
-                data-nav="liveEvent"
-                style="
-                  border:none;
-                  text-align:left;
-                  padding:12px 14px;
-                  border-radius:16px;
-                  background:#ffffff;
-                  box-shadow:0 1px 3px rgba(0,0,0,0.08);
-                  font-size:13px;
-                "
-              >
-                <div style="font-weight:600;margin-bottom:4px;">Live event</div>
-                <div class="muted" style="font-size:11px;">
-                  Jump to the current host’s view during the game.
-                </div>
-              </button>
-              `
-                  : ""
-              }
+  (statusInfo.key !== "finished" && statusInfo.key !== "cancelled")
+    ? `
+  <!-- Live event -->
+  <button
+    class="dashboard-tile"
+    data-nav="liveEvent"
+    style="
+      border:none;
+      text-align:left;
+      padding:12px 14px;
+      border-radius:16px;
+      background:#ffffff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.08);
+      font-size:13px;
+    "
+  >
+    <div style="font-weight:600;margin-bottom:4px;">Live event</div>
+    <div class="muted" style="font-size:11px;">
+      ${
+        statusInfo.key === "inProgress"
+          ? "Jump to the current host’s view during the game."
+          : "Open your host view (as your guests see it)."
+      }
+    </div>
+  </button>
+  `
+    : ""
+}
 
               ${
                 statusInfo.key === "finished"
@@ -494,7 +498,7 @@ export function render(root, model = {}, actions = {}) {
       }
 
       const baseUrl = buildBaseUrl();
-      const gid = g.gameId || gameId;
+      const gid = gameId; // ALWAYS the Firestore doc id
 
       const url =
         `${baseUrl}?game=${encodeURIComponent(gid)}` +
