@@ -238,13 +238,9 @@ if (cant.length) {
 
         <div class="menu-actions" style="margin-top:12px;">
           <button class="btn btn-secondary" id="orgAvailHub">Back to Games Hub</button>
-          <button class="btn btn-primary" id="orgAvailRefresh">Refresh</button>
+          <button class="btn btn-secondary" id="orgAvailRefresh">Refresh</button>
+          <button class="btn btn-primary" id="orgAvailBegin">Let the games begin</button>
         </div>
-
-<div class="menu-actions" style="margin-top:6px;">
-  <button class="btn btn-secondary" id="orgAvailRefresh">Refresh</button>
-  <button class="btn btn-primary" id="orgAvailBegin">Let the games begin</button>
-</div>
       </section>
 
       <div class="menu-ornament" aria-hidden="true"></div>
@@ -268,11 +264,18 @@ if (cant.length) {
     refreshBtn.addEventListener("click", () => actions.setState("availability"));
   }
   
-  // NOTE: set this to whatever your router uses for the per-game organiser hub screen.
 const HUB_STATE = "gameDashboard";
+
+const hubBtn = root.querySelector("#orgAvailHub");
+const refreshBtn = root.querySelector("#orgAvailRefresh");
+const beginBtn = root.querySelector("#orgAvailBegin");
 
 if (hubBtn && actions && typeof actions.setState === "function") {
   hubBtn.addEventListener("click", () => actions.setState(HUB_STATE));
+}
+
+if (refreshBtn && actions && typeof actions.setState === "function") {
+  refreshBtn.addEventListener("click", () => actions.setState("availability"));
 }
 
 if (beginBtn) {
