@@ -201,6 +201,12 @@ function activeNavTab(stateKey) {
   return "hub";
 }
 
+function setNavSpace(px) {
+  try {
+    document.documentElement.style.setProperty("--cq-nav-space", px);
+  } catch (_) {}
+}
+
 function renderBottomNav() {
   const nav = document.getElementById("cq-bottom-nav");
   if (!nav) return;
@@ -209,9 +215,14 @@ function renderBottomNav() {
   if (isGuestLinkSession()) {
     nav.innerHTML = "";
     nav.style.display = "none";
+    // NEW: remove reserved space so guest screens don't have a blank gap
+    setNavSpace("0px");
     return;
   }
+
   nav.style.display = "block";
+  // NEW: reserve space for the fixed ribbon
+  setNavSpace("64px");
 
   const currentGameId = getCurrentGameId();
   const tab = activeNavTab(model.state);
@@ -252,14 +263,13 @@ function renderBottomNav() {
   if (dashBtn) {
     dashBtn.addEventListener("click", () => {
       const gid = getCurrentGameId();
-      if (gid) actions.patch({ gameId: gid }); // helps the dashboard know what game is “current”
+      if (gid) actions.patch({ gameId: gid });
       actions.setState("gameDashboard");
     });
   }
 
   if (instBtn) instBtn.addEventListener("click", () => actions.setState("instructions"));
 }
-
 
 /* ------------ route resolution ------------ */
 
