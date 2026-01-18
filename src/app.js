@@ -169,10 +169,36 @@ const actions = {
   }
 };
 
+function isOrganiserPlayMode() {
+  const params = new URLSearchParams(window.location.search);
+
+  // Must explicitly be organiser play mode
+  if (params.get("from") !== "organiser") return false;
+
+  const invite = params.get("invite");
+  if (!invite) return false;
+
+  // Extra safety: only treat as organiser-play if this invite matches token[0]
+  try {
+    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
+    if (!raw) return false;
+
+    const tokens = JSON.parse(raw);
+    if (!Array.isArray(tokens) || !tokens.length) return false;
+
+    const organiserToken = tokens[0];
+    return String(invite) === String(organiserToken);
+  } catch (_) {
+    return false;
+  }
+}
+
 function isGuestLinkSession() {
   const params = new URLSearchParams(window.location.search);
-  // Hide organiser nav for any invite-based session (old or new links)
-  return !!params.get("invite");
+
+  // Hide organiser nav for any invite-based session...
+  // ...except organiser play mode.
+  return !!params.get("invite") && !isOrganiserPlayMode();
 }
 
 function getCurrentGameId() {
@@ -193,7 +219,8 @@ function activeNavTab(stateKey) {
     "hosts",
     "links",
     "rsvpTracker",
-    "availability"
+    "availability",
+    "invite"
   ].includes(stateKey);
 
   if (stateKey === "instructions") return "instructions";
