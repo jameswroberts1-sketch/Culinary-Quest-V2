@@ -155,6 +155,7 @@ const actions = {
     model.state = next.trim();
     scrollToTop();
     notifyWatchers();
+    renderBottomNav(); // ✅ keep nav in sync with state
   }
 },
 
@@ -163,14 +164,15 @@ const actions = {
   patch(delta) {
     if (!delta || typeof delta !== "object") return;
     Object.assign(model, delta);
+    renderBottomNav(); // ✅ keep nav in sync with gameId etc.
     // deliberately NO notifyWatchers() here
   }
 };
 
 function isGuestLinkSession() {
   const params = new URLSearchParams(window.location.search);
-  // Your host links have both invite + game
-  return !!(params.get("invite") && params.get("game"));
+  // Hide organiser nav for any invite-based session (old or new links)
+  return !!params.get("invite");
 }
 
 function getCurrentGameId() {
@@ -186,11 +188,17 @@ function getCurrentGameId() {
 }
 
 function activeNavTab(stateKey) {
-  // Treat these as “in a specific game”
-  const inGame = stateKey === "gameDashboard" || stateKey === "rsvpTracker" || stateKey === "availability";
+  const inGame = [
+    "gameDashboard",
+    "hosts",
+    "links",
+    "rsvpTracker",
+    "availability"
+  ].includes(stateKey);
+
   if (stateKey === "instructions") return "instructions";
   if (inGame) return "dashboard";
-  return "hub"; // default
+  return "hub";
 }
 
 function renderBottomNav() {
@@ -322,9 +330,6 @@ async function renderOnce() {
     showError(`Render failed for state "${key}": ${err.message || err}`);
   }
 }
-
-renderBottomNav();
-
 
 /* ------------ main bootstrap ------------ */
 
