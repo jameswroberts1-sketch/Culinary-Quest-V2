@@ -211,16 +211,19 @@ function renderBottomNav() {
   const nav = document.getElementById("cq-bottom-nav");
   if (!nav) return;
 
+    const rootStyle = document.documentElement.style;
+
   // Guests should NOT see organiser nav
   if (isGuestLinkSession()) {
     nav.innerHTML = "";
     nav.style.display = "none";
-    // NEW: remove reserved space so guest screens don't have a blank gap
-    setNavSpace("0px");
+    rootStyle.setProperty("--cq-nav-space", "0px");
     return;
   }
 
   nav.style.display = "block";
+  rootStyle.setProperty("--cq-nav-space", "64px"); // must match --cq-nav-bar-height
+
   // NEW: reserve space for the fixed ribbon
   setNavSpace("64px");
 
