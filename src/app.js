@@ -238,21 +238,16 @@ function renderBottomNav() {
   const nav = document.getElementById("cq-bottom-nav");
   if (!nav) return;
 
-    const rootStyle = document.documentElement.style;
-
-  // Guests should NOT see organiser nav
   if (isGuestLinkSession()) {
-    nav.innerHTML = "";
-    nav.style.display = "none";
-    rootStyle.setProperty("--cq-nav-space", "0px");
-    return;
-  }
+  nav.innerHTML = "";
+  nav.style.display = "none";
+  setNavSpace("0px");
+  return;
+}
 
-  nav.style.display = "block";
-  rootStyle.setProperty("--cq-nav-space", "64px"); // must match --cq-nav-bar-height
+nav.style.display = "block";
+setNavSpace("64px"); // must match the ribbon height
 
-  // NEW: reserve space for the fixed ribbon
-  setNavSpace("64px");
 
   const currentGameId = getCurrentGameId();
   const tab = activeNavTab(model.state);
@@ -362,6 +357,7 @@ async function renderOnce() {
     // Call the new screen renderer; if it returns a cleanup function, keep it
     scrollToTop();
     const maybeCleanup = renderer(root, model, actions);
+    renderBottomNav();
     if (typeof maybeCleanup === "function") {
       currentCleanup = maybeCleanup;
     }
