@@ -938,6 +938,48 @@ body {
   opacity: .65;
 }
 
+#cq-main {
+  padding-bottom: 72px; /* space for bottom nav */
+}
+
+#cq-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 999;
+}
+
+#cq-bottom-nav .cq-nav-inner {
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+#cq-bottom-nav .cq-nav-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 6px 8px;
+}
+
+#cq-bottom-nav .cq-nav-btn--active {
+  color: #111827;
+}
+
+#cq-bottom-nav .cq-nav-btn--disabled {
+  opacity: 0.45;
+}
+
 /* -----------------------------------------
    DARK MODE POLISH (disabled for now)
    ----------------------------------------- */
