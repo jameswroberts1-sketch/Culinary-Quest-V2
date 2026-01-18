@@ -250,14 +250,9 @@ if (cant.length) {
     </section>
   `;
 
-  const backBtn = root.querySelector("#orgAvailBack");
   const refreshBtn = root.querySelector("#orgAvailRefresh");
   const hubBtn = root.querySelector("#orgAvailHub");
   const beginBtn = root.querySelector("#orgAvailBegin");
-
-  if (backBtn && actions && typeof actions.setState === "function") {
-    backBtn.addEventListener("click", () => actions.setState("organiserHome"));
-  }
 
   // Re-render this screen (calling setState to the same state is fine in your app)
   if (refreshBtn && actions && typeof actions.setState === "function") {
@@ -266,33 +261,34 @@ if (cant.length) {
   
 const HUB_STATE = "gameDashboard";
 
-const hubBtn = root.querySelector("#orgAvailHub");
-const refreshBtn = root.querySelector("#orgAvailRefresh");
-const beginBtn = root.querySelector("#orgAvailBegin");
+  const hubBtn = root.querySelector("#orgAvailHub");
+  const refreshBtn = root.querySelector("#orgAvailRefresh");
+  const beginBtn = root.querySelector("#orgAvailBegin");
 
-if (hubBtn && actions && typeof actions.setState === "function") {
-  hubBtn.addEventListener("click", () => actions.setState(HUB_STATE));
-}
+  const HUB_STATE = "gameDashboard"; // <- confirmed from skin.js routes
 
-if (refreshBtn && actions && typeof actions.setState === "function") {
-  refreshBtn.addEventListener("click", () => actions.setState("availability"));
-}
+  if (hubBtn && actions && typeof actions.setState === "function") {
+    hubBtn.addEventListener("click", () => actions.setState(HUB_STATE));
+  }
 
-if (beginBtn) {
-  beginBtn.addEventListener("click", async () => {
-    try {
-      await updateGame(gameId, { status: "inProgress" });
-      window.alert("Your game has started.");
-      if (actions && typeof actions.setState === "function") {
-        actions.setState(HUB_STATE);
+  if (refreshBtn && actions && typeof actions.setState === "function") {
+    refreshBtn.addEventListener("click", () => actions.setState("availability"));
+  }
+
+  if (beginBtn) {
+    beginBtn.addEventListener("click", async () => {
+      try {
+        await updateGame(gameId, { status: "inProgress" });
+        window.alert("Your game has started.");
+        if (actions && typeof actions.setState === "function") {
+          actions.setState(HUB_STATE);
+        }
+      } catch (err) {
+        console.warn("[AvailabilityScreen] Start game failed", err);
+        window.alert("Sorry — we couldn’t start the game just now. Please try again.");
       }
-    } catch (err) {
-      console.warn("[AvailabilityScreen] Start game failed", err);
-      window.alert("Sorry — we couldn’t start the game just now. Please try again.");
-    }
-  });
-}
-
+    });
+  }
 }
 
 export function render(root, model = {}, actions = {}) {
@@ -423,6 +419,13 @@ function cantAttendMyNightNames() {
   return out;
 }
 
+      // Optional reschedule flags (set by organiser in tracker)
+      const rescheduleMap =
+        (game.reschedule && typeof game.reschedule === "object")
+          ? game.reschedule
+          : {};
+      const canEditOwnNight = !!rescheduleMap[viewerIndex];
+
 const cantForMine = canEditOwnNight ? cantAttendMyNightNames() : [];
 const cantForMineText = cantForMine.length ? joinNamesSafe(cantForMine) : "";
 const cantForMineVerb = cantForMine.length === 1 ? "is" : "are";
@@ -456,12 +459,7 @@ const takenDatesHtml = takenDates.length
     (game.availability[viewerIndex] || game.availability[String(viewerIndex)])) ||
   {};
 
-      // Optional reschedule flags (set by organiser in tracker)
-      const rescheduleMap =
-        (game.reschedule && typeof game.reschedule === "object")
-          ? game.reschedule
-          : {};
-      const canEditOwnNight = !!rescheduleMap[viewerIndex];
+
 
       const safeViewer = esc(viewerName);
       const safeOrganiser = esc(organiserName);
