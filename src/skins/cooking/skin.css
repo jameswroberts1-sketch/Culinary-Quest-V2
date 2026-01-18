@@ -938,8 +938,22 @@ body {
   opacity: .65;
 }
 
+/* =========================================
+   CQ organiser bottom ribbon (fixed)
+   ========================================= */
+
+:root {
+  --cq-nav-bar-height: 64px; /* ribbon height (excluding safe-area) */
+  --cq-nav-space: 72px;      /* TEMP default; app.js should set 0px for guests */
+}
+
+#cq-shell {
+  min-height: 100vh;
+}
+
+/* Reserve space so content isn't hidden behind the ribbon */
 #cq-main {
-  padding-bottom: 72px; /* space for bottom nav */
+  padding-bottom: calc(var(--cq-nav-space) + env(safe-area-inset-bottom, 0px));
 }
 
 #cq-bottom-nav {
@@ -947,33 +961,46 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #fff;
-  border-top: 1px solid rgba(0,0,0,0.08);
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 999;
+
+  height: var(--cq-nav-bar-height);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 9999;
+
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 #cq-bottom-nav .cq-nav-inner {
   max-width: 520px;
   margin: 0 auto;
+
+  height: 100%;
   display: flex;
+  align-items: center;
   justify-content: space-around;
+
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 12px;
 }
 
 #cq-bottom-nav .cq-nav-btn {
   appearance: none;
   background: none;
   border: none;
+
   font-size: 12px;
   font-weight: 600;
   color: #6b7280;
-  padding: 6px 8px;
+
+  padding: 10px 8px;
+  border-radius: 14px;
 }
 
 #cq-bottom-nav .cq-nav-btn--active {
-  color: #111827;
+  color: #1c7c33; /* or #111827 if you prefer neutral active */
 }
 
 #cq-bottom-nav .cq-nav-btn--disabled {
