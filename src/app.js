@@ -5,7 +5,23 @@ import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
 
 /* ------------ basic error display ------------ */
 
-const root = document.getElementById("app") || document.body;
+const appRoot = document.getElementById("app") || document.body;
+
+function ensureShell() {
+  // Don't rebuild if already present
+  if (document.getElementById("cq-main")) return;
+
+  appRoot.innerHTML = `
+    <div id="cq-shell">
+      <div id="cq-main"></div>
+      <nav id="cq-bottom-nav" aria-label="Organiser menu"></nav>
+    </div>
+  `;
+}
+
+ensureShell();
+
+const root = document.getElementById("cq-main") || appRoot; // screens render here
 
 function scrollToTop() {
   try {
@@ -151,6 +167,92 @@ const actions = {
   }
 };
 
+function isGuestLinkSession() {
+  const params = new URLSearchParams(window.location.search);
+  // Your host links have both invite + game
+  return !!(params.get("invite") && params.get("game"));
+}
+
+function getCurrentGameId() {
+  if (model && typeof model.gameId === "string" && model.gameId.trim()) {
+    return model.gameId.trim();
+  }
+  try {
+    const stored = window.localStorage.getItem(CURRENT_GAME_KEY);
+    return stored && stored.trim() ? stored.trim() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function activeNavTab(stateKey) {
+  // Treat these as “in a specific game”
+  const inGame = stateKey === "gameDashboard" || stateKey === "rsvpTracker" || stateKey === "availability";
+  if (stateKey === "instructions") return "instructions";
+  if (inGame) return "dashboard";
+  return "hub"; // default
+}
+
+function renderBottomNav() {
+  const nav = document.getElementById("cq-bottom-nav");
+  if (!nav) return;
+
+  // Guests should NOT see organiser nav
+  if (isGuestLinkSession()) {
+    nav.innerHTML = "";
+    nav.style.display = "none";
+    return;
+  }
+  nav.style.display = "block";
+
+  const currentGameId = getCurrentGameId();
+  const tab = activeNavTab(model.state);
+  const dashboardDisabled = !currentGameId;
+
+  const btnClass = (isActive, isDisabled) => {
+    const base = "cq-nav-btn";
+    const active = isActive ? " cq-nav-btn--active" : "";
+    const disabled = isDisabled ? " cq-nav-btn--disabled" : "";
+    return base + active + disabled;
+  };
+
+  nav.innerHTML = `
+    <div class="cq-nav-inner">
+      <button type="button" class="${btnClass(tab === "hub", false)}" data-nav="hub">
+        Games Hub
+      </button>
+
+      <button type="button"
+              class="${btnClass(tab === "dashboard", dashboardDisabled)}"
+              data-nav="dashboard"
+              ${dashboardDisabled ? "disabled" : ""}>
+        Dashboard
+      </button>
+
+      <button type="button" class="${btnClass(tab === "instructions", false)}" data-nav="instructions">
+        Instructions
+      </button>
+    </div>
+  `;
+
+  const hubBtn = nav.querySelector('[data-nav="hub"]');
+  const dashBtn = nav.querySelector('[data-nav="dashboard"]');
+  const instBtn = nav.querySelector('[data-nav="instructions"]');
+
+  if (hubBtn) hubBtn.addEventListener("click", () => actions.setState("organiserHome"));
+
+  if (dashBtn) {
+    dashBtn.addEventListener("click", () => {
+      const gid = getCurrentGameId();
+      if (gid) actions.patch({ gameId: gid }); // helps the dashboard know what game is “current”
+      actions.setState("gameDashboard");
+    });
+  }
+
+  if (instBtn) instBtn.addEventListener("click", () => actions.setState("instructions"));
+}
+
+
 /* ------------ route resolution ------------ */
 
 const qs = new URLSearchParams(location.search);
@@ -221,6 +323,9 @@ async function renderOnce() {
   }
 }
 
+renderBottomNav();
+
+
 /* ------------ main bootstrap ------------ */
 
 async function main() {
@@ -230,7 +335,8 @@ async function main() {
   }
   try {
     await loadSkin();
-    skin.apply(root);
+    skin.apply(appRoot);
+    renderBottomNav();
   } catch (err) {
     console.error("[main] skin init failed", err);
     showError(`Failed to load skin: ${err.message || err}`);
