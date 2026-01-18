@@ -250,22 +250,11 @@ if (cant.length) {
     </section>
   `;
 
-  const refreshBtn = root.querySelector("#orgAvailRefresh");
-  const hubBtn = root.querySelector("#orgAvailHub");
-  const beginBtn = root.querySelector("#orgAvailBegin");
-
-  // Re-render this screen (calling setState to the same state is fine in your app)
-  if (refreshBtn && actions && typeof actions.setState === "function") {
-    refreshBtn.addEventListener("click", () => actions.setState("availability"));
-  }
-  
-const HUB_STATE = "gameDashboard";
-
   const hubBtn = root.querySelector("#orgAvailHub");
   const refreshBtn = root.querySelector("#orgAvailRefresh");
   const beginBtn = root.querySelector("#orgAvailBegin");
 
-  const HUB_STATE = "gameDashboard"; // <- confirmed from skin.js routes
+  const HUB_STATE = "gameDashboard"; // confirmed in skin.js routes
 
   if (hubBtn && actions && typeof actions.setState === "function") {
     hubBtn.addEventListener("click", () => actions.setState(HUB_STATE));
