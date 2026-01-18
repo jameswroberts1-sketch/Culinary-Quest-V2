@@ -70,16 +70,13 @@ export function loadSkin() {
 export const routes = {
   intro: () => safeLoad("./screens/IntroScreen.js", "Intro"),
   lobby: () => safeLoad("./screens/IntroScreen.js", "Intro"),
-
   setup: () => safeLoad("./screens/SetupScreen.js", "Setup"),
   rsvp:  () => safeLoad("./screens/SetupScreen.js", "Setup"),
-
   hosts: () => safeLoad("./screens/HostsScreen.js", "Hosts"),
   links: () => safeLoad("./screens/LinksScreen.js", "Links"),
-
   invite: () => safeLoad("./screens/InviteScreen.js", "Invite"),
   organiserHome: () => safeLoad("./screens/OrganiserHomeScreen.js", "Organiser home"),
-
+  instructions: () => safeLoad("./screens/InstructionsScreen.js", "Instructions"),
   gameDashboard: () =>
     safeLoad("./screens/GameDashboardScreen.js", "Game dashboard"),
   
