@@ -21,6 +21,14 @@ function ensureShell() {
 
 ensureShell();
 
+function stripHostParamsFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    ["invite", "game", "from"].forEach((k) => url.searchParams.delete(k));
+    window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+  } catch (_) {}
+}
+
 const root = document.getElementById("cq-main") || appRoot; // screens render here
 
 function scrollToTop() {
@@ -63,6 +71,20 @@ const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
 const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 const ORGANISER_PLAY_KEY = "cq_organiser_play_v1";
 const ORGANISER_PLAY_GID = "cq_organiser_play_gid_v1";
+
+const organiserStates = new Set([
+  "organiserHome",
+  "gameDashboard",
+  "links",
+  "rsvpTracker",
+  "availability",
+  "intro",
+  "setup"
+]);
+
+if (organiserStates.has(next)) {
+  stripHostParamsFromUrl();
+}
 
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
@@ -153,13 +175,21 @@ const actions = {
   },
 
   setState(next) {
-  if (typeof next === "string" && next.trim()) {
-    model.state = next.trim();
-    scrollToTop();
-    notifyWatchers();
-    renderBottomNav(); // ✅ keep nav in sync with state
-  }
-},
+    if (typeof next === "string" && next.trim()) {
+      const nextState = next.trim();
+
+      // If we're moving into an organiser screen, strip any host/invite params
+      // so organiser navigation doesn't accidentally stay in "host link" mode.
+      if (organiserStates && organiserStates.has(nextState)) {
+        stripHostParamsFromUrl();
+      }
+
+      model.state = nextState;
+      scrollToTop();
+      notifyWatchers();
+      renderBottomNav(); // ✅ keep nav in sync with state
+    }
+  },
 
   // Let screens stash extra data (setup, hosts, gameId, etc.)
   // without forcing an immediate re-render.
