@@ -447,13 +447,6 @@ export function render(root, model = {}, actions = {}) {
           </section>
 
           <div class="menu-ornament" aria-hidden="true"></div>
-
-          <div class="menu-actions" style="margin-top:8px;">
-            <button class="btn btn-secondary" id="dashBackGames">
-              Back to My games
-            </button>
-          </div>
-
           <p class="muted" style="text-align:center;margin-top:6px;font-size:11px;">
             GameDashboardScreen – organiser hub for a single Quest
           </p>
@@ -527,13 +520,7 @@ export function render(root, model = {}, actions = {}) {
         });
       });
 
-      const backGamesBtn = root.querySelector("#dashBackGames");
-      if (backGamesBtn && actions && typeof actions.setState === "function") {
-        backGamesBtn.addEventListener("click", () => {
-          actions.setState("organiserHome");
-        });
-      }
-    } catch (err) {
+      } catch (err) {
       console.error("[GameDashboardScreen] Failed to load game", err);
       root.innerHTML = `
         <section class="menu-card">
