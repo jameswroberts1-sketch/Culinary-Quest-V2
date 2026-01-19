@@ -62,6 +62,7 @@ window.addEventListener("error", (e) => {
 const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
 const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 const ORGANISER_PLAY_KEY = "cq_organiser_play_v1";
+const ORGANISER_PLAY_GID = "cq_organiser_play_gid_v1";
 
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
