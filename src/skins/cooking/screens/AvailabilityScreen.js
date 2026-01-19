@@ -258,22 +258,21 @@ if (cant.length) {
   }
 
   if (beginBtn) {
-    beginBtn.addEventListener("click", async () => {
-  try {
-    await updateGame(gameId, { status: "inProgress" });
-if (isCancelled()) return;
+  beginBtn.addEventListener("click", async () => {
+    try {
+      await updateGame(gameId, { status: "inProgress" });
+      if (isCancelled()) return;
 
-window.alert("Your game has started.");
-if (actions && typeof actions.setState === "function") {
-  aactions.setState(HUB_STATE);
-}
-
-  } catch (err) {
-    console.warn("[AvailabilityScreen] Start game failed", err);
-    window.alert("Sorry — we couldn’t start the game just now. Please try again.");
+      window.alert("Your game has started.");
+      if (actions && typeof actions.setState === "function") {
+        actions.setState("gameDashboard");
       }
-    });
-  }
+    } catch (err) {
+      console.warn("[AvailabilityScreen] Start game failed", err);
+      window.alert("Sorry — we couldn’t start the game just now. Please try again.");
+    }
+  });
+}
 }
 
 export function render(root, model = {}, actions = {}) {
@@ -284,6 +283,7 @@ export function render(root, model = {}, actions = {}) {
   }
 
   scrollToTop();
+  if (cancelled) return cleanup;
 
   const params = new URLSearchParams(window.location.search);
 const inviteToken = params.get("invite");
