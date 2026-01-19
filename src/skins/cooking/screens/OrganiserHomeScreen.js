@@ -252,7 +252,7 @@ selectTab("games"); // default to My games when returning
           .map((g) => {
             const name =
               (g.name && String(g.name)) ||
-              (g.setup && g.setup.title) ||
+              (g.setup && (g.setup.gameTitle || g.setup.title)) ||
               "Untitled Culinary Quest";
 
             const docId = g.id;                 // Firestore document id (use this for routing/storage)
