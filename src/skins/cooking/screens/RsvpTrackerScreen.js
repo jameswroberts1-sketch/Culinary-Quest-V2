@@ -81,11 +81,6 @@ function renderShell(root) {
 
       <div class="menu-ornament" aria-hidden="true"></div>
 
-      <!-- Row 1 buttons -->
-      <div class="menu-actions">
-        <button class="btn btn-secondary" id="rsvpBack">Back to organiser home</button>
-      </div>
-
       <!-- Row 2 buttons -->
       <div class="menu-actions" style="margin-top:6px;">
         <button class="btn btn-secondary" id="rsvpCancel">Cancel event</button>
@@ -128,7 +123,6 @@ export function render(root, model = {}, actions = {}) {
   const introEl     = root.querySelector("#rsvpIntro");
   const listWrap    = root.querySelector("#rsvpListContainer");
   const summaryEl   = root.querySelector("#rsvpSummary");
-  const backBtn     = root.querySelector("#rsvpBack");
   const refreshBtn  = root.querySelector("#rsvpRefresh");
   const cancelBtn   = root.querySelector("#rsvpCancel");
   const confirmBtn  = root.querySelector("#rsvpConfirm");
@@ -394,14 +388,6 @@ if (inAvailabilityPhase && normalised.key === "accepted" && rsvp.date) {
 
   // Initial load
   loadAndRender();
-
-    if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      try {
-        actions.setState && actions.setState("organiserHome");
-      } catch (_) {}
-    });
-  }
 
   if (refreshBtn) {
     refreshBtn.addEventListener("click", () => {
