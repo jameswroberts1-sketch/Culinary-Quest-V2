@@ -174,7 +174,6 @@ export function render(root, model = {}, actions = {}) {
         "We couldn’t find your game details. Please go back and complete the setup first.";
     }
     if (listEl) {
-      if (cancelled) return;
       listEl.innerHTML = `
         <p class="menu-copy">
           Once you’ve finished setting up your Quest, you’ll see a unique invite link
@@ -182,7 +181,7 @@ export function render(root, model = {}, actions = {}) {
         </p>
       `;
     }
-    return;
+    return cleanup;
   }
 
   if (viewRsvp && actions && typeof actions.setState === "function") {
@@ -194,7 +193,6 @@ export function render(root, model = {}, actions = {}) {
   (async () => {
     try {
       if (introEl) {
-        if (cancelled) return;
         introEl.textContent = "Loading your game and preparing invite links…";
       }
 
@@ -205,11 +203,9 @@ export function render(root, model = {}, actions = {}) {
       if (!game) {
         console.warn("[LinksScreen] No such game:", gameId);
         if (introEl) {
-          if (cancelled) return;
           introEl.textContent = "We couldn’t load this game from the cloud.";
         }
         if (listEl) {
-          if (cancelled) return;
           listEl.innerHTML = `
             <p class="menu-copy">
               Please check your connection, then go back and try generating your links again.
@@ -229,12 +225,10 @@ export function render(root, model = {}, actions = {}) {
 
       if (!hosts.length) {
         if (introEl) {
-          if (cancelled) return;
           introEl.textContent =
             "We couldn’t find any hosts for this game.";
         }
         if (listEl) {
-          if (cancelled) return;
           listEl.innerHTML = `
             <p class="menu-copy">
               Please go back and add your hosts before generating invite links.
@@ -293,7 +287,6 @@ export function render(root, model = {}, actions = {}) {
 
 
       if (introEl) {
-        if (cancelled) return;
         introEl.innerHTML = `
           Okay <strong>${esc(
             organiserName
@@ -304,7 +297,6 @@ export function render(root, model = {}, actions = {}) {
 
 if (listEl) {
   if (!rows.length) {
-    if (cancelled) return;
     listEl.innerHTML = `
       <p class="menu-copy">
         You don’t have any host links to share yet. Go back and add at least one host.
@@ -312,7 +304,6 @@ if (listEl) {
     `;
   } else {
     const hint = navigator.share ? "Tap to send" : "Tap to copy";
-    if (cancelled) return;
     listEl.innerHTML = `
       <div class="link-pill-list">
         ${rows
@@ -381,7 +372,6 @@ if (listEl) {
 }
 
       if (summaryEl) {
-        if (cancelled) return;
         summaryEl.textContent = `Links ready for ${rows.length} host${
           rows.length === 1 ? "" : "s"
         }.`;
