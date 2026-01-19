@@ -220,8 +220,9 @@ export function render(root, model = {}, actions = {}) {
 
       const gameName =
         (game.name && String(game.name)) ||
-        (game.setup && game.setup.title) ||
-        "Untitled Culinary Quest";
+        (game.setup && (game.setup.gameTitle || game.setup.title)) ||
+      "Untitled Culinary Quest";
+
 
       const code = game.gameId || gameId;
       const statusInfo = normaliseGameStatus(game.status);
