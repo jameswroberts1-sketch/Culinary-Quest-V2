@@ -47,6 +47,16 @@ function scrollToTop() {
   } catch (_) {}
 }
 
+function stripHostParamsFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    ["invite", "game", "from"].forEach((k) => url.searchParams.delete(k));
+    // optional: also remove state/route if you don’t rely on them
+    // ["state","route"].forEach((k) => url.searchParams.delete(k));
+    window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+  } catch (_) {}
+}
+
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
@@ -186,6 +196,7 @@ export function render(root, model = {}, actions = {}) {
 // Start new Quest → clear current game + local host data and go back into setup flow
 if (startBtn && actions && typeof actions.setState === "function") {
   startBtn.addEventListener("click", () => {
+    stripHostParamsFromUrl();
     clearLocalGameState();
 
     try {
@@ -224,6 +235,7 @@ selectTab("games"); // default to My games when returning
       const paneStart = root.querySelector("#gamesStartFromPane");
       if (paneStart && actions && typeof actions.setState === "function") {
         paneStart.addEventListener("click", () => {
+          stripHostParamsFromUrl();
           clearLocalGameState();
           if (actions.patch) {
             actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
@@ -243,7 +255,8 @@ selectTab("games"); // default to My games when returning
               (g.setup && g.setup.title) ||
               "Untitled Culinary Quest";
 
-            const code = g.gameId || g.id;
+            const docId = g.id;                 // Firestore document id (use this for routing/storage)
+            const code  = g.gameId || g.id;     // display only
             const status = (g.status && String(g.status)) || "draft";
             const hostCount = Array.isArray(g.hosts) ? g.hosts.length : 0;
 
@@ -272,7 +285,7 @@ selectTab("games"); // default to My games when returning
                 </div>
 
                 <div class="menu-actions" style="margin-top:6px;">
-                  <button class="btn btn-primary open-game-btn" data-game-id="${esc(code)}">
+                  <button class="btn btn-primary open-game-btn" data-game-id="${esc(docId)}">
                     Open Quest dashboard
                   </button>
                 </div>
