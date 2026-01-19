@@ -24,7 +24,7 @@ ensureShell();
 function stripHostParamsFromUrl() {
   try {
     const url = new URL(window.location.href);
-    ["invite", "game", "from"].forEach((k) => url.searchParams.delete(k));
+    ["invite", "game", "from", "state", "route"].forEach((k) => url.searchParams.delete(k));
     window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
   } catch (_) {}
 }
@@ -79,7 +79,8 @@ const organiserStates = new Set([
   "rsvpTracker",
   "availability",
   "intro",
-  "setup"
+  "setup",
+  "instructions"
 ]);
 
 function getInitialState() {
