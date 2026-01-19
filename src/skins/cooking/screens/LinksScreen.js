@@ -201,7 +201,7 @@ export function render(root, model = {}, actions = {}) {
       if (cancelled) return;
 
       if (!game) {
-        console.warn("[LinksScreen] No such game:", gameId);
+        console.warn("[LinksScreen] No such game:", effectiveGameId);
         if (introEl) {
           introEl.textContent = "We couldn’t load this game from the cloud.";
         }
@@ -272,8 +272,9 @@ export function render(root, model = {}, actions = {}) {
             : "";
         const token = tokens[idx];
         const link = `${baseUrl}?game=${encodeURIComponent(
-          gameId
+          effectiveGameId
         )}&invite=${encodeURIComponent(token)}`;
+
         return { idx, name: rawName, link };
       });
 
