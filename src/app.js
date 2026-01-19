@@ -82,10 +82,6 @@ const organiserStates = new Set([
   "setup"
 ]);
 
-if (organiserStates.has(next)) {
-  stripHostParamsFromUrl();
-}
-
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
   const stateFromUrl = params.get("state");
