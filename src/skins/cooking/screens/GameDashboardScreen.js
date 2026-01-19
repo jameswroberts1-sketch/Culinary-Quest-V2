@@ -34,6 +34,16 @@ function buildBaseUrl() {
   return origin + pathname;
 }
 
+function stripQueryIfOrganiserPlayMode() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("from") === "organiser") {
+      // Clear ?game=...&invite=... so organiser screens use model/localStorage again
+      window.history.replaceState({}, "", buildBaseUrl());
+    }
+  } catch (_) {}
+}
+
 function normaliseGameStatus(raw) {
   const s = (raw || "").toLowerCase();
 
@@ -100,6 +110,7 @@ export function render(root, model = {}, actions = {}) {
   }
 
   scrollToTop();
+  stripQueryIfOrganiserPlayMode();
 
   // Work out which game to show
   let gameId =
@@ -114,6 +125,8 @@ export function render(root, model = {}, actions = {}) {
     } catch (_) {}
   }
 
+  const effectiveGameId = gameId;
+  
   if (!gameId) {
     // No current game – gentle nudge back to organiser home
     root.innerHTML = `
@@ -180,7 +193,7 @@ export function render(root, model = {}, actions = {}) {
 
   (async () => {
     try {
-      const game = await readGame(gameId);
+      const game = await readGame(effectiveGameId);
       if (cancelled) return;
       if (!game) {
         if (cancelled) return;
@@ -228,7 +241,7 @@ export function render(root, model = {}, actions = {}) {
       "Untitled Culinary Quest";
 
 
-      const code = game.gameId || gameId;
+      const code = game.gameId || effectiveGameId;
       const statusInfo = normaliseGameStatus(game.status);
       const organiserName =
         (game.organiserName && String(game.organiserName)) ||
@@ -475,7 +488,9 @@ export function render(root, model = {}, actions = {}) {
           } else if (nav === "liveEvent") {
   (async () => {
     try {
-      const g = await readGame(gameId);
+      const g = await readGame(effectiveGameId);
+      if (cancelled) return;
+
       if (!g) {
         window.alert("Sorry — we couldn’t load this game right now.");
         return;
@@ -497,7 +512,7 @@ export function render(root, model = {}, actions = {}) {
       }
 
       const baseUrl = buildBaseUrl();
-      const gid = gameId; // ALWAYS the Firestore doc id
+      const gid = effectiveGameId;
 
       const url =
         `${baseUrl}?game=${encodeURIComponent(gid)}` +
@@ -507,8 +522,8 @@ export function render(root, model = {}, actions = {}) {
        // Tell app.js this is organiser play-mode (so keep the ribbon visible)
       try {
       window.localStorage.setItem("cq_organiser_play_v1", "1");
-      window.localStorage.setItem("cq_organiser_play_gid_v1", gameId);
-      window.localStorage.setItem("cq_current_game_id_v1", gameId);
+      window.localStorage.setItem("cq_organiser_play_gid_v1", effectiveGameId);
+      window.localStorage.setItem("cq_current_game_id_v1", effectiveGameId);
     } catch (_) {}
 
 
