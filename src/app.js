@@ -76,12 +76,23 @@ const organiserStates = new Set([
   "organiserHome",
   "gameDashboard",
   "links",
-  "rsvpTracker",
-  "availability",
+  "hosts",
   "intro",
   "setup",
   "instructions"
 ]);
+
+// Only strip host params when entering THESE organiser screens
+const STRIP_HOST_PARAMS_ON = new Set([
+  "organiserHome",
+  "gameDashboard",
+  "links",
+  "hosts",
+  "intro",
+  "setup",
+  "instructions"
+]);
+
 
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
@@ -172,21 +183,6 @@ const actions = {
   },
 
   setState(next) {
-    if (typeof next === "string" && next.trim()) {
-      const nextState = next.trim();
-
-      // If we're moving into an organiser screen, strip any host/invite params
-      // so organiser navigation doesn't accidentally stay in "host link" mode.
-      if (organiserStates && organiserStates.has(nextState)) {
-        stripHostParamsFromUrl();
-      }
-
-      model.state = nextState;
-      scrollToTop();
-      notifyWatchers();
-      renderBottomNav(); // ✅ keep nav in sync with state
-    }
-  },
 
   // Let screens stash extra data (setup, hosts, gameId, etc.)
   // without forcing an immediate re-render.
