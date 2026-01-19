@@ -507,9 +507,11 @@ export function render(root, model = {}, actions = {}) {
 
        // Tell app.js this is organiser play-mode (so keep the ribbon visible)
       try {
-        window.localStorage.setItem("cq_organiser_play_v1", "1");
-        window.localStorage.setItem(CURRENT_GAME_KEY, gameId); // belt & braces
-      } catch (_) {}
+      window.localStorage.setItem("cq_organiser_play_v1", "1");
+      window.localStorage.setItem("cq_organiser_play_gid_v1", gameId);
+      window.localStorage.setItem("cq_current_game_id_v1", gameId);
+    } catch (_) {}
+
 
       // Same tab (simple on iPhone). Use window.open(url, "_blank") if you prefer.
       window.location.assign(url);
