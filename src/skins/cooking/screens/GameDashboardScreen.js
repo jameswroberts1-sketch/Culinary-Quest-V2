@@ -152,7 +152,7 @@ export function render(root, model = {}, actions = {}) {
         actions.setState("organiserHome");
       });
     }
-    return;
+    return cleanup;
   }
 
   // Lightweight loading state
@@ -183,6 +183,7 @@ export function render(root, model = {}, actions = {}) {
       const game = await readGame(gameId);
       if (cancelled) return;
       if (!game) {
+        if (cancelled) return;
         root.innerHTML = `
           <section class="menu-card">
             <div class="menu-hero">
@@ -269,6 +270,7 @@ export function render(root, model = {}, actions = {}) {
         }
       }
 
+      if (cancelled) return;
       root.innerHTML = `
         <section class="menu-card">
           <div class="menu-hero">
@@ -525,6 +527,7 @@ export function render(root, model = {}, actions = {}) {
       });
 
       } catch (err) {
+      if (cancelled) return;
       console.error("[GameDashboardScreen] Failed to load game", err);
       root.innerHTML = `
         <section class="menu-card">
@@ -562,4 +565,5 @@ export function render(root, model = {}, actions = {}) {
       }
     }
   })();
+  return cleanup;
 }
