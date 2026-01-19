@@ -164,7 +164,6 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
     return;
   }
   
-  if (cancelled) return;
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -259,15 +258,17 @@ if (cant.length) {
 
   if (beginBtn) {
     beginBtn.addEventListener("click", async () => {
-      try {
-        await updateGame(gameId, { status: "inProgress" });
-        window.alert("Your game has started.");
-        if (actions && typeof actions.setState === "function") {
-          actions.setState(HUB_STATE);
-        }
-      } catch (err) {
-        console.warn("[AvailabilityScreen] Start game failed", err);
-        window.alert("Sorry — we couldn’t start the game just now. Please try again.");
+  try {
+    await updateGame(gameId, { status: "inProgress" });
+    if (cancelled) return;
+
+    window.alert("Your game has started.");
+    if (actions && typeof actions.setState === "function") {
+      actions.setState("gameDashboard");
+    }
+  } catch (err) {
+    console.warn("[AvailabilityScreen] Start game failed", err);
+    window.alert("Sorry — we couldn’t start the game just now. Please try again.");
       }
     });
   }
@@ -346,6 +347,7 @@ if (isOrganiserInApp) {
 }
 
 const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+const HUB_STATE = "gameDashboard";
 
 // Tokens are stored separately (hostTokens), not on hosts[i].token
 const tokenList = Array.isArray(game.hostTokens)
