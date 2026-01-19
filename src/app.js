@@ -285,7 +285,7 @@ setNavSpace("64px"); // must match the ribbon height
   nav.innerHTML = `
     <div class="cq-nav-inner">
       <button type="button" class="${btnClass(tab === "hub", false)}" data-nav="hub">
-        Games Hub
+        Home
       </button>
 
       <button type="button"
