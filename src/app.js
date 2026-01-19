@@ -183,16 +183,31 @@ const actions = {
   },
 
   setState(next) {
+    if (typeof next !== "string" || !next.trim()) return;
+    const nextState = next.trim();
+
+    // Only strip host params when entering organiser screens,
+    // and ONLY if we are not currently in a guest-link session.
+    if (!isGuestLinkSession() && STRIP_HOST_PARAMS_ON.has(nextState)) {
+      stripHostParamsFromUrl();
+    }
+
+    model.state = nextState;
+    scrollToTop();
+    notifyWatchers();
+    renderBottomNav(); // keep nav in sync with state
+  },
 
   // Let screens stash extra data (setup, hosts, gameId, etc.)
   // without forcing an immediate re-render.
   patch(delta) {
     if (!delta || typeof delta !== "object") return;
     Object.assign(model, delta);
-    renderBottomNav(); // ✅ keep nav in sync with gameId etc.
+    renderBottomNav(); // keep nav in sync with gameId etc.
     // deliberately NO notifyWatchers() here
   }
 };
+
 
 function isOrganiserPlayMode() {
   const params = new URLSearchParams(window.location.search);
@@ -333,24 +348,25 @@ async function resolveRenderer(key) {
 }
 
 function pickRouteKey() {
-  // Highest priority: explicit ?route=… override, if it matches a route
-  if (ROUTE_OVERRIDE && routes[ROUTE_OVERRIDE]) {
-    return ROUTE_OVERRIDE;
+  // Read current URL each time (route can be stripped later)
+  const qs = new URLSearchParams(location.search);
+  const routeOverride = qs.get("route");
+
+  if (routeOverride && routes[routeOverride]) {
+    return routeOverride;
   }
 
-  // Next: model.state, if recognised
   if (model.state && routes[model.state]) {
     return model.state;
   }
 
-  // Fallbacks: known safe states
   if (routes.intro) return "intro";
   if (routes.lobby) return "lobby";
 
-  // As a last resort, pick any available route
   const keys = Object.keys(routes);
   return keys[0];
 }
+
 
 async function renderOnce() {
   const key = pickRouteKey();
