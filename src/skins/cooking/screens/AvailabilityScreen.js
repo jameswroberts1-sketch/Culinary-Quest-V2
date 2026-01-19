@@ -281,6 +281,8 @@ if (cant.length) {
 }
 
 export function render(root, model = {}, actions = {}) {
+  let cancelled = false;
+  const cleanup = () => { cancelled = true; };
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
@@ -340,17 +342,17 @@ if (isOrganiserInApp) {
   (async () => {
     try {
       const game = await readGame(effectiveGameId);
+      if (cancelled) return;
       if (!game) {
         renderError(root, "We couldn't find this Culinary Quest.");
         return;
       }
-
       if (isOrganiserInApp) {
   renderOrganiserAvailability(root, game, effectiveGameId, actions);
   return;
 }
 
-      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+const hosts = Array.isArray(game.hosts) ? game.hosts : [];
 
 // Tokens are stored separately (hostTokens), not on hosts[i].token
 const tokenList = Array.isArray(game.hostTokens)
@@ -370,15 +372,12 @@ if (viewerIndex < 0) {
   return;
 }
 
-
       const viewerHost = hosts[viewerIndex] || {};
       const viewerName = viewerHost.name || `Host ${viewerIndex + 1}`;
-
       const organiserName =
         (game.organiserName && String(game.organiserName)) ||
         (hosts[0] && hosts[0].name) ||
         "the organiser";
-
       const schedule = buildSchedule(game);
       const allAvailability =
   (game.availability && typeof game.availability === "object") ? game.availability : {};
@@ -674,6 +673,7 @@ ${takenDatesHtml}
             }
 
             await updateGame(effectiveGameId, updatePayload);
+            if (cancelled) return;
 
             root.innerHTML = `
               <section class="menu-card">
@@ -711,8 +711,9 @@ ${takenDatesHtml}
         });
       }
     } catch (err) {
-      console.error("[AvailabilityScreen] Failed to load game", err);
+      if (cancelled) return;
       renderError(root, "We couldn't load your schedule. Please try again later.");
     }
   })();
+return cleanup; // ✅ app.js will call this when you navigate away
 }
