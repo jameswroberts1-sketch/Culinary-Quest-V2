@@ -411,7 +411,7 @@ if (confirmBtn) {
       // You can either stay on the tracker or send them home.
       // If you prefer to stay here, just delete this block.
       if (actions && typeof actions.setState === "function") {
-        actions.setState("organiserHome");
+        actions.setState("availability");
       }
     } catch (err) {
       console.warn("[RsvpTracker] failed to confirm schedule", err);
@@ -456,7 +456,7 @@ if (beginBtn) {
       );
 
       if (actions && typeof actions.setState === "function") {
-        actions.setState("organiserHome");   // or "hub" if that’s your home state
+        actions.setState("gameDashboard");
       }
     } catch (err) {
       console.warn("[RsvpTracker] failed to start game", err);
