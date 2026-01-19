@@ -300,17 +300,16 @@ selectTab("games"); // default to My games when returning
     const openBtns = gamesShell.querySelectorAll(".open-game-btn");
     openBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-game-id");
-        if (!id) return;
+  const id = btn.getAttribute("data-game-id");
+  if (!id) return;
 
-        // Optionally remember "last opened" (handy UX; safe)
-        try {
-          window.localStorage.setItem(CURRENT_GAME_KEY, id);
-        } catch (_) {}
+  stripHostParamsFromUrl(); // ✅ add this
 
-        if (actions.patch) actions.patch({ gameId: id });
-        actions.setState("gameDashboard");
-      });
+  try { window.localStorage.setItem(CURRENT_GAME_KEY, id); } catch (_) {}
+  if (actions.patch) actions.patch({ gameId: id });
+  actions.setState("gameDashboard");
+});
+
     });
  } catch (err) {
   console.error("[OrganiserHome] Failed to load open games", err);
