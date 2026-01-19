@@ -1,5 +1,5 @@
 // path: src/skins/cooking/screens/OrganiserHomeScreen.js
-// Organiser home – simple hub with Home / My games tabs
+// Organiser home – Games hub (start new + list open games)
 
 import { listMyOpenGames } from "../../../engine/firestore.js";
 
@@ -126,17 +126,15 @@ if (startBtn && actions && typeof actions.setState === "function") {
     clearLocalGameState();
 
     try {
-      if (actions.patch) {
-  actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
-}
+  if (actions.patch) {
+    actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
+    }
+  } catch (_) {}
 
-    } catch (_) {}
 
     actions.setState("intro"); // your usual starting point
   });
 }
-// ---- Load "My games" from Firestore (open games only) ----
-selectTab("games"); // default to My games when returning
 
 (async () => {
   if (!gamesShell) return;
@@ -224,19 +222,22 @@ selectTab("games"); // default to My games when returning
 
     // Wire up open buttons
     const openBtns = gamesShell.querySelectorAll(".open-game-btn");
-    openBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-  const id = btn.getAttribute("data-game-id");
-  if (!id) return;
+openBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const id = btn.getAttribute("data-game-id");
+    if (!id) return;
 
-  stripHostParamsFromUrl(); // ✅ add this
+    stripHostParamsFromUrl(); // keep organiser flow clean
 
-  try { window.localStorage.setItem(CURRENT_GAME_KEY, id); } catch (_) {}
-  if (actions.patch) actions.patch({ gameId: id });
-  actions.setState("gameDashboard");
+    try {
+      window.localStorage.setItem(CURRENT_GAME_KEY, id);
+    } catch (_) {}
+
+    if (actions.patch) actions.patch({ gameId: id });
+    actions.setState("gameDashboard");
+  });
 });
 
-    });
  } catch (err) {
   console.error("[OrganiserHome] Failed to load open games", err);
   gamesShell.innerHTML = `
