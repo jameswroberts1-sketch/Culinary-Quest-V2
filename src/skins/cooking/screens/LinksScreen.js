@@ -141,6 +141,9 @@ function renderShell(root) {
 // ----------------- main render -----------------
 
 export function render(root, model = {}, actions = {}) {
+  let cancelled = false;
+  const cleanup = () => { cancelled = true; };
+
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
@@ -163,6 +166,7 @@ export function render(root, model = {}, actions = {}) {
       if (stored && stored.trim()) gameId = stored.trim();
     } catch (_) {}
   }
+  const effectiveGameId = gameId;
 
   if (!gameId) {
     if (introEl) {
@@ -170,6 +174,7 @@ export function render(root, model = {}, actions = {}) {
         "We couldn’t find your game details. Please go back and complete the setup first.";
     }
     if (listEl) {
+      if (cancelled) return;
       listEl.innerHTML = `
         <p class="menu-copy">
           Once you’ve finished setting up your Quest, you’ll see a unique invite link
@@ -189,18 +194,22 @@ export function render(root, model = {}, actions = {}) {
   (async () => {
     try {
       if (introEl) {
+        if (cancelled) return;
         introEl.textContent = "Loading your game and preparing invite links…";
       }
 
       const localHosts = hydrateHostsLocal(model);
-      const game = await readGame(gameId);
+      const game = await readGame(effectiveGameId);
+      if (cancelled) return;
 
       if (!game) {
         console.warn("[LinksScreen] No such game:", gameId);
         if (introEl) {
+          if (cancelled) return;
           introEl.textContent = "We couldn’t load this game from the cloud.";
         }
         if (listEl) {
+          if (cancelled) return;
           listEl.innerHTML = `
             <p class="menu-copy">
               Please check your connection, then go back and try generating your links again.
@@ -220,10 +229,12 @@ export function render(root, model = {}, actions = {}) {
 
       if (!hosts.length) {
         if (introEl) {
+          if (cancelled) return;
           introEl.textContent =
             "We couldn’t find any hosts for this game.";
         }
         if (listEl) {
+          if (cancelled) return;
           listEl.innerHTML = `
             <p class="menu-copy">
               Please go back and add your hosts before generating invite links.
@@ -250,10 +261,11 @@ export function render(root, model = {}, actions = {}) {
 
       if (changed) {
         // Store in new field; keep old "tokens" for backwards-compat just in case.
-        await updateGame(gameId, {
+        await updateGame(effectiveGameId, {
           hostTokens: tokens,
           tokens: tokens
         });
+        if (cancelled) return;
       }
 
       const baseUrl = buildBaseUrl();
@@ -281,6 +293,7 @@ export function render(root, model = {}, actions = {}) {
 
 
       if (introEl) {
+        if (cancelled) return;
         introEl.innerHTML = `
           Okay <strong>${esc(
             organiserName
@@ -291,6 +304,7 @@ export function render(root, model = {}, actions = {}) {
 
 if (listEl) {
   if (!rows.length) {
+    if (cancelled) return;
     listEl.innerHTML = `
       <p class="menu-copy">
         You don’t have any host links to share yet. Go back and add at least one host.
@@ -298,7 +312,7 @@ if (listEl) {
     `;
   } else {
     const hint = navigator.share ? "Tap to send" : "Tap to copy";
-    
+    if (cancelled) return;
     listEl.innerHTML = `
       <div class="link-pill-list">
         ${rows
@@ -367,12 +381,16 @@ if (listEl) {
 }
 
       if (summaryEl) {
+        if (cancelled) return;
         summaryEl.textContent = `Links ready for ${rows.length} host${
           rows.length === 1 ? "" : "s"
         }.`;
       }
-    } catch (err) {
+        } catch (err) {
+      if (cancelled) return; // ✅ ADD THIS LINE (first line inside catch)
+
       console.error("[LinksScreen] Failed to prepare links", err);
+
       if (introEl) {
         introEl.textContent = "Something went wrong while preparing your links.";
       }
@@ -385,4 +403,5 @@ if (listEl) {
       }
     }
   })();
+  return cleanup;
 }
