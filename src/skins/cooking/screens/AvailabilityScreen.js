@@ -163,7 +163,8 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
     );
     return;
   }
-
+  
+  if (cancelled) return;
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -237,7 +238,6 @@ if (cant.length) {
         </div>
 
         <div class="menu-actions" style="margin-top:12px;">
-          <button class="btn btn-secondary" id="orgAvailHub">Back to Games Hub</button>
           <button class="btn btn-secondary" id="orgAvailRefresh">Refresh</button>
           <button class="btn btn-primary" id="orgAvailBegin">Let the games begin</button>
         </div>
@@ -250,15 +250,8 @@ if (cant.length) {
     </section>
   `;
 
-  const hubBtn = root.querySelector("#orgAvailHub");
   const refreshBtn = root.querySelector("#orgAvailRefresh");
   const beginBtn = root.querySelector("#orgAvailBegin");
-
-  const HUB_STATE = "gameDashboard"; // confirmed in skin.js routes
-
-  if (hubBtn && actions && typeof actions.setState === "function") {
-    hubBtn.addEventListener("click", () => actions.setState(HUB_STATE));
-  }
 
   if (refreshBtn && actions && typeof actions.setState === "function") {
     refreshBtn.addEventListener("click", () => actions.setState("availability"));
@@ -312,7 +305,7 @@ if (isOrganiserInApp) {
 
   if (!effectiveGameId) {
     renderError(root, "We couldn't find your game details. Please return to organiser home and try again.");
-    return;
+    return cleanup;
   }
 }
 
@@ -566,7 +559,9 @@ ${takenDatesHtml}
 
                   // Other hosts – red "I can't attend" checkbox
                   const isUnavailable =
-                    availabilityForViewer && availabilityForViewer[hostIdx] === true;
+                    !!availabilityForViewer &&
+                    (availabilityForViewer[hostIdx] === true ||
+                     availabilityForViewer[String(hostIdx)] === true);
 
                   return `
                     <div class="menu-row"
