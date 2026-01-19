@@ -121,12 +121,6 @@ function renderShell(root) {
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <!-- FOOTER BUTTONS -->
-      <div class="menu-actions">
-        <button class="btn btn-secondary" id="backHomeBtn">
-          Back to organiser home
-        </button>
-      </div>
-
       <div class="menu-actions" style="margin-top:6px;">
         <button class="btn btn-primary" id="viewRsvpBtn">
           View RSVP tracker
@@ -157,7 +151,6 @@ export function render(root, model = {}, actions = {}) {
   const introEl   = root.querySelector("#linksIntro");
   const listEl    = root.querySelector("#linksList");
   const summaryEl = root.querySelector("#linksSummary");
-  const backHome  = root.querySelector("#backHomeBtn");
   const viewRsvp  = root.querySelector("#viewRsvpBtn");
 
   // Work out gameId
@@ -374,11 +367,6 @@ if (listEl) {
           rows.length === 1 ? "" : "s"
         }.`;
       }
-
-      if (backHome && actions && typeof actions.setState === "function") {
-        backHome.addEventListener("click", () => {
-          actions.setState("organiserHome");
-        });
       }
 
       if (viewRsvp && actions && typeof actions.setState === "function") {
