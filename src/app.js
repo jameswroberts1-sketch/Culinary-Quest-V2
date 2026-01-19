@@ -172,21 +172,16 @@ const actions = {
 
 function isOrganiserPlayMode() {
   const params = new URLSearchParams(window.location.search);
-
-  // Must explicitly be organiser play mode
   if (params.get("from") !== "organiser") return false;
 
   const gid = params.get("game");
-  const invite = params.get("invite");
-  if (!gid || !invite) return false;
+  if (!gid) return false;
 
   try {
-    // Must have been set by the organiser dashboard on this device
-    if (window.localStorage.getItem(ORGANISER_PLAY_KEY) !== "1") return false;
-
-    // Extra guard: only if it matches the current game on this device
-    const current = window.localStorage.getItem(CURRENT_GAME_KEY);
-    return !!current && current.trim() === String(gid).trim();
+    return (
+      window.localStorage.getItem(ORGANISER_PLAY_KEY) === "1" &&
+      window.localStorage.getItem(ORGANISER_PLAY_GID) === gid
+    );
   } catch (_) {
     return false;
   }
