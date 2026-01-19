@@ -61,6 +61,7 @@ window.addEventListener("error", (e) => {
 
 const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
 const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
+const ORGANISER_PLAY_KEY = "cq_organiser_play_v1";
 
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
@@ -175,19 +176,17 @@ function isOrganiserPlayMode() {
   // Must explicitly be organiser play mode
   if (params.get("from") !== "organiser") return false;
 
+  const gid = params.get("game");
   const invite = params.get("invite");
-  if (!invite) return false;
+  if (!gid || !invite) return false;
 
-  // Extra safety: only treat as organiser-play if this invite matches token[0]
   try {
-    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
-    if (!raw) return false;
+    // Must have been set by the organiser dashboard on this device
+    if (window.localStorage.getItem(ORGANISER_PLAY_KEY) !== "1") return false;
 
-    const tokens = JSON.parse(raw);
-    if (!Array.isArray(tokens) || !tokens.length) return false;
-
-    const organiserToken = tokens[0];
-    return String(invite) === String(organiserToken);
+    // Extra guard: only if it matches the current game on this device
+    const current = window.localStorage.getItem(CURRENT_GAME_KEY);
+    return !!current && current.trim() === String(gid).trim();
   } catch (_) {
     return false;
   }
