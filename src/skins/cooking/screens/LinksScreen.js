@@ -180,6 +180,12 @@ export function render(root, model = {}, actions = {}) {
     return;
   }
 
+  if (viewRsvp && actions && typeof actions.setState === "function") {
+        viewRsvp.addEventListener("click", () => {
+          actions.setState("rsvpTracker");
+        });
+      }
+
   (async () => {
     try {
       if (introEl) {
@@ -360,19 +366,10 @@ if (listEl) {
   });
 }
 
-
-      
       if (summaryEl) {
         summaryEl.textContent = `Links ready for ${rows.length} host${
           rows.length === 1 ? "" : "s"
         }.`;
-      }
-      }
-
-      if (viewRsvp && actions && typeof actions.setState === "function") {
-        viewRsvp.addEventListener("click", () => {
-          actions.setState("rsvpTracker");
-        });
       }
     } catch (err) {
       console.error("[LinksScreen] Failed to prepare links", err);
