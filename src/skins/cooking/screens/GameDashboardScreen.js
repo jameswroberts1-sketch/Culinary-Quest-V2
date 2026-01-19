@@ -93,6 +93,8 @@ function normaliseGameStatus(raw) {
 }
 
 export function render(root, model = {}, actions = {}) {
+  let cancelled = false;
+  const cleanup = () => { cancelled = true; };
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
@@ -179,6 +181,7 @@ export function render(root, model = {}, actions = {}) {
   (async () => {
     try {
       const game = await readGame(gameId);
+      if (cancelled) return;
       if (!game) {
         root.innerHTML = `
           <section class="menu-card">
