@@ -65,133 +65,59 @@ export function render(root, model = {}, actions = {}) {
   scrollToTop();
 
   // Basic shell with two panes + bottom nav
-  root.innerHTML = `
-    <section class="menu-card">
-      <div class="menu-hero">
-        <img
-          class="menu-logo"
-          src="./src/skins/cooking/assets/cq-logo.png"
-          alt="Culinary Quest"
-        />
+root.innerHTML = `
+  <section class="menu-card">
+    <div class="menu-hero">
+      <img
+        class="menu-logo"
+        src="./src/skins/cooking/assets/cq-logo.png"
+        alt="Culinary Quest"
+      />
+    </div>
+
+    <div class="menu-ornament" aria-hidden="true"></div>
+
+    <!-- GAMES HUB HEADER -->
+    <section class="menu-section">
+      <div class="menu-course">ENTRÉE</div>
+      <h2 class="menu-h2">Games hub</h2>
+      <p class="menu-copy">
+        Start a new competition, or jump back into a Quest you’ve already created.
+      </p>
+
+      <div class="menu-actions" style="margin-top:14px;">
+        <button class="btn btn-primary" id="homeStartNew">
+          Start a new Culinary Quest
+        </button>
       </div>
 
-      <div class="menu-ornament" aria-hidden="true"></div>
-
-      <!-- HOME PANE -->
-      <section class="menu-section" id="homePane">
-        <div class="menu-course">ENTRÉE</div>
-        <h2 class="menu-h2">Organiser home</h2>
-        <p class="menu-copy">
-          Welcome back to <em>Culinary Quest</em>. From here you can start a new
-          competition or jump into a Quest you’ve already created.
-        </p>
-
-        <div class="menu-actions" style="margin-top:14px;">
-          <button class="btn btn-primary" id="homeStartNew">
-            Start a new Culinary Quest
-          </button>
-        </div>
-
-        <p class="muted" style="margin-top:10px;font-size:11px;">
-          You can still come back here at any time without disturbing a Quest
-          that’s already under way.
-        </p>
-      </section>
-
-      <div class="menu-divider" aria-hidden="true"></div>
-
-      <!-- MY GAMES PANE -->
-      <section class="menu-section" id="gamesPane" style="display:none;">
-        <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">My games</h2>
-
-        <div id="gamesPaneContent">
-          <p class="menu-copy">
-            Looking for your current Quest…
-          </p>
-        </div>
-      </section>
-
-      <div class="menu-ornament" aria-hidden="true"></div>
-
-      <!-- BOTTOM NAV (Home / My games) -->
-      <nav
-        class="bottom-nav"
-        style="
-          margin-top:8px;
-          padding:8px 12px 4px;
-          border-top:1px solid rgba(0,0,0,0.06);
-          display:flex;
-          justify-content:space-around;
-          gap:12px;
-        "
-      >
-        <button
-          class="bottom-nav-item bottom-nav-item--active"
-          data-tab="home"
-          style="
-            flex:1;
-            border:none;
-            background:none;
-            font-size:12px;
-            padding:6px 0;
-          "
-        >
-          <div style="font-weight:600;">Home</div>
-        </button>
-
-        <button
-          class="bottom-nav-item"
-          data-tab="games"
-          style="
-            flex:1;
-            border:none;
-            background:none;
-            font-size:12px;
-            padding:6px 0;
-          "
-        >
-          <div style="font-weight:600;">My games</div>
-        </button>
-      </nav>
-
-      <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
-        OrganiserHomeScreen – Home / My games hub
+      <p class="muted" style="margin-top:10px;font-size:11px;">
+        You can come back here any time without disturbing a Quest that’s already under way.
       </p>
     </section>
-  `;
 
-  const homePane   = root.querySelector("#homePane");
-  const gamesPane  = root.querySelector("#gamesPane");
-  const homeTab    = root.querySelector('[data-tab="home"]');
-  const gamesTab   = root.querySelector('[data-tab="games"]');
+    <div class="menu-divider" aria-hidden="true"></div>
+
+    <!-- MY GAMES LIST -->
+    <section class="menu-section" id="gamesPane">
+      <div class="menu-course">MAIN</div>
+      <h2 class="menu-h2">My games</h2>
+
+      <div id="gamesPaneContent">
+        <p class="menu-copy">Loading your open Quests…</p>
+      </div>
+    </section>
+
+    <div class="menu-ornament" aria-hidden="true"></div>
+
+    <p class="muted" style="text-align:center;margin-top:4px;font-size:11px;">
+      OrganiserHomeScreen – Games hub
+    </p>
+  </section>
+`;
+
   const startBtn   = root.querySelector("#homeStartNew");
   const gamesShell = root.querySelector("#gamesPaneContent");
-
-  function selectTab(tab) {
-    if (!homePane || !gamesPane || !homeTab || !gamesTab) return;
-
-    if (tab === "games") {
-      homePane.style.display = "none";
-      gamesPane.style.display = "block";
-      homeTab.classList.remove("bottom-nav-item--active");
-      gamesTab.classList.add("bottom-nav-item--active");
-    } else {
-      homePane.style.display = "block";
-      gamesPane.style.display = "none";
-      homeTab.classList.add("bottom-nav-item--active");
-      gamesTab.classList.remove("bottom-nav-item--active");
-    }
-  }
-
-  if (homeTab) {
-    homeTab.addEventListener("click", () => selectTab("home"));
-  }
-  if (gamesTab) {
-    gamesTab.addEventListener("click", () => {
-      selectTab("games");
-    });
-  }
 
 // Start new Quest → clear current game + local host data and go back into setup flow
 if (startBtn && actions && typeof actions.setState === "function") {
