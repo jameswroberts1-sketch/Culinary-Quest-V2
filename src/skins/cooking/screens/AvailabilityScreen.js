@@ -111,7 +111,7 @@ function buildSchedule(game) {
   return out;
 }
 
-function renderOrganiserAvailability(root, game, gameId, actions) {
+function renderOrganiserAvailability(root, game, gameId, actions, isCancelled = () => false) {
   const hosts = Array.isArray(game.hosts) ? game.hosts : [];
   const organiserName =
     (game.organiserName && String(game.organiserName)) ||
@@ -164,6 +164,7 @@ function renderOrganiserAvailability(root, game, gameId, actions) {
     return;
   }
   
+  if (isCancelled()) return;
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
@@ -260,12 +261,13 @@ if (cant.length) {
     beginBtn.addEventListener("click", async () => {
   try {
     await updateGame(gameId, { status: "inProgress" });
-    if (cancelled) return;
+if (isCancelled()) return;
 
-    window.alert("Your game has started.");
-    if (actions && typeof actions.setState === "function") {
-      actions.setState("gameDashboard");
-    }
+window.alert("Your game has started.");
+if (actions && typeof actions.setState === "function") {
+  aactions.setState(HUB_STATE);
+}
+
   } catch (err) {
     console.warn("[AvailabilityScreen] Start game failed", err);
     window.alert("Sorry — we couldn’t start the game just now. Please try again.");
@@ -342,7 +344,7 @@ if (isOrganiserInApp) {
         return;
       }
       if (isOrganiserInApp) {
-  renderOrganiserAvailability(root, game, effectiveGameId, actions);
+  renderOrganiserAvailability(root, game, effectiveGameId, actions, () => cancelled);
   return;
 }
 
