@@ -68,7 +68,6 @@ window.addEventListener("error", (e) => {
 /* ------------ simple in-memory model + actions ------------ */
 
 const CURRENT_GAME_KEY   = "cq_current_game_id_v1";
-const TOKENS_STORAGE_KEY = "cq_host_tokens_v1";
 const ORGANISER_PLAY_KEY = "cq_organiser_play_v1";
 const ORGANISER_PLAY_GID = "cq_organiser_play_gid_v1";
 
@@ -82,7 +81,6 @@ const organiserStates = new Set([
   "instructions"
 ]);
 
-// Only strip host params when entering THESE organiser screens
 const STRIP_HOST_PARAMS_ON = new Set([
   "organiserHome",
   "gameDashboard",
@@ -93,12 +91,49 @@ const STRIP_HOST_PARAMS_ON = new Set([
   "instructions"
 ]);
 
+// Guest sessions must only be able to land on guest-safe states via URL hints.
+const GUEST_SAFE_STATES = new Set(["invite", "availability"]);
+
+function isOrganiserPlayModeFromParams(params) {
+  // Organiser play mode keeps the ribbon visible even though invite= is present.
+  if (!params || params.get("from") !== "organiser") return false;
+
+  const gid = params.get("game");
+  if (!gid) return false;
+
+  try {
+    return (
+      window.localStorage.getItem(ORGANISER_PLAY_KEY) === "1" &&
+      window.localStorage.getItem(ORGANISER_PLAY_GID) === gid
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+
 
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
   const stateFromUrl = params.get("state");
 
-  // If URL explicitly asks for a known state, honour it
+  const hasInvite = !!params.get("invite");
+  const isPlay = hasInvite && isOrganiserPlayModeFromParams(params);
+
+  // IMPORTANT: If invite= is present (and this is NOT organiser play mode),
+  // never allow organiser states to be selected via state=/route=.
+  if (hasInvite && !isPlay) {
+    if (stateFromUrl && GUEST_SAFE_STATES.has(stateFromUrl)) return stateFromUrl;
+    return "invite";
+  }
+
+  // If invite= is present in organiser play mode, still default into the host experience.
+  if (hasInvite && isPlay) {
+    if (stateFromUrl && GUEST_SAFE_STATES.has(stateFromUrl)) return stateFromUrl;
+    return "invite";
+  }
+
+  // Organiser / normal session: honour explicit state if known.
   if (
     stateFromUrl === "invite" ||
     stateFromUrl === "rsvpTracker" ||
@@ -108,22 +143,14 @@ function getInitialState() {
     return stateFromUrl;
   }
 
-  // Backwards-compatible: old links with just ?invite= still go to Invite
-  if (params.get("invite")) {
-    return "invite";
-  }
-
   // If there is a stored current game, default the organiser to the home hub
   try {
     const storedGameId = window.localStorage.getItem(CURRENT_GAME_KEY);
     if (storedGameId && storedGameId.trim()) {
       return "organiserHome";
     }
-  } catch (_) {
-    // ignore and fall back to intro
-  }
+  } catch (_) {}
 
-  // Normal organiser flow – first-time users
   return "intro";
 }
 
@@ -131,38 +158,6 @@ const model = {
   state: getInitialState(),
   organiserName: null
 };
-
-// Match ?invite=TOKEN in the URL to a host index
-(function detectInviteFromUrl() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("invite");
-    if (!token) return;
-
-    const raw = window.localStorage.getItem(TOKENS_STORAGE_KEY);
-    if (!raw) return;
-
-    const tokens = JSON.parse(raw);
-    if (!Array.isArray(tokens)) return;
-
-    const hostIndex = tokens.indexOf(token);
-    if (hostIndex === -1) return;
-
-    // Always remember who this visitor is (by host index)
-    model.activeHostIndex = hostIndex;
-
-    const stateParam = params.get("state");
-
-    // If no explicit state was requested in the URL, default invite links to the Invite screen
-    if (!stateParam) {
-      model.state = "invite";
-    }
-    // If there *is* a state param (e.g. availability, invite, future states),
-    // we leave model.state alone so getInitialState() wins.
-  } catch (_) {
-    // fail quietly – fall back to normal intro flow
-  }
-})();
 
 const watchers = new Set();
 
@@ -186,10 +181,22 @@ const actions = {
     if (typeof next !== "string" || !next.trim()) return;
     const nextState = next.trim();
 
+// IMPORTANT: Guests must not be able to navigate into organiser-only screens.
+if (isGuestLinkSession() && organiserStates.has(nextState)) {
+  console.warn(
+    `[app] blocked organiser state "${nextState}" during guest session; forcing guest flow.`
+  );
+  model.state = "invite";
+  scrollToTop();
+  notifyWatchers();
+  renderBottomNav();
+  return;
+}
+
     // Only strip host params when entering organiser screens,
     // and ONLY if we are not currently in a guest-link session.
     if (!isGuestLinkSession() && STRIP_HOST_PARAMS_ON.has(nextState)) {
-      stripHostParamsFromUrl();
+      stripCqSessionParamsFromUrl();
     }
 
     model.state = nextState;
@@ -348,12 +355,21 @@ async function resolveRenderer(key) {
 }
 
 function pickRouteKey() {
-  // Read current URL each time (route can be stripped later)
   const qs = new URLSearchParams(location.search);
   const routeOverride = qs.get("route");
+  const stateHint = qs.get("state");
 
-  if (routeOverride && routes[routeOverride]) {
-    return routeOverride;
+  // IMPORTANT: If this is a guest-link session, ignore organiser overrides.
+  if (isGuestLinkSession()) {
+    const hinted = (routeOverride && GUEST_SAFE_STATES.has(routeOverride))
+      ? routeOverride
+      : (stateHint && GUEST_SAFE_STATES.has(stateHint))
+        ? stateHint
+        : null;
+
+    if (hinted && routes[hinted]) return hinted;
+    if (routes.invite) return "invite";
+    if (routes.availability) return "availability";
   }
 
   if (model.state && routes[model.state]) {
