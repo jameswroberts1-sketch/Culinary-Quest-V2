@@ -21,7 +21,7 @@ function scrollToTop() {
       document.documentElement ||
       document.body;
     if (scroller && typeof scroller.scrollTo === "function") {
-      scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      scroller.scrollTo({ top: 0, left: 0, behavior: "auto" });
     } else {
       scroller.scrollTop = 0;
       scroller.scrollLeft = 0;
