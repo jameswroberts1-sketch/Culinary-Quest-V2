@@ -343,7 +343,7 @@ if (listEl) {
       </p>
     `;
   } else {
-    const hint = navigator.share ? "Tap to send" : "Tap to copy";
+    const hint = navigator.share ? "Tap to send" : "Tap to email";
     listEl.innerHTML = `
       <div class="link-pill-list">
         ${rows
@@ -378,45 +378,61 @@ if (listEl) {
 
 const payload = buildInvitePayload(organiserName, name, link);
 
-// 1) Share Sheet (always plain text — messaging apps don't render HTML)
+const org =
+  organiserName && String(organiserName).trim()
+    ? String(organiserName).trim()
+    : "the organiser";
+
+const baseText =
+  `Hi ${name} — ${org} requests the pleasure of your company at a Culinary Quest.`;
+
+// 1) Try Share Sheet (best on mobile). Prefer sharing a proper URL field.
 try {
   if (navigator.share) {
-    await navigator.share({
+    const shareData = {
       title: "Culinary Quest invite",
-      text: payload.text
-    });
+      text: baseText,
+      url: link
+    };
+
+    // Some browsers/targets don't accept url; if so, fall back to embedding the URL in text.
+    if (navigator.canShare && !navigator.canShare(shareData)) {
+      delete shareData.url;
+      shareData.text = `${baseText}\n\n${link}`;
+    }
+
+    await navigator.share(shareData);
     return;
   }
 } catch (err) {
-  // If user cancelled, do nothing (don't fall back to copy)
+  // If user cancelled, do nothing (don't fall back)
   if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) {
     return;
   }
-  // otherwise fall through to clipboard
+  // otherwise fall through
 }
 
-// 2) Clipboard: copy both text/plain and text/html (email clients can paste the pill)
+// 2) Desktop fallback: open a pre-filled email (no copy/paste)
 try {
-  if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
-    const item = new ClipboardItem({
-      "text/plain": new Blob([payload.text], { type: "text/plain" }),
-      "text/html": new Blob([payload.html], { type: "text/html" })
-    });
-    await navigator.clipboard.write([item]);
-    window.alert(`Invite for ${name} copied. Paste into email or messages.`);
-    return;
-  }
+  const subject = encodeURIComponent("Culinary Quest invite");
+  const body = encodeURIComponent(`${baseText}\n\n${link}`);
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  return;
+} catch (_) {
+  // fall through
+}
 
+// 3) Last resort: copy
+try {
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(payload.text);
-    window.alert(`Invite for ${name} copied. Paste into your message.`);
+    await navigator.clipboard.writeText(link);
+    window.alert(`Link for ${name} copied. Paste it into your message.`);
   } else {
-    window.prompt(`Copy the invite for ${name}:`, payload.text);
+    window.prompt(`Copy the link for ${name}:`, link);
   }
 } catch (_) {
-  window.prompt(`Please copy the invite for ${name}:`, payload.text);
-}
-
+  window.prompt(`Please copy the link for ${name}:`, link);
+      }
     });
   });
 }
