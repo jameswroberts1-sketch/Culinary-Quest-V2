@@ -78,6 +78,45 @@ function buildBaseUrl() {
   return origin + pathname;
 }
 
+function buildInvitePayload(organiserName, hostName, link) {
+  const organiser =
+    organiserName && String(organiserName).trim()
+      ? String(organiserName).trim()
+      : "the organiser";
+
+  const host =
+    hostName && String(hostName).trim()
+      ? String(hostName).trim()
+      : "there";
+
+  // Plain text: works everywhere (Share Sheet, SMS, WhatsApp, etc.)
+  const text =
+`Hi ${host} — ${organiser} requests the pleasure of your company at a Culinary Quest.
+
+Your private link:
+${link}`;
+
+  // HTML: pastes nicely into Outlook/Gmail/Slack etc. (where supported)
+  const safeOrg = esc(organiser);
+  const safeHost = esc(host);
+  const safeLink = esc(link);
+
+  const html =
+`<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.35;">
+  <div style="display:inline-block;padding:10px 14px;border-radius:999px;background:#f2f2f2;color:#111;">
+    <strong>${safeOrg}</strong> requests the pleasure of <strong>${safeHost}</strong> to attend a <strong>Culinary Quest</strong>.
+  </div>
+  <div style="margin-top:10px;">
+    <a href="${safeLink}" style="display:inline-block;padding:10px 14px;border-radius:12px;background:#111;color:#fff;text-decoration:none;">
+      Open your private link
+    </a>
+  </div>
+  <div style="margin-top:8px;font-size:12px;color:#666;">${safeLink}</div>
+</div>`;
+
+  return { text, html };
+}
+
 // ----------------- shell -----------------
 
 function renderShell(root) {
@@ -337,37 +376,47 @@ if (listEl) {
       const name = btn.getAttribute("data-name") || "this host";
       if (!link) return;
 
-      // 1) Try Share Sheet (best on mobile)
-      try {
-        if (navigator.share) {
-          await navigator.share({
-            title: "Culinary Quest invite",
-            text: `Hi ${name} — here’s your Culinary Quest link:\n${link}`
-          });
-          return;
-        }
-      } catch (err) {
-        // If user cancelled, do nothing (don't fall back to copy)
-        if (
-          err &&
-          (err.name === "AbortError" || err.name === "NotAllowedError")
-        ) {
-          return;
-        }
-        // otherwise fall through to clipboard
-      }
+const payload = buildInvitePayload(organiserName, name, link);
 
-      // 2) Fallback: copy to clipboard
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(link);
-          window.alert(`Link for ${name} copied. Paste it into your message.`);
-        } else {
-          window.prompt(`Copy the link for ${name}:`, link);
-        }
-      } catch (_) {
-        window.prompt(`Please copy the link for ${name}:`, link);
-      }
+// 1) Share Sheet (always plain text — messaging apps don't render HTML)
+try {
+  if (navigator.share) {
+    await navigator.share({
+      title: "Culinary Quest invite",
+      text: payload.text
+    });
+    return;
+  }
+} catch (err) {
+  // If user cancelled, do nothing (don't fall back to copy)
+  if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) {
+    return;
+  }
+  // otherwise fall through to clipboard
+}
+
+// 2) Clipboard: copy both text/plain and text/html (email clients can paste the pill)
+try {
+  if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+    const item = new ClipboardItem({
+      "text/plain": new Blob([payload.text], { type: "text/plain" }),
+      "text/html": new Blob([payload.html], { type: "text/html" })
+    });
+    await navigator.clipboard.write([item]);
+    window.alert(`Invite for ${name} copied. Paste into email or messages.`);
+    return;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(payload.text);
+    window.alert(`Invite for ${name} copied. Paste into your message.`);
+  } else {
+    window.prompt(`Copy the invite for ${name}:`, payload.text);
+  }
+} catch (_) {
+  window.prompt(`Please copy the invite for ${name}:`, payload.text);
+}
+
     });
   });
 }
