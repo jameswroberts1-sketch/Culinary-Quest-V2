@@ -410,7 +410,7 @@ try {
   // fall back to copy/paste — it feels like a regression to the user.
   console.warn("[LinksScreen] Share failed or returned an error; not falling back.", err);
   return;
-  }
+}
 
 // 2) Desktop fallback: open a pre-filled email (no copy/paste)
 try {
