@@ -160,12 +160,6 @@ function renderShell(root) {
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <!-- FOOTER BUTTONS -->
-      <div class="menu-actions" style="margin-top:6px;">
-        <button class="btn btn-primary" id="viewRsvpBtn">
-          View RSVP tracker
-        </button>
-      </div>
-
       <p class="muted" id="linksSummary"
          style="text-align:center;margin-top:8px;font-size:11px;">
       </p>
@@ -193,7 +187,6 @@ export function render(root, model = {}, actions = {}) {
   const introEl   = root.querySelector("#linksIntro");
   const listEl    = root.querySelector("#linksList");
   const summaryEl = root.querySelector("#linksSummary");
-  const viewRsvp  = root.querySelector("#viewRsvpBtn");
 
   // Work out gameId
   let gameId =
@@ -222,12 +215,6 @@ export function render(root, model = {}, actions = {}) {
     }
     return cleanup;
   }
-
-  if (viewRsvp && actions && typeof actions.setState === "function") {
-        viewRsvp.addEventListener("click", () => {
-          actions.setState("rsvpTracker");
-        });
-      }
 
   (async () => {
     try {
