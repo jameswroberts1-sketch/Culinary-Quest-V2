@@ -405,11 +405,12 @@ try {
     return;
   }
 } catch (err) {
-  // If user cancelled, do nothing (don't fall back)
-  if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) {
-    return;
+  // IMPORTANT: Some share targets (notably some Mail clients) can still open
+  // but then throw/return a non-fatal error. In all error cases, we do NOT
+  // fall back to copy/paste — it feels like a regression to the user.
+  console.warn("[LinksScreen] Share failed or returned an error; not falling back.", err);
+  return;
   }
-  // otherwise fall through
 }
 
 // 2) Desktop fallback: open a pre-filled email (no copy/paste)
