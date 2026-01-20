@@ -366,7 +366,7 @@ if (listEl) {
   }
 }
 
-// Per-host pill handler: Share Sheet if available, else copy
+// Per-host pill handler: Share Sheet if available, else mailto, else copy
 if (listEl) {
   const pillButtons = listEl.querySelectorAll(".link-pill");
 
@@ -376,62 +376,66 @@ if (listEl) {
       const name = btn.getAttribute("data-name") || "this host";
       if (!link) return;
 
-const payload = buildInvitePayload(organiserName, name, link);
+      const org =
+        organiserName && String(organiserName).trim()
+          ? String(organiserName).trim()
+          : "the organiser";
 
-const org =
-  organiserName && String(organiserName).trim()
-    ? String(organiserName).trim()
-    : "the organiser";
+      const baseText = `Hi ${name} — ${org} requests the pleasure of your company at a Culinary Quest.`;
+      const messageText = `${baseText}\n\n${link}`;
 
-const baseText =
-  `Hi ${name} — ${org} requests the pleasure of your company at a Culinary Quest.`;
+      // 1) Share Sheet (best on mobile). Prefer sharing a proper URL field.
+      if (navigator.share) {
+        try {
+          const shareData = {
+            title: "Culinary Quest invite",
+            text: baseText,
+            url: link,
+          };
 
-// 1) Try Share Sheet (best on mobile). Prefer sharing a proper URL field.
-try {
-  if (navigator.share) {
-    const shareData = {
-      title: "Culinary Quest invite",
-      text: baseText,
-      url: link
-    };
+          // navigator.canShare can throw in some browsers; keep it safely wrapped.
+          if (navigator.canShare) {
+            let ok = true;
+            try {
+              ok = navigator.canShare(shareData);
+            } catch (_) {
+              ok = true; // if canShare is flaky, just try share()
+            }
+            if (!ok) {
+              delete shareData.url;
+              shareData.text = messageText;
+            }
+          }
 
-    // Some browsers/targets don't accept url; if so, fall back to embedding the URL in text.
-    if (navigator.canShare && !navigator.canShare(shareData)) {
-      delete shareData.url;
-      shareData.text = `${baseText}\n\n${link}`;
-    }
+          await navigator.share(shareData);
+        } catch (err) {
+          // IMPORTANT: Some targets (notably some Mail clients) can still open
+          // but then report an error. Do NOT fall back to copy/paste.
+          console.warn("[LinksScreen] Share returned an error; stopping.", err);
+        }
+        return;
+      }
 
-    await navigator.share(shareData);
-    return;
-  }
-} catch (err) {
-  // IMPORTANT: Some share targets (notably some Mail clients) can still open
-  // but then throw/return a non-fatal error. In all error cases, we do NOT
-  // fall back to copy/paste — it feels like a regression to the user.
-  console.warn("[LinksScreen] Share failed or returned an error; not falling back.", err);
-  return;
-}
+      // 2) Desktop fallback: open a pre-filled email (no copy/paste)
+      try {
+        const subject = encodeURIComponent("Culinary Quest invite");
+        const body = encodeURIComponent(messageText);
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        return;
+      } catch (_) {
+        // fall through
+      }
 
-// 2) Desktop fallback: open a pre-filled email (no copy/paste)
-try {
-  const subject = encodeURIComponent("Culinary Quest invite");
-  const body = encodeURIComponent(`${baseText}\n\n${link}`);
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  return;
-} catch (_) {
-  // fall through
-}
-
-// 3) Last resort: copy
-try {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(link);
-    window.alert(`Link for ${name} copied. Paste it into your message.`);
-  } else {
-    window.prompt(`Copy the link for ${name}:`, link);
-  }
-} catch (_) {
-  window.prompt(`Please copy the link for ${name}:`, link);
+      // 3) Last resort: copy a clean message (not raw HTML)
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(messageText);
+          window.alert(`Invite for ${name} copied. Paste it into your message.`);
+        } else {
+          window.prompt(`Copy the invite for ${name}:`, messageText);
+        }
+      } catch (_) {
+        window.prompt(`Please copy the invite for ${name}:`, messageText);
       }
     });
   });
