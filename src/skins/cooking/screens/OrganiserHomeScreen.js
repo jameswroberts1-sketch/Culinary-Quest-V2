@@ -2,6 +2,7 @@
 // Organiser home – Games hub (start new + list open games)
 
 import { listMyOpenGames } from "../../../engine/firestore.js";
+import { stripCqSessionParamsFromUrl } from "../../../engine/url.js";
 
 const LOCAL_KEYS_TO_CLEAR = [
   "cq_current_game_id_v1", // current game id
@@ -47,22 +48,18 @@ function scrollToTop() {
   } catch (_) {}
 }
 
-function stripHostParamsFromUrl() {
-  try {
-    const url = new URL(window.location.href);
-    ["invite", "game", "from"].forEach((k) => url.searchParams.delete(k));
-    // optional: also remove state/route if you don’t rely on them
-    // ["state","route"].forEach((k) => url.searchParams.delete(k));
-    window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
-  } catch (_) {}
-}
-
 export function render(root, model = {}, actions = {}) {
   if (!root) {
     root = document.getElementById("app") || document.body;
   }
 
-  scrollToTop();
+ scrollToTop();
+
+// IMPORTANT: prevent late async DOM writes if the user navigates away.
+let cancelled = false;
+const cleanup = () => {
+  cancelled = true;
+};
 
   // Basic shell with two panes + bottom nav
 root.innerHTML = `
@@ -122,7 +119,7 @@ root.innerHTML = `
 // Start new Quest → clear current game + local host data and go back into setup flow
 if (startBtn && actions && typeof actions.setState === "function") {
   startBtn.addEventListener("click", () => {
-    stripHostParamsFromUrl();
+    stripCqSessionParamsFromUrl();
     clearLocalGameState();
 
     try {
@@ -143,6 +140,7 @@ if (startBtn && actions && typeof actions.setState === "function") {
 
   try {
     const games = await listMyOpenGames(25);
+    if (cancelled) return;
 
     if (!games.length) {
       gamesShell.innerHTML = `
@@ -159,7 +157,7 @@ if (startBtn && actions && typeof actions.setState === "function") {
       const paneStart = root.querySelector("#gamesStartFromPane");
       if (paneStart && actions && typeof actions.setState === "function") {
         paneStart.addEventListener("click", () => {
-          stripHostParamsFromUrl();
+          stripCqSessionParamsFromUrl();
           clearLocalGameState();
           if (actions.patch) {
             actions.patch({ gameId: null, setup: null, hosts: null, organiserName: null });
@@ -227,7 +225,7 @@ openBtns.forEach((btn) => {
     const id = btn.getAttribute("data-game-id");
     if (!id) return;
 
-    stripHostParamsFromUrl(); // keep organiser flow clean
+    stripCqSessionParamsFromUrl(); // keep organiser flow clean
 
     try {
       window.localStorage.setItem(CURRENT_GAME_KEY, id);
@@ -240,6 +238,7 @@ openBtns.forEach((btn) => {
 
  } catch (err) {
   console.error("[OrganiserHome] Failed to load open games", err);
+  if (cancelled) return;
   gamesShell.innerHTML = `
     <p class="menu-copy">
       We hit a problem loading your open Quests.
@@ -251,4 +250,5 @@ openBtns.forEach((btn) => {
 }
 
 })();
+  return cleanup;
 }
