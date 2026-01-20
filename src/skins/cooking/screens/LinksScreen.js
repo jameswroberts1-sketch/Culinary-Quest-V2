@@ -411,7 +411,6 @@ try {
   console.warn("[LinksScreen] Share failed or returned an error; not falling back.", err);
   return;
   }
-}
 
 // 2) Desktop fallback: open a pre-filled email (no copy/paste)
 try {
