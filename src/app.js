@@ -2,6 +2,7 @@
 // Minimal app bootstrap + router for Culinary Quest (cooking skin)
 
 import { skin, loadSkin, routes } from "./skins/cooking/skin.js";
+import { stripCqSessionParamsFromUrl } from "./engine/url.js";
 
 /* ------------ basic error display ------------ */
 
