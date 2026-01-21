@@ -93,7 +93,7 @@ const STRIP_HOST_PARAMS_ON = new Set([
 ]);
 
 // Guest sessions must only be able to land on guest-safe states via URL hints.
-const GUEST_SAFE_STATES = new Set(["invite", "availability"]);
+const GUEST_SAFE_STATES = new Set(["invite", "availability", "voting"]);
 
 function isOrganiserPlayModeFromParams(params) {
   // Organiser play mode keeps the ribbon visible even though invite= is present.
@@ -368,9 +368,15 @@ function pickRouteKey() {
         ? stateHint
         : null;
 
-    if (hinted && routes[hinted]) return hinted;
-    if (routes.invite) return "invite";
-    if (routes.availability) return "availability";
+   if (hinted && routes[hinted]) return hinted;
+
+// Allow in-app navigation within guest-safe states (e.g. InviteScreen -> VotingScreen)
+if (model.state && GUEST_SAFE_STATES.has(model.state) && routes[model.state]) {
+  return model.state;
+}
+
+if (routes.invite) return "invite";
+if (routes.availability) return "availability";
   }
 
   if (model.state && routes[model.state]) {
