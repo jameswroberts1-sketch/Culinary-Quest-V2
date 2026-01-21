@@ -410,7 +410,7 @@ export function render(root, model = {}, actions = {}) {
               ${
   (statusInfo.key !== "finished" && statusInfo.key !== "cancelled")
     ? `
-  <!-- Live event -->
+<!-- Live event -->
   <button
     class="dashboard-tile"
     data-nav="liveEvent"
@@ -431,6 +431,26 @@ export function render(root, model = {}, actions = {}) {
           ? "Jump to the current host’s view during the game."
           : "Open your host view (as your guests see it)."
       }
+    </div>
+  </button>
+
+  <!-- Finalise event -->
+  <button
+    class="dashboard-tile"
+    data-nav="finaliseEvent"
+    style="
+      border:none;
+      text-align:left;
+      padding:12px 14px;
+      border-radius:16px;
+      background:#ffffff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.08);
+      font-size:13px;
+    "
+  >
+    <div style="font-weight:600;margin-bottom:4px;">Finalise event</div>
+    <div class="muted" style="font-size:11px;">
+      Confirm attendance and open voting for the current host.
     </div>
   </button>
   `
@@ -485,7 +505,10 @@ export function render(root, model = {}, actions = {}) {
             actions.setState("rsvpTracker");
           } else if (nav === "availability") {
             actions.setState("availability");
+          } else if (nav === "finaliseEvent") {
+            actions.setState("finaliseEvent");
           } else if (nav === "liveEvent") {
+
   (async () => {
     try {
       const g = await readGame(effectiveGameId);
