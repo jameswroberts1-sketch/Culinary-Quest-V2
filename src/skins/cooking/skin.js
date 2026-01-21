@@ -84,7 +84,11 @@ export const routes = {
   rsvpTracker: () => safeLoad("./screens/RsvpTrackerScreen.js", "RSVP tracker"),
 
   // ⬇️ NEW: host availability checklist
+    // ⬇️ NEW: host availability checklist
   availability: () => safeLoad("./screens/AvailabilityScreen.js", "Availability"),
+
+  // ⬇️ NEW: organiser attendance confirm + open voting
+  finaliseEvent: () => safeLoad("./screens/FinaliseEventScreen.js", "Finalise event"),
   voting: () => safeLoad("./screens/VotingScreen.js", "Voting"),
 
   started:  () => Promise.resolve(stubRenderer("Game")),
