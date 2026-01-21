@@ -79,7 +79,8 @@ const organiserStates = new Set([
   "hosts",
   "intro",
   "setup",
-  "instructions"
+  "instructions",
+  "finaliseEvent"
 ]);
 
 const STRIP_HOST_PARAMS_ON = new Set([
@@ -89,7 +90,8 @@ const STRIP_HOST_PARAMS_ON = new Set([
   "hosts",
   "intro",
   "setup",
-  "instructions"
+  "instructions",
+  "finaliseEvent"
 ]);
 
 // Guest sessions must only be able to land on guest-safe states via URL hints.
@@ -255,13 +257,14 @@ function getCurrentGameId() {
 }
 
 function activeNavTab(stateKey) {
-  const inGame = [
+    const inGame = [
     "gameDashboard",
     "hosts",
     "links",
     "rsvpTracker",
     "availability",
-    "invite"
+    "invite",
+    "finaliseEvent"
   ].includes(stateKey);
 
   if (stateKey === "instructions") return "instructions";
