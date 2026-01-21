@@ -1,10 +1,16 @@
 // path: src/skins/cooking/screens/VotingScreen.js
-// Voting screen – shown to guests when organiser opens voting for the current host.
+// Guest voting screen (invite-link only).
 //
-// IMPORTANT: Host cannot vote for their own event.
-// IMPORTANT: Organiser normally navigates via hub; voting is for invite-link sessions (or organiser play mode).
+// Requirements:
+// - blocks the host from voting
+// - supports simple (single) scoring OR category scoring (1–10 ints)
+// - saves to Firestore at: votesByEvent.<hostIndex>.<inviteToken>
+// - supports a 250-char comment
+// - easy organiser tracker: compare voting.eligibleTokens vs votesByEvent[hostIndex]
 
 import { readGame, updateGame } from "../../../engine/firestore.js";
+
+/* ---------------- helpers ---------------- */
 
 function esc(str) {
   if (str == null) return "";
@@ -12,69 +18,142 @@ function esc(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/"/g, "&quot;");
 }
 
-function getViewerFromInvite(game, inviteToken) {
-  if (!inviteToken || !game || !Array.isArray(game.hostTokens)) return { idx: -1 };
-  const idx = game.hostTokens.findIndex((t) => String(t) === String(inviteToken));
-  return { idx };
+function scrollToTop() {
+  try {
+    const scroller =
+      document.scrollingElement || document.documentElement || document.body;
+    if (scroller && typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } else if (scroller) {
+      scroller.scrollTop = 0;
+    }
+  } catch (_) {}
 }
 
-function getCategories(game) {
-  const setup = game && typeof game.setup === "object" ? game.setup : {};
-  const mode = String(setup.mode || "simple").toLowerCase(); // "simple" | "category"
-  const cats = Array.isArray(setup.categories) ? setup.categories : ["Food"];
-  return { mode, cats };
+function normToken(t) {
+  return String(t || "").trim().toUpperCase();
 }
+
+function tokenListFromGame(game) {
+  return Array.isArray(game && game.hostTokens)
+    ? game.hostTokens
+    : Array.isArray(game && game.tokens)
+    ? game.tokens
+    : [];
+}
+
+function scoringModelFromGame(game) {
+  const setup =
+    game && game.setup && typeof game.setup === "object" ? game.setup : {};
+
+  const rawMode = String(setup.mode || "").toLowerCase();
+  const byCategory = rawMode.includes("categor");
+
+  let categories = Array.isArray(setup.categories) ? setup.categories : [];
+  categories = categories.map((c) => String(c || "").trim()).filter(Boolean);
+
+  // IMPORTANT: Food is mandatory and should be first in category mode.
+  if (byCategory) {
+    categories = ["Food", ...categories.filter((c) => c !== "Food")];
+    categories = categories.slice(0, 4);
+  } else {
+    categories = [];
+  }
+
+  return { byCategory, categories };
+}
+
+function clampInt(n, min, max) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  const i = Math.round(x);
+  if (i < min || i > max) return null;
+  return i;
+}
+
+function getEventVotes(game, hostIndex) {
+  const votesByEvent =
+    game && game.votesByEvent && typeof game.votesByEvent === "object"
+      ? game.votesByEvent
+      : {};
+  const ev =
+    votesByEvent[hostIndex] || votesByEvent[String(hostIndex)] || {};
+  return ev && typeof ev === "object" ? ev : {};
+}
+
+function countEligibleAndSubmitted(eligibleTokens, eventVotes) {
+  const eligible =
+    eligibleTokens && typeof eligibleTokens === "object" ? eligibleTokens : {};
+  const keys = Object.keys(eligible).filter((k) => eligible[k]);
+  const submitted = keys.reduce((acc, k) => acc + (eventVotes[k] ? 1 : 0), 0);
+  return { eligibleCount: keys.length, submittedCount: submitted };
+}
+
+/* ---------------- screen ---------------- */
 
 export function render(root, model = {}, actions = {}) {
-  if (!root) root = document.getElementById("app") || document.body;
+  if (!root) {
+    root =
+      document.getElementById("cq-main") ||
+      document.getElementById("app") ||
+      document.body;
+  }
+
+  scrollToTop();
 
   let cancelled = false;
-  const cleanup = () => { cancelled = true; };
-
-  const params = new URLSearchParams(window.location.search);
-  const inviteToken = params.get("invite");
-  const urlGameId = params.get("game");
-
-  // Voting is only meaningful when we can identify the game
-  const gameId = urlGameId || model.gameId;
+  const cleanup = () => {
+    cancelled = true;
+  };
 
   root.innerHTML = `
     <section class="menu-card">
       <div class="menu-hero">
         <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
       </div>
+
       <div class="menu-ornament" aria-hidden="true"></div>
 
       <section class="menu-section">
         <div class="menu-course">MAIN</div>
-        <h2 class="menu-h2">LOADING VOTING…</h2>
-        <p class="menu-copy">Just a moment.</p>
+        <h2 class="menu-h2">VOTING</h2>
+        <p class="menu-copy" id="voteIntro">Loading your ballot…</p>
       </section>
+
+      <div class="menu-divider" aria-hidden="true"></div>
+
+      <section class="menu-section" id="voteBody"></section>
     </section>
   `;
 
+  const introEl = root.querySelector("#voteIntro");
+  const bodyEl = root.querySelector("#voteBody");
+
   (async () => {
     try {
-      if (!gameId) {
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
-            </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
-            <section class="menu-section">
-              <div class="menu-course">MAIN</div>
-              <h2 class="menu-h2">VOTING LINK NEEDED</h2>
-              <p class="menu-copy">
-                Please open voting from your invite link.
-              </p>
-            </section>
-          </section>
-        `;
+      const qs = new URLSearchParams(window.location.search);
+      const gameIdRaw = qs.get("game");
+      const inviteRaw = qs.get("invite");
+
+      const gameId = String(gameIdRaw || "").trim();
+      const inviteTokenRaw = String(inviteRaw || "");
+      const inviteToken = normToken(inviteTokenRaw);
+
+      if (!gameId || !inviteToken) {
+        if (introEl) {
+          introEl.textContent =
+            "This voting link is missing game or invite details. Please re-open the invite link you were sent.";
+        }
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              If you’re the organiser, open the game from the hub and re-send the correct invite.
+            </p>
+          `;
+        }
         return;
       }
 
@@ -82,311 +161,336 @@ export function render(root, model = {}, actions = {}) {
       if (cancelled) return;
 
       if (!game) {
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
-            </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
-            <section class="menu-section">
-              <div class="menu-course">MAIN</div>
-              <h2 class="menu-h2">CAN’T FIND THIS GAME</h2>
-              <p class="menu-copy">That link doesn’t match an active Culinary Quest.</p>
-            </section>
-          </section>
-        `;
-        return;
-      }
-
-      const organiserName = (game.organiserName || "").trim() || "the organiser";
-      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
-      const hostNames = hosts.map((h, i) => (h && h.name ? String(h.name).trim() : `Host ${i + 1}`));
-      const viewer = getViewerFromInvite(game, inviteToken);
-      const viewerIdx = viewer.idx;
-
-      const voting = game && typeof game.voting === "object" ? game.voting : null;
-      const isOpen = !!(voting && voting.open);
-      const votingHostIndex = voting && Number.isFinite(Number(voting.hostIndex)) ? Number(voting.hostIndex) : -1;
-
-      // If voting is not open, send guests back to Invite (it will show next event / status)
-      if (!isOpen || votingHostIndex < 0) {
-        if (actions && typeof actions.setState === "function") {
-          actions.setState("invite");
-          return;
+        if (introEl) introEl.textContent = "We couldn’t find this Culinary Quest.";
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              Please try opening the invite again, or ask the organiser to re-send it.
+            </p>
+          `;
         }
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
-            </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
-            <section class="menu-section">
-              <div class="menu-course">MAIN</div>
-              <h2 class="menu-h2">VOTING ISN’T OPEN YET</h2>
-              <p class="menu-copy">Please return to your invite screen.</p>
-            </section>
-          </section>
-        `;
         return;
       }
 
-      const hostName = hostNames[votingHostIndex] || `Host ${votingHostIndex + 1}`;
+      const hosts = Array.isArray(game.hosts) ? game.hosts : [];
+      const tokens = tokenListFromGame(game).map(normToken);
+      const viewerIndex = tokens.indexOf(inviteToken);
 
-      // Eligibility (organiser finalises this). MVP expects eligibleTokens map keyed by invite token.
+      if (viewerIndex < 0) {
+        if (introEl) introEl.textContent = "This invite token doesn’t match any player in the game.";
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              Please ask the organiser to re-send your link.
+            </p>
+          `;
+        }
+        return;
+      }
+
+      const voting =
+        game.voting && typeof game.voting === "object" ? game.voting : null;
+
+      if (!voting || !voting.open || !Number.isFinite(Number(voting.hostIndex))) {
+        if (introEl) introEl.textContent = "Voting isn’t open yet.";
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              Head back to the event screen — voting will appear here once the organiser opens it.
+            </p>
+            <div class="menu-actions" style="margin-top:12px;">
+              <button class="btn btn-primary" id="backToEvent">Back to event</button>
+            </div>
+          `;
+          const backBtn = bodyEl.querySelector("#backToEvent");
+          if (backBtn && actions && typeof actions.setState === "function") {
+            backBtn.addEventListener("click", () => actions.setState("invite"));
+          }
+        }
+        return;
+      }
+
+      const hostIndex = Number(voting.hostIndex);
+      const hostDoc = hosts[hostIndex] || {};
+      const hostName = hostDoc.name || `Host ${hostIndex + 1}`;
+      const viewerDoc = hosts[viewerIndex] || {};
+      const viewerName = viewerDoc.name || `Guest`;
+
+      if (introEl) {
+        introEl.innerHTML = `
+          Score <strong>${esc(hostName)}</strong>’s event
+          <br><span class="muted" style="font-size:12px;">Your vote is private until the final reveal.</span>
+        `;
+      }
+
       const eligibleTokens =
-        voting && voting.eligibleTokens && typeof voting.eligibleTokens === "object"
+        voting.eligibleTokens && typeof voting.eligibleTokens === "object"
           ? voting.eligibleTokens
           : {};
 
-      const eligible = inviteToken ? !!eligibleTokens[String(inviteToken)] : false;
+      const eventVotes = getEventVotes(game, hostIndex);
+      const { eligibleCount, submittedCount } = countEligibleAndSubmitted(eligibleTokens, eventVotes);
 
-      // Submission check (MVP: votes map keyed by invite token under votesByEvent[hostIndex])
-      const votesByEvent =
-        game.votesByEvent && typeof game.votesByEvent === "object" ? game.votesByEvent : {};
-      const eventVotes =
-        votesByEvent[String(votingHostIndex)] && typeof votesByEvent[String(votingHostIndex)] === "object"
-          ? votesByEvent[String(votingHostIndex)]
-          : {};
-      const hasVoted = inviteToken ? !!eventVotes[String(inviteToken)] : false;
+      // IMPORTANT: Host cannot vote for their own event.
+      if (viewerIndex === hostIndex) {
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              <strong>You can’t vote for your own event.</strong>
+              <br><br>
+              You’ve hosted — now everyone else gets to leave their feedback.
+            </p>
 
-      const eligibleCount = Object.keys(eligibleTokens).length;
-      const submittedCount = Object.keys(eventVotes).length;
+            <div class="menu-divider" aria-hidden="true"></div>
 
-      const { mode, cats } = getCategories(game);
+            <p class="menu-copy">
+              <strong>Voting progress:</strong> ${submittedCount} / ${eligibleCount} votes received.
+            </p>
 
-      // Host cannot vote for their own event
-      if (viewerIdx === votingHostIndex) {
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
+            <p class="muted" style="margin-top:10px;font-size:12px;">
+              When voting closes, you’ll be taken straight to what’s next.
+            </p>
+
+            <div class="menu-actions" style="margin-top:12px;">
+              <button class="btn btn-primary" id="backToEvent">Back</button>
             </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
+          `;
 
-            <section class="menu-section">
-              <div class="menu-course">MAIN</div>
-              <h2 class="menu-h2">VOTING IS OPEN</h2>
-              <p class="menu-copy">
-                It’s your night, so you don’t score your own event — keeps it fair.
-              </p>
-              <p class="menu-copy">
-                Take a breath. You’ve hosted — now everyone else gets to leave their feedback.
-              </p>
-
-              <div class="menu-divider" aria-hidden="true"></div>
-
-              <p class="muted" style="text-align:center;">
-                Votes received: ${submittedCount} of ${eligibleCount}
-              </p>
-
-              <p class="menu-copy" style="margin-top:10px;">
-                When voting closes, you’ll be taken straight to what’s next.
-              </p>
-            </section>
-          </section>
-        `;
+          const backBtn = bodyEl.querySelector("#backToEvent");
+          if (backBtn && actions && typeof actions.setState === "function") {
+            backBtn.addEventListener("click", () => actions.setState("invite"));
+          }
+        }
         return;
       }
 
-      // Not eligible → gentle message (organiser controls eligibility on finalise screen)
-      if (!eligible) {
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
+      // Not eligible
+      if (!eligibleTokens[inviteToken]) {
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              You’re not currently marked as eligible to vote for this event.
+              <br><br>
+              If you did attend, ask the organiser to include you when finalising the event.
+            </p>
+
+            <div class="menu-actions" style="margin-top:12px;">
+              <button class="btn btn-primary" id="backToEvent">Back</button>
             </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
-            <section class="menu-section">
-              <div class="menu-course">MAIN</div>
-              <h2 class="menu-h2">VOTING NOT ENABLED</h2>
-              <p class="menu-copy">
-                ${esc(organiserName)} hasn’t marked you as attending this night.
-              </p>
-              <p class="menu-copy">
-                If that’s not right, ask ${esc(organiserName)} to include you for voting.
-              </p>
-            </section>
-          </section>
-        `;
+          `;
+
+          const backBtn = bodyEl.querySelector("#backToEvent");
+          if (backBtn && actions && typeof actions.setState === "function") {
+            backBtn.addEventListener("click", () => actions.setState("invite"));
+          }
+        }
         return;
       }
 
-      // Already voted → thank you panel (no score hints)
-      if (hasVoted) {
-        root.innerHTML = `
-          <section class="menu-card">
-            <div class="menu-hero">
-              <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
-            </div>
-            <div class="menu-ornament" aria-hidden="true"></div>
+      // Already voted
+      if (eventVotes[inviteToken] || eventVotes[inviteTokenRaw]) {
+        if (bodyEl) {
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              <strong>Your vote is in.</strong>
+              <br><br>
+              Thanks, ${esc(viewerName)} — you’ve done your bit.
+            </p>
 
-            <section class="menu-section">
-              <div class="menu-course">MAIN</div>
-              <h2 class="menu-h2">VOTE RECEIVED</h2>
-              <p class="menu-copy">
-                Thanks — your vote is in for <strong>${esc(hostName)}</strong>.
-              </p>
-              <p class="menu-copy">
-                We won’t show scores yet — results come once voting closes.
-              </p>
-              <p class="muted" style="text-align:center;margin-top:10px;">
-                Votes received: ${submittedCount} of ${eligibleCount}
-              </p>
-            </section>
-          </section>
-        `;
+            <div class="menu-divider" aria-hidden="true"></div>
+
+            <p class="menu-copy">
+              <strong>Voting progress:</strong> ${submittedCount} / ${eligibleCount} votes received.
+            </p>
+
+            <p class="muted" style="margin-top:10px;font-size:12px;">
+              Results are revealed once voting closes.
+            </p>
+
+            <div class="menu-actions" style="margin-top:12px;">
+              <button class="btn btn-primary" id="backToEvent">Back</button>
+            </div>
+          `;
+
+          const backBtn = bodyEl.querySelector("#backToEvent");
+          if (backBtn && actions && typeof actions.setState === "function") {
+            backBtn.addEventListener("click", () => actions.setState("invite"));
+          }
+        }
         return;
       }
 
-      // Render vote form
-      const catRows =
-        mode === "category"
-          ? cats.map((c, i) => {
-              const safe = esc(c || `Category ${i + 1}`);
-              return `
-                <label class="menu-copy" style="display:block;margin-top:10px;">
-                  <strong>${safe}</strong>
-                  <input class="input" type="number" min="1" max="10" step="1"
-                    data-cat="${esc(c)}"
-                    placeholder="1–10"
-                    style="margin-top:6px;width:100%;"
-                    />
-                </label>
-              `;
-            }).join("")
-          : `
-              <label class="menu-copy" style="display:block;margin-top:10px;">
-                <strong>Overall score</strong>
-                <input class="input" type="number" min="1" max="10" step="1"
-                  data-overall="1"
-                  placeholder="1–10"
-                  style="margin-top:6px;width:100%;"
-                />
+      const scoring = scoringModelFromGame(game);
+      const minScore = 1;
+      const maxScore = 10;
+
+      const scoreFieldsHtml = scoring.byCategory
+        ? `
+          <p class="menu-copy">
+            Score each category from <strong>${minScore}</strong> to <strong>${maxScore}</strong>.
+          </p>
+
+          <div style="margin-top:10px;">
+            ${scoring.categories.map((c, i) => `
+              <label class="menu-copy" style="text-align:left;margin-top:${i ? 10 : 0}px;">
+                <strong>${esc(c)}</strong>
               </label>
-            `;
-
-      root.innerHTML = `
-        <section class="menu-card">
-          <div class="menu-hero">
-            <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
+              <input
+                class="menu-input vote-score"
+                type="number"
+                inputmode="numeric"
+                min="${minScore}"
+                max="${maxScore}"
+                step="1"
+                data-cat="${esc(c)}"
+                placeholder="${minScore}-${maxScore}"
+              />
+            `).join("")}
           </div>
-          <div class="menu-ornament" aria-hidden="true"></div>
+        `
+        : `
+          <p class="menu-copy">
+            Give one overall score from <strong>${minScore}</strong> to <strong>${maxScore}</strong>.
+          </p>
 
-          <section class="menu-section">
-            <div class="menu-course">MAIN</div>
-            <h2 class="menu-h2">SCORE ${esc(hostName)}</h2>
-            <p class="menu-copy">Score from 1 to 10. Keep it honest. Keep it kind.</p>
+          <label class="menu-copy" style="text-align:left;margin-top:10px;">
+            <strong>Overall score</strong>
+          </label>
+          <input
+            id="overallScore"
+            class="menu-input"
+            type="number"
+            inputmode="numeric"
+            min="${minScore}"
+            max="${maxScore}"
+            step="1"
+            placeholder="${minScore}-${maxScore}"
+          />
+        `;
 
-            ${catRows}
+      bodyEl.innerHTML = `
+        ${scoreFieldsHtml}
 
-            <label class="menu-copy" style="display:block;margin-top:12px;">
-              <strong>Comment (optional)</strong>
-              <textarea class="input" id="voteComment" maxlength="250"
-                placeholder="Up to 250 characters…"
-                style="margin-top:6px;min-height:90px;width:100%;"></textarea>
-              <div class="muted" style="text-align:right;font-size:11px;margin-top:4px;">
-                <span id="commentCount">0</span>/250
-              </div>
-            </label>
+        <div class="menu-divider" aria-hidden="true"></div>
 
-            <div class="menu-actions" style="margin-top:14px;">
-              <button class="btn btn-primary" id="submitVoteBtn">Submit vote</button>
-            </div>
-          </section>
-        </section>
+        <label class="menu-copy" for="voteComment" style="text-align:left;margin-top:10px;">
+          <strong>Comment</strong> <span class="muted">(optional, max 250 chars)</span>
+        </label>
+        <textarea
+          id="voteComment"
+          class="menu-input"
+          rows="3"
+          maxlength="250"
+          placeholder="A quick note for the host…"
+        ></textarea>
+        <div class="muted" style="text-align:right;font-size:11px;margin-top:4px;">
+          <span id="commentCount">0</span>/250
+        </div>
+
+        <div class="menu-actions" style="margin-top:14px;">
+          <button class="btn btn-primary" id="submitVote">Submit vote</button>
+        </div>
+
+        <p class="muted" style="text-align:center;margin-top:10px;font-size:11px;">
+          Votes received: ${submittedCount} of ${eligibleCount}
+        </p>
       `;
 
-      const commentEl = root.querySelector("#voteComment");
-      const countEl = root.querySelector("#commentCount");
+      const commentEl = bodyEl.querySelector("#voteComment");
+      const countEl = bodyEl.querySelector("#commentCount");
       if (commentEl && countEl) {
         commentEl.addEventListener("input", () => {
-          countEl.textContent = String(commentEl.value.length || 0);
+          countEl.textContent = String((commentEl.value || "").length);
         });
       }
 
-      const btn = root.querySelector("#submitVoteBtn");
-      if (!btn) return;
+      const submitBtn = bodyEl.querySelector("#submitVote");
+      if (!submitBtn) return;
 
-      btn.addEventListener("click", async () => {
+      submitBtn.addEventListener("click", async () => {
         try {
-          btn.disabled = true;
+          submitBtn.disabled = true;
 
-          const commentRaw = commentEl ? String(commentEl.value || "") : "";
-          const comment = commentRaw.length > 250 ? commentRaw.slice(0, 250) : commentRaw;
+          let record;
 
-          const vote = {
-            submittedAt: new Date().toISOString(),
-            comment
-          };
-
-          if (mode === "category") {
-            const inputs = Array.from(root.querySelectorAll("input[data-cat]"));
+          if (scoring.byCategory) {
+            const inputs = bodyEl.querySelectorAll(".vote-score");
             const scores = {};
-            for (const inp of inputs) {
-              const cat = inp.getAttribute("data-cat") || "";
-              const v = Number(inp.value);
-              if (!Number.isFinite(v) || v < 1 || v > 10) {
-                alert("Please score each category from 1 to 10.");
-                btn.disabled = false;
+            let total = 0;
+
+            for (const el of inputs) {
+              const cat = el.getAttribute("data-cat") || "";
+              const val = clampInt(el.value, minScore, maxScore);
+              if (val == null || Math.floor(Number(el.value)) !== Number(el.value)) {
+                window.alert(`Please enter a whole number ${minScore}-${maxScore} for every category.`);
+                submitBtn.disabled = false;
                 return;
               }
-              scores[cat] = v;
+              scores[cat] = val;
+              total += val;
             }
-            vote.scores = scores;
+
+            record = { mode: "category", scores, total };
           } else {
-            const inp = root.querySelector("input[data-overall]");
-            const v = Number(inp && inp.value);
-            if (!Number.isFinite(v) || v < 1 || v > 10) {
-              alert("Please enter a score from 1 to 10.");
-              btn.disabled = false;
+            const overallEl = bodyEl.querySelector("#overallScore");
+            const raw = overallEl ? overallEl.value : "";
+            const val = clampInt(raw, minScore, maxScore);
+            if (val == null || Math.floor(Number(raw)) !== Number(raw)) {
+              window.alert(`Please enter a whole number ${minScore}-${maxScore}.`);
+              submitBtn.disabled = false;
               return;
             }
-            vote.score = v;
+            record = { mode: "simple", score: val };
           }
 
-          if (!inviteToken) {
-            alert("This vote link is missing an invite token.");
-            btn.disabled = false;
-            return;
-          }
+          let comment = commentEl ? String(commentEl.value || "") : "";
+          comment = comment.trim().slice(0, 250);
+
+          const submittedAt = new Date().toISOString();
+
+          // Tracker-friendly fields (no sensitive info)
+          record.comment = comment;
+          record.submittedAt = submittedAt;
+          record.voterToken = inviteToken;
+          record.voterIndex = viewerIndex;
+          record.voterName = viewerName || null;
 
           // Store under votesByEvent.<hostIndex>.<inviteToken>
-          const patch = {
-            [`votesByEvent.${String(votingHostIndex)}.${String(inviteToken)}`]: vote
-          };
-
-          await updateGame(gameId, patch);
+          const field = `votesByEvent.${hostIndex}.${inviteToken}`;
+          await updateGame(gameId, { [field]: record });
           if (cancelled) return;
 
-          // After submit, re-render via state
-          if (actions && typeof actions.setState === "function") {
-            actions.setState("voting");
-          } else {
-            location.reload();
+          bodyEl.innerHTML = `
+            <p class="menu-copy">
+              <strong>Vote submitted.</strong>
+              <br><br>
+              Thanks, ${esc(viewerName)}.
+            </p>
+
+            <p class="muted" style="margin-top:10px;font-size:12px;">
+              You won’t see scores until voting closes.
+            </p>
+
+            <div class="menu-actions" style="margin-top:12px;">
+              <button class="btn btn-primary" id="backToEvent">Back</button>
+            </div>
+          `;
+
+          const backBtn = bodyEl.querySelector("#backToEvent");
+          if (backBtn && actions && typeof actions.setState === "function") {
+            backBtn.addEventListener("click", () => actions.setState("invite"));
           }
         } catch (err) {
-          console.error("[VotingScreen] submit failed", err);
-          alert("Sorry — we couldn’t submit your vote. Please try again.");
-          btn.disabled = false;
+          console.warn("[VotingScreen] submit failed", err);
+          window.alert("Sorry — we couldn’t submit your vote just now. Please try again.");
+          submitBtn.disabled = false;
         }
       });
     } catch (err) {
+      console.error("[VotingScreen] Failed to load", err);
       if (cancelled) return;
-      console.error("[VotingScreen] failed", err);
-      root.innerHTML = `
-        <section class="menu-card">
-          <div class="menu-hero">
-            <img class="menu-logo" src="./src/skins/cooking/assets/cq-logo.png" alt="Culinary Quest" />
-          </div>
-          <div class="menu-ornament" aria-hidden="true"></div>
-          <section class="menu-section">
-            <div class="menu-course">MAIN</div>
-            <h2 class="menu-h2">SOMETHING WENT WRONG</h2>
-            <p class="menu-copy">Please refresh and try again.</p>
-            <p class="muted" style="text-align:center;font-size:11px;">${esc(err && err.message ? err.message : String(err))}</p>
-          </section>
-        </section>
-      `;
+      if (introEl) introEl.textContent = "Something went wrong loading voting.";
+      if (bodyEl) bodyEl.innerHTML = `<p class="menu-copy">Please refresh and try again.</p>`;
     }
   })();
 
