@@ -1545,6 +1545,20 @@ if (hostIndex < 0 && hosts.length) {
 
       const gameId = urlGameId;            // Firestore doc ID
       const gameStatus = game.status || "links";
+
+      // NEW: voting overrides availability/inProgress when it's open
+      const voting =
+        game.voting && typeof game.voting === "object" ? game.voting : null;
+
+      if (
+        voting &&
+        voting.open &&
+        actions &&
+        typeof actions.setState === "function"
+      ) {
+        actions.setState("voting");
+        return;
+      }
       
       // availability phase redirect
       if (
