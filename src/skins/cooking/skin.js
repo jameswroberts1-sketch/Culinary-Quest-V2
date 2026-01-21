@@ -85,6 +85,7 @@ export const routes = {
 
   // ⬇️ NEW: host availability checklist
   availability: () => safeLoad("./screens/AvailabilityScreen.js", "Availability"),
+  voting: () => safeLoad("./screens/VotingScreen.js", "Voting"),
 
   started:  () => Promise.resolve(stubRenderer("Game")),
   finished: () => Promise.resolve(stubRenderer("Results")),
